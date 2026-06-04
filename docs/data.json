@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "updated_at": "2026-06-04T23:14:11.530Z",
+    "market_url": "https://polymarket.com/event/spacex-ipo-closing-market-cap-above",
+    "resolves": "2027-12-31"
+  },
+  "current": {
+    "date": "2026-06-04",
+    "implied_median": 2.26046511627907,
+    "prob_1_8t": 0.875,
+    "prob_2_0t": 0.705,
+    "prob_2_4t": 0.35,
+    "markets": [
+      {
+        "label": ">$1T",
+        "threshold": 1,
+        "prob": 0.99,
+        "volume": 501435.791826
+      },
+      {
+        "label": ">$1.2T",
+        "threshold": 1.2,
+        "prob": 0.9825,
+        "volume": 304647.71350000054
+      },
+      {
+        "label": ">$1.4T",
+        "threshold": 1.4,
+        "prob": 0.9665,
+        "volume": 192092.08438899988
+      },
+      {
+        "label": ">$1.6T",
+        "threshold": 1.6,
+        "prob": 0.9375,
+        "volume": 257951.69061799976
+      },
+      {
+        "label": ">$1.8T",
+        "threshold": 1.8,
+        "prob": 0.875,
+        "volume": 378259.2322749999
+      },
+      {
+        "label": ">$2T",
+        "threshold": 2,
+        "prob": 0.705,
+        "volume": 697352.9490210004
+      },
+      {
+        "label": ">$2.2T",
+        "threshold": 2.2,
+        "prob": 0.565,
+        "volume": 180886.82891199997
+      },
+      {
+        "label": ">$2.4T",
+        "threshold": 2.4,
+        "prob": 0.35,
+        "volume": 544460.3121860004
+      },
+      {
+        "label": ">$2.6T",
+        "threshold": 2.6,
+        "prob": 0.265,
+        "volume": 212802.96750800003
+      },
+      {
+        "label": ">$2.8T",
+        "threshold": 2.8,
+        "prob": 0.15,
+        "volume": 108580.28174700003
+      },
+      {
+        "label": ">$3T",
+        "threshold": 3,
+        "prob": 0.095,
+        "volume": 1333386.653877001
+      },
+      {
+        "label": ">$3.2T",
+        "threshold": 3.2,
+        "prob": 0.055,
+        "volume": 274268.77871399984
+      },
+      {
+        "label": ">$3.4T",
+        "threshold": 3.4,
+        "prob": 0.0425,
+        "volume": 49504.56254300002
+      },
+      {
+        "label": ">$3.6T",
+        "threshold": 3.6,
+        "prob": 0.032,
+        "volume": 52748.38241000001
+      },
+      {
+        "label": ">$3.8T",
+        "threshold": 3.8,
+        "prob": 0.0235,
+        "volume": 32403.044185
+      },
+      {
+        "label": ">$4T",
+        "threshold": 4,
+        "prob": 0.014,
+        "volume": 110930.09767400037
+      }
+    ]
+  },
+  "history": []
+}

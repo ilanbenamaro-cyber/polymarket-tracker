@@ -1,0 +1,17 @@
+{
+  "name": "polymarket-tracker",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "tracker.js",
+  "scripts": {
+    "start": "node tracker.js",
+    "update-data": "node scripts/update-data.js",
+    "send-emails": "node scripts/send-emails.js",
+    "subscribe": "node scripts/add-subscriber.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "chalk": "^5.6.2",
+    "dotenv": "^16.4.7"
+  }
+}

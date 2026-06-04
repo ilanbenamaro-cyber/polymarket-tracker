@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpaceX IPO market cap — Polymarket</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  /* Hardcoded tokens (this is a standalone page, not the Claude widget). */
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #111110;
+    color: #e8e6df;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+  a { color: #185FA5; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .muted { color: #9a9890; }
+  .sub { color: #9a9890; font-size: 13px; }
+  section { margin-top: 36px; }
+  section > h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: #9a9890; margin: 0 0 14px; font-weight: 600;
+  }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .card {
+    background: #1a1a18; padding: 16px; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .card .label { font-size: 11px; text-transform: uppercase; color: #9a9890; letter-spacing: 0.5px; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 8px; }
+  .card .delta { font-size: 12px; margin-top: 6px; }
+  .card.amber .value { color: #BA7517; }
+  .card.blue .value { color: #185FA5; }
+  .chart-box {
+    background: #1a1a18; border: 1px solid rgba(255,255,255,0.08); padding: 16px; position: relative;
+  }
+  .chart-empty { color: #9a9890; font-size: 14px; text-align: center; padding: 60px 0; }
+  table.data { width: 100%; border-collapse: collapse; }
+  table.data th, table.data td {
+    padding: 9px 12px; font-size: 13px; text-align: right;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  table.data th { color: #9a9890; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  table.data th:first-child, table.data td:first-child { text-align: left; }
+  tr.tracked td { color: #BA7517; font-weight: 600; }
+  tr.sig td { background: #2a2210; }
+  .up { color: #15803D; } .down { color: #B91C1C; } .flat { color: #9a9890; }
+  .subscribe {
+    background: #1a1a18; border: 1px solid rgba(255,255,255,0.08); padding: 22px;
+  }
+  .subscribe input[type=email] {
+    background: #111110; border: 1px solid rgba(255,255,255,0.14); color: #e8e6df;
+    padding: 10px 12px; font-size: 14px; width: 280px; max-width: 60%;
+  }
+  .subscribe button {
+    background: #BA7517; color: #111110; border: none; padding: 10px 18px;
+    font-size: 14px; font-weight: 700; cursor: pointer; margin-left: 8px;
+  }
+  .subscribe button:disabled { opacity: 0.55; cursor: default; }
+  .status-msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
+  .btn-refresh {
+    background: transparent; border: 1px solid rgba(255,255,255,0.18); color: #9a9890;
+    padding: 4px 12px; font-size: 12px; cursor: pointer; margin-left: 10px;
+  }
+  footer { margin-top: 48px; color: #9a9890; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; }
+  @media (max-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 1. HEADER -->
+  <header>
+    <h1>SpaceX IPO market cap — Polymarket</h1>
+    <div class="sub">
+      <span id="updated">Loading…</span> · Refreshes daily
+      <button class="btn-refresh" id="refreshBtn" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div id="loadError" class="status-msg down" style="display:none;">Unable to load current data.</div>
+
+  <!-- 2. METRIC CARDS -->
+  <section id="cardsSection">
+    <h2>Key metrics</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- 3. CURRENT PROBABILITY CURVE -->
+  <section>
+    <h2>Current probability curve</h2>
+    <div class="chart-box"><canvas id="curveChart" height="120"></canvas></div>
+  </section>
+
+  <!-- 4. HISTORICAL TRENDS -->
+  <section>
+    <h2>Historical trends</h2>
+    <div class="chart-box">
+      <canvas id="historyChart" height="120" style="display:none;"></canvas>
+      <div class="chart-empty" id="historyEmpty">Building historical data — check back tomorrow.</div>
+    </div>
+  </section>
+
+  <!-- 5. FULL DATA TABLE -->
+  <section>
+    <h2>All thresholds</h2>
+    <table class="data">
+      <thead>
+        <tr><th>Threshold</th><th>Probability</th><th>Volume</th><th>24h change</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </section>
+
+  <!-- 6. SUBSCRIBE -->
+  <section>
+    <h2>Subscribe</h2>
+    <div class="subscribe">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Get daily market digests and movement alerts</div>
+      <div class="muted" style="font-size:13px;margin-bottom:16px;">
+        Market open (9:30 AM ET) and market close (4:00 PM ET), weekdays.
+        Significant changes (±5% on any threshold) flagged immediately.
+      </div>
+      <form id="subForm">
+        <input type="email" id="subEmail" placeholder="you@example.com" required />
+        <button type="submit" id="subBtn">Subscribe</button>
+      </form>
+      <div class="status-msg" id="subStatus"></div>
+    </div>
+  </section>
+
+  <!-- 7. FOOTER -->
+  <footer>
+    <a href="https://polymarket.com/event/spacex-ipo-closing-market-cap-above" target="_blank" rel="noopener">View market on Polymarket</a>
+    · Resolves Dec 31, 2027
+    · Implied median = linear interpolation where P(above X) = 50%.
+  </footer>
+
+</div>
+
+<script>
+  // ── Config (baked at author time) ─────────────────────────────────────────
+  const REPO = 'ilanbenamaro/polymarket-tracker';
+  const WORKFLOW_ID = 'subscribe.yml';
+  // ⚠ This PAT is INTENTIONALLY public. It is a fine-grained token scoped to
+  //   Actions: read/write on THIS repo only. It can trigger the subscribe
+  //   workflow and nothing else — it cannot read secrets, read code, or modify
+  //   any other resource. If abused, revoke at github.com/settings/tokens and
+  //   paste a fresh one here, then commit.
+  const SUBSCRIBE_PAT = 'github_pat_REPLACE_ME';
+
+  const TRACKED = new Set([1.8, 2.4]);
+  const SIGNIFICANT = 0.05;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const pct = (p) => (p == null ? '—' : Math.round(p * 100) + '%');
+  const fmtMedian = (m) => (m == null ? 'n/a' : '$' + m.toFixed(2) + 'T');
+  const fmtVol = (v) =>
+    v == null ? '—' : '$' + Math.round(v).toLocaleString('en-US');
+
+  function deltaSpan(delta) {
+    if (delta == null) return '<span class="flat">—</span>';
+    const pp = Math.round(delta * 100);
+    if (pp === 0) return '<span class="flat">—</span>';
+    const cls = pp > 0 ? 'up' : 'down';
+    const arrow = pp > 0 ? '↑ +' : '↓ ';
+    return '<span class="' + cls + '">' + arrow + Math.abs(pp) + '%</span>';
+  }
+
+  function probAt(markets, t) {
+    const row = markets.find((m) => m.threshold === t);
+    return row ? row.prob : null;
+  }
+
+  // ── Rendering ──────────────────────────────────────────────────────────────
+  let curveChart = null;
+  let historyChart = null;
+
+  function renderCards(current, prior) {
+    const priorMarkets = prior ? prior.markets : null;
+    const defs = [
+      { label: 'Implied median', cls: 'blue', value: fmtMedian(current.implied_median),
+        delta: prior ? medianDelta(current.implied_median, prior.implied_median) : null },
+      { label: 'P(>$1.8T)', cls: 'amber', value: pct(current.prob_1_8t),
+        delta: probDelta(current.prob_1_8t, priorMarkets, 1.8) },
+      { label: 'P(>$2T)', cls: '', value: pct(current.prob_2_0t),
+        delta: probDelta(current.prob_2_0t, priorMarkets, 2.0) },
+      { label: 'P(>$2.4T)', cls: 'amber', value: pct(current.prob_2_4t),
+        delta: probDelta(current.prob_2_4t, priorMarkets, 2.4) },
+    ];
+    document.getElementById('cards').innerHTML = defs
+      .map((d) =>
+        '<div class="card ' + d.cls + '">' +
+        '<div class="label">' + d.label + '</div>' +
+        '<div class="value">' + d.value + '</div>' +
+        '<div class="delta">' + (d.delta || '<span class="flat">—</span>') + '</div>' +
+        '</div>'
+      )
+      .join('');
+  }
+
+  function medianDelta(cur, prior) {
+    if (cur == null || prior == null) return null;
+    const s = Number((cur - prior).toFixed(2));
+    if (s === 0) return '<span class="flat">flat</span>';
+    const cls = s > 0 ? 'up' : 'down';
+    return '<span class="' + cls + '">' + (s > 0 ? '↑ +' : '↓ ') + '$' + Math.abs(s).toFixed(2) + 'T</span>';
+  }
+
+  function probDelta(cur, priorMarkets, t) {
+    if (cur == null || !priorMarkets) return null;
+    const p = probAt(priorMarkets, t);
+    if (p == null) return null;
+    return deltaSpan(cur - p);
+  }
+
+  function renderCurve(markets) {
+    const labels = markets.map((m) => m.label);
+    const data = markets.map((m) => m.prob * 100);
+    const pointColors = markets.map((m) => (TRACKED.has(m.threshold) ? '#BA7517' : '#185FA5'));
+    // Flat dashed line at 50% — the implied-median reference.
+    const fiftyLine = labels.map(() => 50);
+    if (curveChart) curveChart.destroy();
+    curveChart = new Chart(document.getElementById('curveChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'P(market cap above threshold)',
+            data, borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,0.15)',
+            pointBackgroundColor: pointColors, pointRadius: 4, tension: 0.3, fill: true,
+          },
+          {
+            label: '50% reference', data: fiftyLine, borderColor: '#9a9890',
+            borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false,
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          y: { min: 0, max: 100, ticks: { color: '#9a9890', callback: (v) => v + '%' },
+               grid: { color: 'rgba(255,255,255,0.06)' } },
+          x: { ticks: { color: '#9a9890' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
+      },
+    });
+  }
+
+  function renderHistory(history) {
+    const empty = document.getElementById('historyEmpty');
+    const canvas = document.getElementById('historyChart');
+    if (!history || history.length < 2) {
+      empty.style.display = 'block';
+      canvas.style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+    canvas.style.display = 'block';
+
+    // history is newest-first; reverse + take last 30 chronologically.
+    const chron = history.slice(0, 30).reverse();
+    const labels = chron.map((h) => h.date);
+    const mk = (key, color, dash) => ({
+      label: key.label, data: chron.map((h) => h[key.field] == null ? null : h[key.field] * 100),
+      borderColor: color, borderDash: dash || [], pointRadius: 2, tension: 0.3, yAxisID: 'yP',
+    });
+    const medianSet = {
+      label: 'Implied median ($T)', data: chron.map((h) => h.implied_median),
+      borderColor: '#9a9890', borderDash: [6, 4], pointRadius: 2, tension: 0.3, yAxisID: 'yM',
+    };
+
+    if (historyChart) historyChart.destroy();
+    historyChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          mk({ label: 'P(>$1.8T)', field: 'prob_1_8t' }, '#BA7517'),
+          mk({ label: 'P(>$2T)', field: 'prob_2_0t' }, '#185FA5'),
+          mk({ label: 'P(>$2.4T)', field: 'prob_2_4t' }, '#C0653A'),
+          medianSet,
+        ],
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#9a9890', boxWidth: 12 } } },
+        scales: {
+          yP: { position: 'left', min: 0, max: 100, ticks: { color: '#9a9890', callback: (v) => v + '%' },
+                grid: { color: 'rgba(255,255,255,0.06)' } },
+          yM: { position: 'right', min: 1, max: 3, ticks: { color: '#9a9890', callback: (v) => '$' + v + 'T' },
+                grid: { drawOnChartArea: false } },
+          x: { ticks: { color: '#9a9890' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
+      },
+    });
+  }
+
+  function renderTable(markets, prior) {
+    const priorMarkets = prior ? prior.markets : null;
+    document.getElementById('tableBody').innerHTML = markets
+      .map((m) => {
+        const p = priorMarkets ? probAt(priorMarkets, m.threshold) : null;
+        const delta = p == null ? null : m.prob - p;
+        const tracked = TRACKED.has(m.threshold);
+        const sig = delta != null && Math.abs(delta) >= SIGNIFICANT;
+        const cls = (tracked ? 'tracked ' : '') + (sig ? 'sig' : '');
+        const dot = tracked ? '● ' : '';
+        return '<tr class="' + cls.trim() + '">' +
+          '<td>' + dot + m.label + '</td>' +
+          '<td>' + pct(m.prob) + '</td>' +
+          '<td>' + fmtVol(m.volume) + '</td>' +
+          '<td>' + deltaSpan(delta) + '</td>' +
+          '</tr>';
+      })
+      .join('');
+  }
+
+  function renderAll(data) {
+    const current = data.current;
+    const prior = data.history && data.history.length >= 1 &&
+      data.history[0].date === current.date ? data.history[1] : data.history && data.history[0];
+    const priorEntry = prior || null;
+
+    document.getElementById('updated').textContent =
+      'Last updated: ' + new Date(data.meta.updated_at).toLocaleString();
+
+    renderCards(current, priorEntry);
+    renderCurve(current.markets);
+    renderHistory(data.history);
+    renderTable(current.markets, priorEntry);
+  }
+
+  async function load() {
+    try {
+      const res = await fetch('./data.json?t=' + Date.now());
+      if (!res.ok) throw new Error('fetch ' + res.status);
+      const data = await res.json();
+      document.getElementById('loadError').style.display = 'none';
+      renderAll(data);
+    } catch (err) {
+      document.getElementById('loadError').style.display = 'block';
+      console.error('Failed to load data.json:', err);
+    }
+  }
+
+  // ── Subscribe flow ──────────────────────────────────────────────────────────
+  async function subscribe(email) {
+    const res = await fetch(
+      'https://api.github.com/repos/' + REPO + '/actions/workflows/' + WORKFLOW_ID + '/dispatches',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + SUBSCRIBE_PAT,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main', inputs: { email } }),
+      }
+    );
+    return res.status; // 204 = success
+  }
+
+  document.getElementById('subForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('subBtn');
+    const statusEl = document.getElementById('subStatus');
+    const email = document.getElementById('subEmail').value.trim();
+    statusEl.className = 'status-msg muted';
+    statusEl.textContent = 'Subscribing…';
+    btn.disabled = true;
+    try {
+      const code = await subscribe(email);
+      if (code === 204) {
+        statusEl.className = 'status-msg up';
+        statusEl.textContent = "You're subscribed. Check your inbox for a confirmation email.";
+        document.getElementById('subEmail').value = '';
+      } else if (code === 422) {
+        statusEl.className = 'status-msg down';
+        statusEl.textContent = 'That request was rejected (422). Double-check the email address.';
+      } else {
+        statusEl.className = 'status-msg down';
+        statusEl.textContent = 'Subscription failed (HTTP ' + code + '). Please try again later.';
+      }
+    } catch (err) {
+      statusEl.className = 'status-msg down';
+      statusEl.textContent = 'Network error — please try again.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>

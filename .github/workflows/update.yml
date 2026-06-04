@@ -1,0 +1,70 @@
+name: Update market data
+
+on:
+  schedule:
+    - cron: '0 14 * * *' # 9:00 AM ET (EDT) — daily snapshot only
+    - cron: '30 14 * * 1-5' # 9:30 AM ET (EDT) — market open + email
+    - cron: '0 21 * * 1-5' # 4:00 PM ET (EDT) — market close + email
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        type: choice
+        options: [snapshot, market-open, market-close]
+        default: snapshot
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MODE=${{ github.event.inputs.mode }}" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "30 14 * * 1-5" ]; then
+            echo "MODE=market-open" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "0 21 * * 1-5" ]; then
+            echo "MODE=market-close" >> "$GITHUB_ENV"
+          else
+            echo "MODE=snapshot" >> "$GITHUB_ENV"
+          fi
+
+      - name: Fetch and update data.json
+        run: node scripts/update-data.js
+
+      - name: Commit data.json
+        run: |
+          git config user.name "polymarket-tracker[bot]"
+          git config user.email "polymarket-tracker@users.noreply.github.com"
+          git add docs/data.json
+          git diff --staged --quiet || git commit -m "chore: market data $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+          git push
+
+      - name: Send emails
+        if: env.MODE == 'market-open' || env.MODE == 'market-close'
+        run: node scripts/send-emails.js "$MODE" docs/data.json
+        env:
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
