@@ -63,6 +63,11 @@ function detectSignificantMoves(current, prior) {
 }
 
 async function main() {
+  if (!process.env.GRAPH_TENANT_ID) {
+    console.log('Email credentials not configured — skipping email send');
+    process.exit(0);
+  }
+
   const mode = process.argv[2];
   const dataPath = process.argv[3];
   if (mode !== 'market-open' && mode !== 'market-close') {
