@@ -1,17 +1,22 @@
 // scripts/update-data.js — refresh docs/data.json from live Polymarket data.
 //
 // Why this exists: this is the per-cron-tick job in GitHub Actions. It fetches
-// the live snapshot, derives the implied median (reusing the verified function
-// from digest.js so there is a single source of truth), and upserts the public
-// docs/data.json that the dashboard reads and the email job consumes.
+// the live snapshot, derives the distribution metrics (median/mean/IQR via the
+// shared metrics module, which reuses digest.js for the median), and upserts the
+// public docs/data.json that the dashboard reads.
 //
-// History is one entry per UTC day: the update workflow runs multiple times per
-// weekday (snapshot / open / close), so we dedup by date — replace today's
-// entry in place rather than appending duplicates — which is what the
-// downstream "yesterday = history[1]" comparison relies on.
+// History is one entry per UTC day, kept ASCENDING (oldest first) to match the
+// backfill output. The workflow runs multiple times per weekday (snapshot /
+// open / close), so we dedup by date — replace today's entry in place rather
+// than appending duplicates.
 
 import { fetchSnapshot } from '../api.js';
-import { computeImpliedMedian } from '../digest.js';
+import {
+  computeImpliedMedian,
+  computeImpliedMean,
+  computeIqr,
+  computeBucketProbs,
+} from './metrics.js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -19,7 +24,7 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(__dirname, '../docs/data.json');
 
-const HISTORY_CAP = 90;
+const HISTORY_CAP = 730; // ~2 years of daily entries
 const MARKET_URL =
   'https://polymarket.com/event/spacex-ipo-closing-market-cap-above';
 const RESOLVES = '2027-12-31';
@@ -52,32 +57,56 @@ async function main() {
 
   const today = new Date().toISOString().split('T')[0];
   const impliedMedian = computeImpliedMedian(markets);
+  const impliedMean = computeImpliedMean(markets);
 
-  const entry = {
+  // Lean per-day history record (used for trend lines and Δ columns).
+  const historyEntry = {
     date: today,
     implied_median: impliedMedian,
+    implied_mean: impliedMean,
     prob_1_8t: probAt(markets, 1.8),
     prob_2_0t: probAt(markets, 2.0),
     prob_2_4t: probAt(markets, 2.4),
     markets,
   };
 
+  // Enriched snapshot for the cards / distribution view.
+  const bucketByThreshold = new Map(
+    computeBucketProbs(markets).map((b) => [b.threshold, b.bucket_prob])
+  );
+  const totalVolume = markets.reduce(
+    (sum, m) => sum + (m.volume ?? 0),
+    0
+  );
+  const current = {
+    date: today,
+    implied_median: impliedMedian,
+    implied_mean: impliedMean,
+    iqr: computeIqr(markets),
+    total_volume: totalVolume,
+    markets: markets.map((m) => ({
+      ...m,
+      bucket_prob: bucketByThreshold.get(m.threshold) ?? null,
+    })),
+  };
+
   const data = readData();
   data.meta = {
+    ...data.meta, // preserve backfilled_at / history_start
     updated_at: new Date().toISOString(),
     market_url: MARKET_URL,
     resolves: RESOLVES,
   };
-  data.current = entry;
+  data.current = current;
 
-  // Dedup by date: replace today's entry in place, else prepend (newest first).
+  // Dedup by date in an ascending array: replace today's entry, else append.
   const history = Array.isArray(data.history) ? data.history : [];
-  if (history.length > 0 && history[0].date === today) {
-    history[0] = entry;
+  if (history.length > 0 && history[history.length - 1].date === today) {
+    history[history.length - 1] = historyEntry;
   } else {
-    history.unshift(entry);
+    history.push(historyEntry);
   }
-  data.history = history.slice(0, HISTORY_CAP);
+  data.history = history.slice(-HISTORY_CAP);
 
   // docs/ should already exist, but be defensive for a fresh checkout.
   mkdirSync(dirname(DATA_PATH), { recursive: true });
@@ -86,7 +115,7 @@ async function main() {
   const medianLabel =
     impliedMedian == null ? 'n/a' : `$${impliedMedian.toFixed(2)}T`;
   console.log(
-    `✓ data.json updated: ${markets.length} thresholds, median ${medianLabel}`
+    `✓ data.json updated: ${markets.length} thresholds, median ${medianLabel}, ${data.history.length} history days`
   );
 }
 

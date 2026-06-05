@@ -5,394 +5,541 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SpaceX IPO market cap — Polymarket</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-  /* Hardcoded tokens (this is a standalone page, not the Claude widget). */
+  :root {
+    --bg: #111110; --bg-card: #1a1a18; --bg-card-2: #201f1c;
+    --text: #e8e6df; --text-muted: #9a9890;
+    --amber: #c47f3a; --blue: #5B9BD5; --green: #4ade80; --red: #f87171;
+    --border: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; }
   html, body {
-    margin: 0;
-    padding: 0;
-    background: #111110;
-    color: #e8e6df;
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
-  a { color: #185FA5; }
-  h1 { font-size: 24px; margin: 0 0 4px; }
-  .muted { color: #9a9890; }
-  .sub { color: #9a9890; font-size: 13px; }
-  section { margin-top: 36px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 64px; }
+  a { color: var(--blue); }
+  .muted { color: var(--text-muted); }
+
+  /* Header */
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .head h1 { font-size: 22px; margin: 0 0 4px; }
+  .head .sub { color: var(--text-muted); font-size: 13px; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    background: var(--bg-card); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 13px; font-size: 12.5px; cursor: pointer; border-radius: 8px;
+  }
+  .btn:hover { background: var(--bg-card-2); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  section { margin-top: 30px; }
   section > h2 {
-    font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px;
-    color: #9a9890; margin: 0 0 14px; font-weight: 600;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px;
+    color: var(--text-muted); margin: 0 0 14px; font-weight: 600;
   }
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .card {
-    background: #1a1a18; padding: 16px; border: 1px solid rgba(255,255,255,0.08);
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .card { background: var(--bg-card); padding: 15px; border: 1px solid var(--border); border-radius: 10px; }
+  .card .label { font-size: 10.5px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.4px; }
+  .card .value { font-size: 23px; font-weight: 700; margin-top: 8px; line-height: 1.1; }
+  .card .delta { font-size: 11.5px; margin-top: 6px; }
+  .card.amber .value { color: var(--amber); }
+  .card.blue .value { color: var(--blue); }
+  .card .approx { font-size: 10px; color: var(--text-muted); font-weight: 400; }
+
+  /* Charts */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-box { background: var(--bg-card); border: 1px solid var(--border); padding: 16px; border-radius: 10px; }
+  .chart-box h3 { font-size: 12.5px; margin: 0 0 12px; color: var(--text); font-weight: 600; }
+  .chart-empty { color: var(--text-muted); font-size: 14px; text-align: center; padding: 60px 0; }
+  canvas { max-width: 100%; }
+
+  /* Timeframe selector */
+  .tf { display: inline-flex; gap: 4px; margin-left: 10px; }
+  .tf button {
+    background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    padding: 3px 11px; font-size: 11.5px; cursor: pointer; border-radius: 7px;
   }
-  .card .label { font-size: 11px; text-transform: uppercase; color: #9a9890; letter-spacing: 0.5px; }
-  .card .value { font-size: 26px; font-weight: 700; margin-top: 8px; }
-  .card .delta { font-size: 12px; margin-top: 6px; }
-  .card.amber .value { color: #BA7517; }
-  .card.blue .value { color: #185FA5; }
-  .chart-box {
-    background: #1a1a18; border: 1px solid rgba(255,255,255,0.08); padding: 16px; position: relative;
-  }
-  .chart-empty { color: #9a9890; font-size: 14px; text-align: center; padding: 60px 0; }
+  .tf button.active { background: var(--amber); border-color: var(--amber); color: #1a1a18; font-weight: 700; }
+
+  /* Table */
   table.data { width: 100%; border-collapse: collapse; }
   table.data th, table.data td {
-    padding: 9px 12px; font-size: 13px; text-align: right;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 8px 10px; font-size: 12.5px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05);
   }
-  table.data th { color: #9a9890; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  table.data th { color: var(--text-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; }
   table.data th:first-child, table.data td:first-child { text-align: left; }
-  tr.tracked td { color: #BA7517; font-weight: 600; }
-  tr.sig td { background: #2a2210; }
-  .up { color: #15803D; } .down { color: #B91C1C; } .flat { color: #9a9890; }
-  .subscribe {
-    background: #1a1a18; border: 1px solid rgba(255,255,255,0.08); padding: 22px;
+  tr.tracked td { color: var(--amber); font-weight: 600; }
+  tr.mover td { background: rgba(196,127,58,0.10); }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--text-muted); }
+
+  /* Movers */
+  .movers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .mover { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .mover .thr { font-size: 14px; font-weight: 700; }
+  .mover .chg { font-size: 13px; margin-top: 6px; }
+  .mover .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  details { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  details summary { cursor: pointer; font-size: 13px; color: var(--text); }
+  details ul { margin: 12px 0 2px; padding-left: 18px; color: var(--text-muted); font-size: 12.5px; line-height: 1.7; }
+
+  footer { margin-top: 44px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); padding-top: 16px; }
+  .err { color: var(--red); font-size: 13px; }
+
+  @media (max-width: 860px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .movers { grid-template-columns: 1fr; }
   }
-  .subscribe input[type=email] {
-    background: #111110; border: 1px solid rgba(255,255,255,0.14); color: #e8e6df;
-    padding: 10px 12px; font-size: 14px; width: 280px; max-width: 60%;
-  }
-  .subscribe button {
-    background: #BA7517; color: #111110; border: none; padding: 10px 18px;
-    font-size: 14px; font-weight: 700; cursor: pointer; margin-left: 8px;
-  }
-  .subscribe button:disabled { opacity: 0.55; cursor: default; }
-  .status-msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
-  .btn-refresh {
-    background: transparent; border: 1px solid rgba(255,255,255,0.18); color: #9a9890;
-    padding: 4px 12px; font-size: 12px; cursor: pointer; margin-left: 10px;
-  }
-  footer { margin-top: 48px; color: #9a9890; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; }
-  @media (max-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="dashboard">
 
   <!-- 1. HEADER -->
-  <header>
-    <h1>SpaceX IPO market cap — Polymarket</h1>
-    <div class="sub">
-      <span id="updated">Loading…</span> · Refreshes daily
-      <button class="btn-refresh" id="refreshBtn" type="button">Refresh</button>
+  <div class="head">
+    <div>
+      <h1>SpaceX IPO market cap — Polymarket</h1>
+      <div class="sub">Polymarket · resolves Dec 31 2027</div>
     </div>
-  </header>
+    <div class="actions">
+      <span class="sub" id="updated">Loading…</span>
+      <button class="btn" id="refreshBtn" type="button">Refresh</button>
+      <button class="btn" id="pngBtn" type="button">Download PNG</button>
+      <button class="btn" id="csvBtn" type="button">Export CSV</button>
+    </div>
+  </div>
 
-  <div id="loadError" class="status-msg down" style="display:none;">Unable to load current data.</div>
+  <div id="loadError" class="err" style="display:none;">Unable to load current data.</div>
 
-  <!-- 2. METRIC CARDS -->
-  <section id="cardsSection">
+  <!-- 2. METRIC ROW -->
+  <section>
     <h2>Key metrics</h2>
     <div class="cards" id="cards"></div>
   </section>
 
-  <!-- 3. CURRENT PROBABILITY CURVE -->
+  <!-- 3. DISTRIBUTION -->
   <section>
-    <h2>Current probability curve</h2>
-    <div class="chart-box"><canvas id="curveChart" height="120"></canvas></div>
+    <h2>Distribution</h2>
+    <div class="grid2">
+      <div class="chart-box">
+        <h3>Cumulative — P(market cap &gt; X)</h3>
+        <canvas id="curveChart" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Density — where the market expects the cap to land</h3>
+        <canvas id="densityChart" height="220"></canvas>
+      </div>
+    </div>
   </section>
 
   <!-- 4. HISTORICAL TRENDS -->
   <section>
-    <h2>Historical trends</h2>
+    <h2>Historical trends
+      <span class="tf" id="tfSelector">
+        <button data-days="7">7D</button>
+        <button data-days="30" class="active">30D</button>
+        <button data-days="90">90D</button>
+        <button data-days="all">All</button>
+      </span>
+    </h2>
     <div class="chart-box">
-      <canvas id="historyChart" height="120" style="display:none;"></canvas>
-      <div class="chart-empty" id="historyEmpty">Building historical data — check back tomorrow.</div>
+      <canvas id="trendChart" height="120" style="display:none;"></canvas>
+      <div class="chart-empty" id="trendEmpty">Run backfill to populate history.</div>
     </div>
   </section>
 
-  <!-- 5. FULL DATA TABLE -->
+  <!-- 5. ALL THRESHOLDS TABLE -->
   <section>
     <h2>All thresholds</h2>
-    <table class="data">
-      <thead>
-        <tr><th>Threshold</th><th>Probability</th><th>Volume</th><th>24h change</th></tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </section>
-
-  <!-- 6. SUBSCRIBE -->
-  <section>
-    <h2>Subscribe</h2>
-    <div class="subscribe">
-      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Get daily market digests and movement alerts</div>
-      <div class="muted" style="font-size:13px;margin-bottom:16px;">
-        Market open (9:30 AM ET) and market close (4:00 PM ET), weekdays.
-        Significant changes (±5% on any threshold) flagged immediately.
-      </div>
-      <form id="subForm">
-        <input type="email" id="subEmail" placeholder="you@example.com" required />
-        <button type="submit" id="subBtn">Subscribe</button>
-      </form>
-      <div class="status-msg" id="subStatus"></div>
+    <div class="chart-box" style="padding: 6px 10px;">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Threshold</th><th>Current</th><th>Bucket %</th>
+            <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th>Volume</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
     </div>
   </section>
 
-  <!-- 7. FOOTER -->
+  <!-- 6. MOVERS -->
+  <section>
+    <h2>Biggest moves (<span id="moversTf">30D</span>)</h2>
+    <div class="movers" id="movers"></div>
+  </section>
+
+  <!-- 7. METHODOLOGY -->
+  <section>
+    <h2>Methodology</h2>
+    <details>
+      <summary>How these numbers are computed</summary>
+      <ul>
+        <li><b>Probabilities</b> = Polymarket midpoint prices for each "above $X" market (P(YES)).</li>
+        <li><b>Implied median</b> = the valuation where the cumulative probability P(cap &gt; X) crosses 50%, by linear interpolation between the two bracketing thresholds.</li>
+        <li><b>Implied mean (approx)</b> = bucket-weighted expected value: each bucket's probability mass × its midpoint. Tail assumptions: the below-lowest bucket uses midpoint (lowest − $0.15T); the above-highest bucket uses (highest + $0.40T).</li>
+        <li><b>50% confidence band</b> = the 25th–75th percentile valuations of the implied distribution (where P(cap &gt; X) crosses 0.75 and 0.25).</li>
+        <li><b>Bucket %</b> = P(&gt; this threshold) − P(&gt; next threshold); the density chart adds a "&lt;$1T" bar so all buckets sum to ~100%.</li>
+        <li><b>History</b> sourced from the Polymarket CLOB price-history API at daily fidelity; early dates have fewer thresholds (markets were added over time).</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- 8. FOOTER -->
   <footer>
     <a href="https://polymarket.com/event/spacex-ipo-closing-market-cap-above" target="_blank" rel="noopener">View market on Polymarket</a>
-    · Resolves Dec 31, 2027
-    · Implied median = linear interpolation where P(above X) = 50%.
+    · data refreshes daily via GitHub Actions
   </footer>
 
 </div>
 
 <script>
-  // ── Config (baked at author time) ─────────────────────────────────────────
-  const REPO = 'ilanbenamaro-cyber/polymarket-tracker';
-  const WORKFLOW_ID = 'subscribe.yml';
-  // ⚠ This PAT is INTENTIONALLY public. It is a fine-grained token scoped to
-  //   Actions: read/write on THIS repo only. It can trigger the subscribe
-  //   workflow and nothing else — it cannot read secrets, read code, or modify
-  //   any other resource. If abused, revoke at github.com/settings/tokens and
-  //   paste a fresh one here, then commit.
-  const SUBSCRIBE_PAT = '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';
-
   const TRACKED = new Set([1.8, 2.4]);
-  const SIGNIFICANT = 0.05;
+  const TF = { left: '#c47f3a' };
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  let DATA = null;
+  let timeframeDays = 30; // default 30D
+  let curveChart, densityChart, trendChart;
+
+  // ── Formatting ──────────────────────────────────────────────────────────────
   const pct = (p) => (p == null ? '—' : Math.round(p * 100) + '%');
-  const fmtMedian = (m) => (m == null ? 'n/a' : '$' + m.toFixed(2) + 'T');
-  const fmtVol = (v) =>
-    v == null ? '—' : '$' + Math.round(v).toLocaleString('en-US');
+  const pct1 = (p) => (p == null ? '—' : (p * 100).toFixed(1) + '%');
+  const money = (m) => (m == null ? 'n/a' : '$' + m.toFixed(2) + 'T');
+  const fmtVol = (v) => (v == null ? '—' : '$' + Math.round(v).toLocaleString('en-US'));
 
   function deltaSpan(delta) {
     if (delta == null) return '<span class="flat">—</span>';
     const pp = Math.round(delta * 100);
     if (pp === 0) return '<span class="flat">—</span>';
     const cls = pp > 0 ? 'up' : 'down';
-    const arrow = pp > 0 ? '↑ +' : '↓ ';
-    return '<span class="' + cls + '">' + arrow + Math.abs(pp) + '%</span>';
+    return '<span class="' + cls + '">' + (pp > 0 ? '↑ +' : '↓ ') + Math.abs(pp) + '%</span>';
+  }
+  function moneyDelta(d) {
+    if (d == null) return '<span class="flat">—</span>';
+    const r = Number(d.toFixed(2));
+    if (r === 0) return '<span class="flat">flat</span>';
+    const cls = r > 0 ? 'up' : 'down';
+    return '<span class="' + cls + '">' + (r > 0 ? '↑ +$' : '↓ $') + Math.abs(r).toFixed(2) + 'T</span>';
   }
 
-  function probAt(markets, t) {
-    const row = markets.find((m) => m.threshold === t);
-    return row ? row.prob : null;
+  // ── History lookups (history is ascending; daily, possibly gapped) ──────────
+  const probAt = (markets, t) => { const r = markets.find((m) => m.threshold === t); return r ? r.prob : null; };
+  function dateMinus(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - n);
+    return d.toISOString().slice(0, 10);
+  }
+  function entryOnOrBefore(history, targetDate) {
+    let res = null;
+    for (const e of history) { if (e.date <= targetDate) res = e; else break; }
+    return res;
+  }
+  function entryNDaysAgo(history, n) {
+    if (history.length === 0) return null;
+    const today = history[history.length - 1].date;
+    const e = entryOnOrBefore(history, dateMinus(today, n));
+    return e && e.date !== today ? e : null;
   }
 
-  // ── Rendering ──────────────────────────────────────────────────────────────
-  let curveChart = null;
-  let historyChart = null;
+  // ── Section 2: metric cards ─────────────────────────────────────────────────
+  function renderCards() {
+    const c = DATA.current;
+    const h = DATA.history;
+    const prior = entryNDaysAgo(h, 1); // 24h
+    const band = c.iqr ? money(c.iqr.p25) + ' – ' + money(c.iqr.p75) : 'n/a';
 
-  function renderCards(current, prior) {
-    const priorMarkets = prior ? prior.markets : null;
     const defs = [
-      { label: 'Implied median', cls: 'blue', value: fmtMedian(current.implied_median),
-        delta: prior ? medianDelta(current.implied_median, prior.implied_median) : null },
-      { label: 'P(>$1.8T)', cls: 'amber', value: pct(current.prob_1_8t),
-        delta: probDelta(current.prob_1_8t, priorMarkets, 1.8) },
-      { label: 'P(>$2T)', cls: '', value: pct(current.prob_2_0t),
-        delta: probDelta(current.prob_2_0t, priorMarkets, 2.0) },
-      { label: 'P(>$2.4T)', cls: 'amber', value: pct(current.prob_2_4t),
-        delta: probDelta(current.prob_2_4t, priorMarkets, 2.4) },
+      { label: 'Implied median', cls: 'blue', value: money(c.implied_median),
+        delta: prior ? moneyDelta(c.implied_median - prior.implied_median) : null },
+      { label: 'Implied mean <span class="approx">(approx)</span>', cls: '', value: money(c.implied_mean),
+        delta: prior && prior.implied_mean != null ? moneyDelta(c.implied_mean - prior.implied_mean) : null },
+      { label: '50% confidence band', cls: '', value: '<span style="font-size:16px">' + band + '</span>', delta: null },
+      { label: 'P(&gt;$1.8T)', cls: 'amber', value: pct(probAt(c.markets, 1.8)),
+        delta: prior ? deltaSpan(probAt(c.markets, 1.8) - prior.prob_1_8t) : null },
+      { label: 'P(&gt;$2.4T)', cls: 'amber', value: pct(probAt(c.markets, 2.4)),
+        delta: prior ? deltaSpan(probAt(c.markets, 2.4) - prior.prob_2_4t) : null },
+      { label: 'Total volume', cls: '', value: c.total_volume != null ? '$' + (c.total_volume / 1e6).toFixed(1) + 'M' : '—', delta: null },
     ];
-    document.getElementById('cards').innerHTML = defs
-      .map((d) =>
-        '<div class="card ' + d.cls + '">' +
-        '<div class="label">' + d.label + '</div>' +
-        '<div class="value">' + d.value + '</div>' +
-        '<div class="delta">' + (d.delta || '<span class="flat">—</span>') + '</div>' +
-        '</div>'
-      )
-      .join('');
+    document.getElementById('cards').innerHTML = defs.map((d) =>
+      '<div class="card ' + d.cls + '">' +
+      '<div class="label">' + d.label + '</div>' +
+      '<div class="value">' + d.value + '</div>' +
+      '<div class="delta">' + (d.delta || '') + '</div>' +
+      '</div>').join('');
   }
 
-  function medianDelta(cur, prior) {
-    if (cur == null || prior == null) return null;
-    const s = Number((cur - prior).toFixed(2));
-    if (s === 0) return '<span class="flat">flat</span>';
-    const cls = s > 0 ? 'up' : 'down';
-    return '<span class="' + cls + '">' + (s > 0 ? '↑ +' : '↓ ') + '$' + Math.abs(s).toFixed(2) + 'T</span>';
-  }
+  // Vertical-line plugin for the median marker (linear x-axis).
+  const vLinePlugin = {
+    id: 'vline',
+    afterDraw(chart, args, opts) {
+      if (opts.x == null || !chart.scales.x) return;
+      const { ctx, chartArea } = chart;
+      const px = chart.scales.x.getPixelForValue(opts.x);
+      if (px < chartArea.left || px > chartArea.right) return;
+      ctx.save();
+      ctx.strokeStyle = opts.color || '#c47f3a';
+      ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = opts.color || '#c47f3a'; ctx.font = '11px system-ui';
+      ctx.fillText(opts.label || '', px + 5, chartArea.top + 12);
+      ctx.restore();
+    },
+  };
+  Chart.register(vLinePlugin);
 
-  function probDelta(cur, priorMarkets, t) {
-    if (cur == null || !priorMarkets) return null;
-    const p = probAt(priorMarkets, t);
-    if (p == null) return null;
-    return deltaSpan(cur - p);
-  }
+  // ── Section 3: distribution ─────────────────────────────────────────────────
+  function renderDistribution() {
+    const m = DATA.current.markets;
+    const median = DATA.current.implied_median;
 
-  function renderCurve(markets) {
-    const labels = markets.map((m) => m.label);
-    const data = markets.map((m) => m.prob * 100);
-    const pointColors = markets.map((m) => (TRACKED.has(m.threshold) ? '#BA7517' : '#185FA5'));
-    // Flat dashed line at 50% — the implied-median reference.
-    const fiftyLine = labels.map(() => 50);
+    // Cumulative curve (linear x = $T).
+    const pts = m.map((x) => ({ x: x.threshold, y: x.prob * 100 }));
+    const ptColors = m.map((x) => (TRACKED.has(x.threshold) ? '#c47f3a' : '#5B9BD5'));
     if (curveChart) curveChart.destroy();
     curveChart = new Chart(document.getElementById('curveChart'), {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'P(market cap above threshold)',
-            data, borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,0.15)',
-            pointBackgroundColor: pointColors, pointRadius: 4, tension: 0.3, fill: true,
-          },
-          {
-            label: '50% reference', data: fiftyLine, borderColor: '#9a9890',
-            borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false,
-          },
-        ],
-      },
+      data: { datasets: [
+        { label: 'P(>X)', data: pts, parsing: false, borderColor: '#5B9BD5',
+          backgroundColor: 'rgba(91,155,213,0.12)', pointBackgroundColor: ptColors,
+          pointRadius: 3, tension: 0.3, fill: true },
+        { label: '50%', data: [{ x: m[0].threshold, y: 50 }, { x: m[m.length-1].threshold, y: 50 }],
+          parsing: false, borderColor: '#9a9890', borderDash: [6,4], borderWidth: 1, pointRadius: 0 },
+      ]},
       options: {
         plugins: {
           legend: { display: false },
+          vline: median != null ? { x: median, label: 'median ' + money(median), color: '#c47f3a' } : {},
+          tooltip: { callbacks: { label: (i) => 'P(>$' + i.raw.x + 'T) = ' + i.raw.y.toFixed(1) + '%' } },
         },
         scales: {
-          y: { min: 0, max: 100, ticks: { color: '#9a9890', callback: (v) => v + '%' },
-               grid: { color: 'rgba(255,255,255,0.06)' } },
-          x: { ticks: { color: '#9a9890' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          x: { type: 'linear', title: { display: true, text: 'Market cap threshold ($T)', color: '#9a9890' },
+               ticks: { color: '#9a9890', callback: (v) => '$' + v + 'T' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { min: 0, max: 100, ticks: { color: '#9a9890', callback: (v) => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
         },
       },
     });
-  }
 
-  function renderHistory(history) {
-    const empty = document.getElementById('historyEmpty');
-    const canvas = document.getElementById('historyChart');
-    if (!history || history.length < 2) {
-      empty.style.display = 'block';
-      canvas.style.display = 'none';
-      return;
+    // Density (bucket probabilities, incl below-lowest bar).
+    const labels = ['<$' + m[0].threshold + 'T'];
+    const vals = [(1 - m[0].prob) * 100];
+    for (let i = 0; i < m.length; i++) {
+      const next = m[i + 1];
+      const bp = next ? m[i].prob - next.prob : m[i].prob;
+      labels.push(next ? '$' + m[i].threshold + '–' + next.threshold + 'T' : '>$' + m[i].threshold + 'T');
+      vals.push(bp * 100);
     }
-    empty.style.display = 'none';
-    canvas.style.display = 'block';
-
-    // history is newest-first; reverse + take last 30 chronologically.
-    const chron = history.slice(0, 30).reverse();
-    const labels = chron.map((h) => h.date);
-    const mk = (key, color, dash) => ({
-      label: key.label, data: chron.map((h) => h[key.field] == null ? null : h[key.field] * 100),
-      borderColor: color, borderDash: dash || [], pointRadius: 2, tension: 0.3, yAxisID: 'yP',
-    });
-    const medianSet = {
-      label: 'Implied median ($T)', data: chron.map((h) => h.implied_median),
-      borderColor: '#9a9890', borderDash: [6, 4], pointRadius: 2, tension: 0.3, yAxisID: 'yM',
-    };
-
-    if (historyChart) historyChart.destroy();
-    historyChart = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          mk({ label: 'P(>$1.8T)', field: 'prob_1_8t' }, '#BA7517'),
-          mk({ label: 'P(>$2T)', field: 'prob_2_0t' }, '#185FA5'),
-          mk({ label: 'P(>$2.4T)', field: 'prob_2_4t' }, '#C0653A'),
-          medianSet,
-        ],
-      },
+    // Highlight the bucket containing the median.
+    const colors = labels.map((_, i) => '#3a4a5a');
+    if (median != null) {
+      let bucketIdx = 0; // <lowest
+      for (let i = 0; i < m.length; i++) {
+        const lo = m[i].threshold, hi = m[i + 1] ? m[i + 1].threshold : Infinity;
+        if (median >= lo && median < hi) { bucketIdx = i + 1; break; }
+      }
+      colors[bucketIdx] = '#c47f3a';
+    }
+    if (densityChart) densityChart.destroy();
+    densityChart = new Chart(document.getElementById('densityChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Bucket probability', data: vals, backgroundColor: colors }] },
       options: {
-        plugins: { legend: { labels: { color: '#9a9890', boxWidth: 12 } } },
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: (i) => i.raw.toFixed(1) + '%' } } },
         scales: {
-          yP: { position: 'left', min: 0, max: 100, ticks: { color: '#9a9890', callback: (v) => v + '%' },
-                grid: { color: 'rgba(255,255,255,0.06)' } },
-          yM: { position: 'right', min: 1, max: 3, ticks: { color: '#9a9890', callback: (v) => '$' + v + 'T' },
-                grid: { drawOnChartArea: false } },
-          x: { ticks: { color: '#9a9890' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+          x: { ticks: { color: '#9a9890', maxRotation: 60, minRotation: 60, font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { color: '#9a9890', callback: (v) => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
         },
       },
     });
   }
 
-  function renderTable(markets, prior) {
-    const priorMarkets = prior ? prior.markets : null;
-    document.getElementById('tableBody').innerHTML = markets
-      .map((m) => {
-        const p = priorMarkets ? probAt(priorMarkets, m.threshold) : null;
-        const delta = p == null ? null : m.prob - p;
-        const tracked = TRACKED.has(m.threshold);
-        const sig = delta != null && Math.abs(delta) >= SIGNIFICANT;
-        const cls = (tracked ? 'tracked ' : '') + (sig ? 'sig' : '');
-        const dot = tracked ? '● ' : '';
-        return '<tr class="' + cls.trim() + '">' +
-          '<td>' + dot + m.label + '</td>' +
-          '<td>' + pct(m.prob) + '</td>' +
-          '<td>' + fmtVol(m.volume) + '</td>' +
-          '<td>' + deltaSpan(delta) + '</td>' +
-          '</tr>';
-      })
-      .join('');
+  // ── Section 4: historical trends ────────────────────────────────────────────
+  function filteredHistory() {
+    const h = DATA.history;
+    if (h.length === 0) return [];
+    if (timeframeDays === 'all') return h;
+    const today = h[h.length - 1].date;
+    const start = dateMinus(today, timeframeDays);
+    return h.filter((e) => e.date >= start);
   }
 
-  function renderAll(data) {
-    const current = data.current;
-    const prior = data.history && data.history.length >= 1 &&
-      data.history[0].date === current.date ? data.history[1] : data.history && data.history[0];
-    const priorEntry = prior || null;
+  function renderTrends() {
+    const empty = document.getElementById('trendEmpty');
+    const canvas = document.getElementById('trendChart');
+    const h = filteredHistory();
+    if (DATA.history.length < 2) { empty.style.display = 'block'; canvas.style.display = 'none'; return; }
+    empty.style.display = 'none'; canvas.style.display = 'block';
 
+    const labels = h.map((e) => e.date);
+    const line = (label, field, color, dash) => ({
+      label, data: h.map((e) => e[field] == null ? null : e[field] * 100),
+      borderColor: color, borderDash: dash || [], pointRadius: 0, borderWidth: 1.8, tension: 0.25, yAxisID: 'yP', spanGaps: true,
+    });
+    const moneyLine = (label, field, color, dash) => ({
+      label, data: h.map((e) => e[field]), borderColor: color, borderDash: dash || [],
+      pointRadius: 0, borderWidth: 2, tension: 0.25, yAxisID: 'yM', spanGaps: true,
+    });
+
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets: [
+        line('P(>$1.8T)', 'prob_1_8t', '#c47f3a'),
+        line('P(>$2T)', 'prob_2_0t', '#5B9BD5'),
+        line('P(>$2.4T)', 'prob_2_4t', '#9a9890'),
+        moneyLine('Implied median', 'implied_median', '#c47f3a'),
+        moneyLine('Implied mean', 'implied_mean', '#e8e6df', [5, 4]),
+      ]},
+      options: {
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: '#9a9890', boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#9a9890', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          yP: { position: 'left', min: 0, max: 100, title: { display: true, text: 'Probability', color: '#9a9890' },
+                ticks: { color: '#9a9890', callback: (v) => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          yM: { position: 'right', title: { display: true, text: 'Valuation ($T)', color: '#9a9890' },
+                ticks: { color: '#9a9890', callback: (v) => '$' + v + 'T' }, grid: { drawOnChartArea: false } },
+        },
+      },
+    });
+  }
+
+  // ── Section 5: table ────────────────────────────────────────────────────────
+  function renderTable() {
+    const m = DATA.current.markets;
+    const h = DATA.history;
+    const e1 = entryNDaysAgo(h, 1), e7 = entryNDaysAgo(h, 7), e30 = entryNDaysAgo(h, 30);
+
+    // Find largest |7d| mover threshold.
+    let topMover = null, topAbs = 0;
+    for (const x of m) {
+      if (!e7) break;
+      const p = probAt(e7.markets, x.threshold);
+      if (p == null) continue;
+      const a = Math.abs(x.prob - p);
+      if (a > topAbs) { topAbs = a; topMover = x.threshold; }
+    }
+
+    document.getElementById('tableBody').innerHTML = m.map((x) => {
+      const p1 = e1 ? probAt(e1.markets, x.threshold) : null;
+      const p7 = e7 ? probAt(e7.markets, x.threshold) : null;
+      const p30 = e30 ? probAt(e30.markets, x.threshold) : null;
+      const tracked = TRACKED.has(x.threshold);
+      const isMover = x.threshold === topMover && topAbs >= 0.01;
+      const cls = (tracked ? 'tracked ' : '') + (isMover ? 'mover' : '');
+      const dot = tracked ? '● ' : '';
+      return '<tr class="' + cls.trim() + '">' +
+        '<td>' + dot + x.label + '</td>' +
+        '<td>' + pct(x.prob) + '</td>' +
+        '<td>' + (x.bucket_prob != null ? pct1(x.bucket_prob) : '—') + '</td>' +
+        '<td>' + deltaSpan(p1 == null ? null : x.prob - p1) + '</td>' +
+        '<td>' + deltaSpan(p7 == null ? null : x.prob - p7) + '</td>' +
+        '<td>' + deltaSpan(p30 == null ? null : x.prob - p30) + '</td>' +
+        '<td>' + fmtVol(x.volume) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── Section 6: movers (selected timeframe) ──────────────────────────────────
+  function renderMovers() {
+    const m = DATA.current.markets;
+    const h = filteredHistory();
+    document.getElementById('moversTf').textContent =
+      timeframeDays === 'all' ? 'All' : timeframeDays + 'D';
+    const start = h.length ? h[0] : null;
+    const moves = [];
+    if (start && start.date !== DATA.current.date) {
+      for (const x of m) {
+        const before = probAt(start.markets, x.threshold);
+        if (before == null) continue;
+        moves.push({ label: x.label, before, after: x.prob, delta: x.prob - before });
+      }
+    }
+    moves.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    const top = moves.slice(0, 3);
+    const el = document.getElementById('movers');
+    if (top.length === 0) { el.innerHTML = '<div class="muted" style="font-size:13px">Not enough history in this window.</div>'; return; }
+    el.innerHTML = top.map((mv) => {
+      const cls = mv.delta > 0 ? 'up' : 'down';
+      const arrow = mv.delta > 0 ? '↑' : '↓';
+      return '<div class="mover">' +
+        '<div class="thr">' + mv.label + '</div>' +
+        '<div class="chg ' + cls + '">' + arrow + ' ' + pct(mv.before) + ' → ' + pct(mv.after) +
+          ' (' + (mv.delta > 0 ? '+' : '') + Math.round(mv.delta * 100) + '%)</div>' +
+        '<div class="sub">over selected window</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // ── Orchestration ───────────────────────────────────────────────────────────
+  function renderTimeframeDependent() { renderTrends(); renderTable(); renderMovers(); }
+  function renderAll() {
     document.getElementById('updated').textContent =
-      'Last updated: ' + new Date(data.meta.updated_at).toLocaleString();
-
-    renderCards(current, priorEntry);
-    renderCurve(current.markets);
-    renderHistory(data.history);
-    renderTable(current.markets, priorEntry);
+      'Updated ' + new Date(DATA.meta.updated_at).toLocaleString();
+    renderCards();
+    renderDistribution();
+    renderTimeframeDependent();
   }
 
   async function load() {
     try {
       const res = await fetch('./data.json?t=' + Date.now());
       if (!res.ok) throw new Error('fetch ' + res.status);
-      const data = await res.json();
+      DATA = await res.json();
       document.getElementById('loadError').style.display = 'none';
-      renderAll(data);
+      renderAll();
     } catch (err) {
       document.getElementById('loadError').style.display = 'block';
       console.error('Failed to load data.json:', err);
     }
   }
 
-  // ── Subscribe flow ──────────────────────────────────────────────────────────
-  async function subscribe(email) {
-    const res = await fetch(
-      'https://api.github.com/repos/' + REPO + '/actions/workflows/' + WORKFLOW_ID + '/dispatches',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + SUBSCRIBE_PAT,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main', inputs: { email } }),
-      }
-    );
-    return res.status; // 204 = success
+  // Timeframe selector
+  document.getElementById('tfSelector').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    [...document.querySelectorAll('#tfSelector button')].forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    const d = btn.dataset.days;
+    timeframeDays = d === 'all' ? 'all' : Number(d);
+    if (DATA) renderTimeframeDependent();
+  });
+
+  // ── Exports ─────────────────────────────────────────────────────────────────
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  document.getElementById('subForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('subBtn');
-    const statusEl = document.getElementById('subStatus');
-    const email = document.getElementById('subEmail').value.trim();
-    statusEl.className = 'status-msg muted';
-    statusEl.textContent = 'Subscribing…';
-    btn.disabled = true;
-    try {
-      const code = await subscribe(email);
-      if (code === 204) {
-        statusEl.className = 'status-msg up';
-        statusEl.textContent = "You're subscribed. Check your inbox for a confirmation email.";
-        document.getElementById('subEmail').value = '';
-      } else if (code === 422) {
-        statusEl.className = 'status-msg down';
-        statusEl.textContent = 'That request was rejected (422). Double-check the email address.';
-      } else {
-        statusEl.className = 'status-msg down';
-        statusEl.textContent = 'Subscription failed (HTTP ' + code + '). Please try again later.';
-      }
-    } catch (err) {
-      statusEl.className = 'status-msg down';
-      statusEl.textContent = 'Network error — please try again.';
-    } finally {
-      btn.disabled = false;
+  document.getElementById('pngBtn').addEventListener('click', async () => {
+    const node = document.getElementById('dashboard');
+    const canvas = await html2canvas(node, { backgroundColor: '#111110', scale: 2 });
+    canvas.toBlob((blob) => {
+      downloadBlob(blob, 'spacex-ipo-snapshot-' + (DATA ? DATA.current.date : 'latest') + '.png');
+    });
+  });
+
+  document.getElementById('csvBtn').addEventListener('click', () => {
+    if (!DATA) return;
+    const thresholds = DATA.current.markets.map((m) => m.threshold);
+    const header = ['date', 'implied_median', 'implied_mean', ...thresholds.map((t) => '>$' + t + 'T')];
+    const rows = [header.join(',')];
+    for (const e of DATA.history) {
+      const cells = [e.date, e.implied_median ?? '', e.implied_mean ?? ''];
+      for (const t of thresholds) { const p = probAt(e.markets, t); cells.push(p == null ? '' : p); }
+      rows.push(cells.join(','));
     }
+    downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }),
+      'spacex-ipo-history-' + DATA.current.date + '.csv');
   });
 
   document.getElementById('refreshBtn').addEventListener('click', load);
