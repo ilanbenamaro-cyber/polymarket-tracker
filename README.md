@@ -52,7 +52,7 @@ subscribe.yml  ◀── dashboard form (workflow_dispatch via public PAT)
 ```
 
 ### GitHub Pages
-- URL: **https://ilanbenamaro.github.io/polymarket-tracker/**
+- URL: **https://ilanbenamaro-cyber.github.io/polymarket-tracker/**
 - Source: `main` branch, `/docs` folder (Settings → Pages).
 - `docs/data.json` is regenerated and committed by Actions on every cron tick;
   the page fetches it client-side. `docs/.nojekyll` disables Jekyll processing.
