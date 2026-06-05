@@ -1,21 +1,17 @@
 // core/confidence.js — score how trustworthy a single snapshot/day is.
 //
 // Why this exists: the product sells trust in the number, so every snapshot
-// carries an explicit, explainable confidence assessment rather than implying
-// false precision. Three signals, each mapped to a human-readable reason:
-//   - threshold count : more active markets = a finer, better-resolved CDF
-//   - monotonicity    : P(>X) must be non-increasing; violations = stale/illiquid quotes
-//   - mean spread     : mean(best_ask - best_bid); wide = illiquid (live only)
-// Backfilled days have no order book, so spread is unknown — those are flagged
-// "price-only" and capped at "medium" (we can't vouch for liquidity we never saw).
+// carries an explicit, explainable assessment instead of implying false
+// precision. Confidence is the WORST of several signals (a single bad signal
+// caps trust), each mapped to a human-readable reason the dashboard surfaces
+// inline. Backfilled days have no order book → "price-only", capped at medium.
 
-import { countMonotonicityViolations } from './metrics.js';
-
-// Thresholds for the signal bands (documented in methodology.json).
 const MIN_THRESHOLDS_HIGH = 12;
 const MIN_THRESHOLDS_MEDIUM = 8;
-const SPREAD_HIGH = 0.04; // mean spread strictly below → eligible for high
-const SPREAD_MEDIUM = 0.08; // mean spread at/below → eligible for medium
+const SPREAD_HIGH = 0.04;
+const SPREAD_MEDIUM = 0.08;
+const THIN_SHARE_HIGH = 0.2; // < 20% thin books → fine
+const THIN_SHARE_MEDIUM = 0.5; // 20–50% thin → medium
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 
 /** Mean bid/ask spread across raw_inputs, or null if no book data present. */
@@ -29,27 +25,33 @@ function meanSpread(rawInputs) {
 }
 
 /**
- * Score a snapshot. Inputs:
- *   markets    : Array<{threshold, prob}> (the derived markets)
- *   rawInputs  : Array<{best_bid,best_ask,...}> | null  (null => backfill/price-only)
- * Returns { tier:'high'|'medium'|'low', score:0..1, reasons:string[] }.
- *
- * Tier is the WORST band any signal lands in (a single bad signal caps trust).
- * score is a smooth 0..1 blend of the three signals for sorting/at-a-glance use.
+ * Score a snapshot. All inputs are facts already computed in core/ — confidence
+ * never recomputes a metric, it only interprets:
+ *   markets       : adjusted markets [{threshold,...}]
+ *   rawInputs     : [{best_bid,best_ask,...}] | null (null => price-only)
+ *   rawViolations : monotonicity violations on RAW (from stats.adjustSnapshot)
+ *   maxAdjustment : largest |raw - adjusted| (fraction)
+ *   liquidity     : { thinCount, total, thinShare } (from stats.volumeTiers)
+ *   anomalies     : { stale, closedCount, liquidityDrop:{triggered,pct}|null }
+ * Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreConfidence({ markets, rawInputs = null }) {
+export function scoreConfidence({
+  markets,
+  rawInputs = null,
+  rawViolations = 0,
+  maxAdjustment = 0,
+  liquidity = null,
+  anomalies = null,
+}) {
   const reasons = [];
+  const tiers = [];
   const count = markets.length;
-  const violations = countMonotonicityViolations(markets);
   const spread = meanSpread(rawInputs);
   const priceOnly = spread == null;
 
-  // ── per-signal tier ──
-  const tiers = [];
-
-  if (count >= MIN_THRESHOLDS_HIGH) {
-    tiers.push('high');
-  } else if (count >= MIN_THRESHOLDS_MEDIUM) {
+  // 1) Threshold count — resolution of the CDF.
+  if (count >= MIN_THRESHOLDS_HIGH) tiers.push('high');
+  else if (count >= MIN_THRESHOLDS_MEDIUM) {
     tiers.push('medium');
     reasons.push(`${count} active thresholds (coarser CDF)`);
   } else {
@@ -57,23 +59,26 @@ export function scoreConfidence({ markets, rawInputs = null }) {
     reasons.push(`only ${count} active thresholds (sparse CDF)`);
   }
 
-  if (violations === 0) {
-    tiers.push('high');
-  } else if (violations <= 2) {
+  // 2) Monotonicity — surfaced as the size of the isotonic adjustment applied.
+  if (rawViolations === 0) tiers.push('high');
+  else if (rawViolations <= 2) {
     tiers.push('medium');
-    reasons.push(`${violations} monotonicity violation(s)`);
+    reasons.push(
+      `${rawViolations} monotonicity adjustment(s) today (max ${(maxAdjustment * 100).toFixed(1)}%)`
+    );
   } else {
     tiers.push('low');
-    reasons.push(`${violations} monotonicity violations (noisy quotes)`);
+    reasons.push(
+      `${rawViolations} monotonicity adjustments (max ${(maxAdjustment * 100).toFixed(1)}%) — noisy quotes`
+    );
   }
 
+  // 3) Spread — liquidity at the touch (live only).
   if (priceOnly) {
-    // No book → cannot assess liquidity. Cap at medium, never high.
     tiers.push('medium');
-    reasons.push('price-only (no spread data)');
-  } else if (spread < SPREAD_HIGH) {
-    tiers.push('high');
-  } else if (spread <= SPREAD_MEDIUM) {
+    reasons.push('price-only history (no bid/ask spread)');
+  } else if (spread < SPREAD_HIGH) tiers.push('high');
+  else if (spread <= SPREAD_MEDIUM) {
     tiers.push('medium');
     reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (moderate liquidity)`);
   } else {
@@ -81,20 +86,52 @@ export function scoreConfidence({ markets, rawInputs = null }) {
     reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid)`);
   }
 
-  // Tier = worst (lowest-rank) signal.
+  // 4) Liquidity breadth — how many books are thin.
+  if (liquidity && liquidity.total > 0) {
+    if (liquidity.thinShare < THIN_SHARE_HIGH) tiers.push('high');
+    else if (liquidity.thinShare <= THIN_SHARE_MEDIUM) {
+      tiers.push('medium');
+      reasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
+    } else {
+      tiers.push('low');
+      reasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
+    }
+  }
+
+  // 5) Anomalies — the feed is defensive about its own quality.
+  if (anomalies) {
+    if (anomalies.stale) {
+      tiers.push('medium');
+      reasons.push('inputs identical to prior snapshot (possible stale feed)');
+    }
+    if (anomalies.closedCount > 0) {
+      tiers.push(anomalies.closedCount > 2 ? 'low' : 'medium');
+      reasons.push(`${anomalies.closedCount} market(s) closed / not accepting orders`);
+    }
+    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) {
+      tiers.push('medium');
+      reasons.push(
+        `total volume ${(anomalies.liquidityDrop.pct * 100).toFixed(0)}% below 7-day median`
+      );
+    }
+  }
+
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
 
-  // ── smooth score (0..1) for sorting and the badge ──
+  // Smooth 0..1 score for sorting / the badge.
   const countScore = Math.min(1, count / 16);
-  const monoScore = Math.max(0, 1 - violations / 4);
-  const spreadScore = priceOnly
-    ? 0.6 // unknown liquidity → middling
-    : Math.max(0, Math.min(1, 1 - spread / 0.1));
-  const score = Number(
-    ((countScore + monoScore + spreadScore) / 3).toFixed(3)
-  );
+  const monoScore = Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
+  const spreadScore = priceOnly ? 0.6 : Math.max(0, Math.min(1, 1 - spread / 0.1));
+  const liqScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
+  let score = (countScore + monoScore + spreadScore + liqScore) / 4;
+  if (anomalies) {
+    if (anomalies.stale) score -= 0.15;
+    if (anomalies.closedCount > 0) score -= 0.1 * Math.min(3, anomalies.closedCount);
+    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) score -= 0.1;
+  }
+  score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
 
-  if (reasons.length === 0) reasons.push('full threshold set, monotonic, tight spreads');
+  if (reasons.length === 0) reasons.push('full threshold set, monotonic, tight spreads, deep books');
 
   return { tier, score, reasons };
 }

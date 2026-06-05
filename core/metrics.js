@@ -106,16 +106,21 @@ export function computeDensity(snapshot) {
 
 /**
  * Approximate expected valuation (mean) as a bucket-weighted sum of midpoints.
- * Middle buckets use the threshold midpoint; the two tails use fixed offsets.
- * Returns null for an empty snapshot. Flagged assumption-sensitive (tails).
+ * Middle buckets use the threshold midpoint; the two tails use offsets that
+ * default to the documented base case but can be overridden for sensitivity
+ * analysis (see core/stats.js meanSensitivity). Returns null for an empty
+ * snapshot. Flagged assumption-sensitive (tails).
  */
-export function computeImpliedMean(snapshot) {
+export function computeImpliedMean(
+  snapshot,
+  { belowOffset = BELOW_TAIL_OFFSET, aboveOffset = ABOVE_TAIL_OFFSET } = {}
+) {
   const s = normalize(snapshot);
   if (s.length === 0) return null;
 
   const lowest = s[0];
   const highest = s[s.length - 1];
-  let mean = (lowest.threshold - BELOW_TAIL_OFFSET) * (1 - lowest.prob);
+  let mean = (lowest.threshold - belowOffset) * (1 - lowest.prob);
 
   for (let i = 0; i < s.length - 1; i++) {
     const a = s[i];
@@ -123,9 +128,15 @@ export function computeImpliedMean(snapshot) {
     mean += ((a.threshold + b.threshold) / 2) * (a.prob - b.prob);
   }
 
-  mean += (highest.threshold + ABOVE_TAIL_OFFSET) * highest.prob;
+  mean += (highest.threshold + aboveOffset) * highest.prob;
   return mean;
 }
+
+/** The documented base-case tail offsets (exposed for the sensitivity grid). */
+export const MEAN_TAIL_OFFSETS = {
+  below: BELOW_TAIL_OFFSET,
+  above: ABOVE_TAIL_OFFSET,
+};
 
 /** Number of monotonicity violations: points where P(>X) rises as X rises. */
 export function countMonotonicityViolations(snapshot) {

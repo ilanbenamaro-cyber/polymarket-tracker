@@ -80,6 +80,10 @@ async function fetchMarketMeta() {
         label: `>$${parseFloat(match[1])}T`,
         token_id: ids[0], // YES
         volume: m.volume != null ? Number(m.volume) : null,
+        // Status flags for anomaly detection — NOT part of raw_inputs / the hash.
+        closed: m.closed === true,
+        active: m.active !== false,
+        accepting_orders: m.acceptingOrders !== false,
       };
     })
     .sort((a, b) => a.threshold - b.threshold);
@@ -139,11 +143,27 @@ export async function fetchLiveSnapshot() {
     };
   });
 
+  // Side channel for anomaly detection (closed / inactive / not accepting orders).
+  // Deliberately excluded from raw_inputs so the provenance hash recipe is stable.
+  const status = meta.map((m) => ({
+    threshold: m.threshold,
+    closed: m.closed,
+    active: m.active,
+    accepting_orders: m.accepting_orders,
+  }));
+
   return {
     fetched_at: fetchedAt,
     endpoints: [ENDPOINTS.gamma, ENDPOINTS.midpoints, ENDPOINTS.prices],
     raw_inputs,
     raw_sha256: hashRawInputs(raw_inputs),
     markets,
+    status,
   };
+}
+
+/** Count markets that are closed, inactive, or not accepting orders. */
+export function countClosed(status) {
+  if (!status) return 0;
+  return status.filter((s) => s.closed || !s.active || !s.accepting_orders).length;
 }

@@ -1,62 +1,99 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "asset": "spacex-ipo-market-cap",
-  "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES-midpoint prices. Probabilities are market midpoints; metrics are interpolated from the implied survival function P(cap > X).",
+  "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones.",
   "metrics": {
-    "implied_median": {
-      "method": "Linear interpolation of the threshold where the implied CDF P(cap > X) crosses 0.50.",
+    "isotonic_adjustment": {
+      "method": "Volume-weighted Pool Adjacent Violators (PAVA) enforces a non-increasing CDF across thresholds. On a violation (an earlier P(>X) below a later one), adjacent markets pool to their volume-weighted mean, pulling the estimate toward the more liquid quote. Each market stores raw_prob and adjusted_prob; all metrics use the adjusted curve.",
       "robust": true,
       "assumptions": [
-        "Monotonic survival curve between bracketing thresholds."
+        "Weight = market volume (fallback 1 when volume is unavailable, e.g. price-only history)."
       ],
-      "sensitivity_note": "Robust: depends only on the two thresholds straddling 50%, not on tail shape."
+      "sensitivity_note": "Removes negative-probability artifacts that arise because the markets are not jointly arbitrage-constrained. Per-snapshot monotonicity_violations and max_adjustment are published."
+    },
+    "implied_median": {
+      "method": "Threshold where the adjusted CDF P(cap > X) crosses 0.50, by linear interpolation.",
+      "robust": true,
+      "assumptions": [
+        "Monotone adjusted survival curve (guaranteed by isotonic adjustment)."
+      ],
+      "sensitivity_note": "Robust: depends only on the two thresholds straddling 50%."
+    },
+    "median_band": {
+      "method": "Spread-implied uncertainty on the median (live only): the best_bid and best_ask curves are each isotonic-adjusted, each one's 0.50 crossing is taken, and the median is bounded by { low: min, high: max } of the two. null when no two-sided book exists (price-only history).",
+      "robust": true,
+      "assumptions": [
+        "Bid/ask quotes are present for enough thresholds to cross 0.50; missing quotes are excluded, never synthesized."
+      ],
+      "sensitivity_note": "Converts the point median into a defensible range; width reflects book tightness."
     },
     "implied_mean": {
-      "method": "Bucket-weighted expected value: sum of (bucket probability x bucket midpoint) across all buckets.",
+      "method": "Bucket-weighted expected value over the adjusted distribution; tails use midpoint offsets (base case: lowest - 0.15, highest + 0.40).",
       "robust": false,
       "assumptions": [
-        "Below-lowest bucket midpoint = lowest_threshold - 0.15 ($T).",
-        "Above-highest bucket midpoint = highest_threshold + 0.40 ($T).",
-        "Within-bucket mass sits at the bucket midpoint."
+        "Below-lowest midpoint = lowest - 0.15 ($T).",
+        "Above-highest midpoint = highest + 0.40 ($T).",
+        "Within-bucket mass at the bucket midpoint."
       ],
-      "sensitivity_note": "Assumption-sensitive: the two tail-midpoint offsets materially affect the result when tail probabilities are non-trivial. Treat as approximate."
+      "sensitivity_note": "Assumption-sensitive; a sensitivity range is published (see mean_sensitivity)."
+    },
+    "mean_sensitivity": {
+      "method": "implied_mean evaluated over a 3x3 grid of tail midpoints (below in {0.10,0.15,0.20}, above in {0.30,0.40,0.60}); reported as { central (base case), low (grid min), high (grid max) }.",
+      "robust": true,
+      "assumptions": [
+        "The grid spans plausible tail placements."
+      ],
+      "sensitivity_note": "A tight band proves the mean is robust to tail assumptions; a wide band discloses fragility."
     },
     "iqr": {
-      "method": "p25/p75 valuations = interpolated thresholds where P(cap > X) crosses 0.75 and 0.25 respectively (the 50% confidence band).",
+      "method": "p25/p75 valuations = adjusted CDF crossings at 0.75 and 0.25 (the 50% confidence band).",
       "robust": true,
       "assumptions": [
-        "Monotonic survival curve between bracketing thresholds."
+        "Monotone adjusted survival curve."
       ],
-      "sensitivity_note": "Robust: interpolation between observed thresholds; null when the band extends beyond the quoted range."
+      "sensitivity_note": "Robust interpolation; null when a bound lies outside the quoted range."
     },
     "bucket_prob": {
-      "method": "P(cap > this threshold) - P(cap > next threshold); top bucket = P(cap > top). The '< lowest' bucket = 1 - P(cap > lowest).",
+      "method": "adjusted P(> this) - adjusted P(> next); top bucket = adjusted P(> top); a '< lowest' bucket = 1 - adjusted P(> lowest) completes the distribution.",
       "robust": true,
       "assumptions": [
-        "All buckets including '< lowest' sum to 1.0 (enforced by validation)."
+        "Computed from the adjusted (monotone) curve, so every bucket is >= 0 and all buckets sum to 1.0 (asserted at build)."
       ],
-      "sensitivity_note": "Direct differences of observed probabilities; no modelling assumptions."
+      "sensitivity_note": "No modelling assumptions beyond the isotonic adjustment."
     },
     "confidence": {
-      "method": "Worst-of three signals: active-threshold count, monotonicity-violation count, and mean best_ask-best_bid spread. Tier capped at 'medium' when order-book (spread) data is unavailable (price-only history).",
+      "method": "Worst-of several signals, each producing a human-readable reason: active-threshold count, monotonicity adjustments (count + max magnitude), mean bid/ask spread, thin-liquidity breadth (share of markets below a volume floor), and anomalies (inputs identical to prior snapshot, markets closed/not accepting orders, total volume far below the trailing 7-day median). Tier is capped at 'medium' for price-only history.",
       "robust": true,
       "assumptions": [
-        "high: >=12 thresholds AND 0 violations AND mean spread < 0.04.",
-        "medium: 8-11 thresholds, OR <=2 violations, OR spread 0.04-0.08, OR price-only.",
-        "low: <8 thresholds, OR >2 violations, OR spread > 0.08."
+        "high: >=12 thresholds AND 0 adjustments AND mean spread < 0.04 AND deep books AND no anomalies.",
+        "medium: 8-11 thresholds, OR <=2 adjustments, OR spread 0.04-0.08, OR 20-50% thin, OR price-only, OR a flagged anomaly.",
+        "low: <8 thresholds, OR >2 adjustments, OR spread > 0.08, OR >50% thin, OR multiple closed markets."
       ],
-      "sensitivity_note": "Backfilled history is price-only (no book) and therefore capped at 'medium'."
+      "sensitivity_note": "Liquidity breadth is not assessed when volume is unknown (price-only history)."
     },
     "raw_sha256": {
-      "method": "sha256 over the canonical JSON serialization of raw_inputs (fixed key order: token_id, threshold, midpoint, best_bid, best_ask, volume; ascending by threshold; literal API string values).",
+      "method": "sha256 over the canonical JSON serialization of raw_inputs (fixed key order: token_id, threshold, midpoint, best_bid, best_ask, volume; ascending by threshold; literal API string values). Unchanged from 1.0.0 so archived snapshots remain verifiable.",
       "robust": true,
       "assumptions": [
         "Consumers re-serialize the stored raw_inputs identically to reproduce the hash."
       ],
-      "sensitivity_note": "Provenance check, not a metric: proves derived numbers came from the stored, unaltered inputs."
+      "sensitivity_note": "Provenance check: proves derived numbers came from the stored, unaltered inputs. Status flags (closed/active) are deliberately excluded from the hashed inputs."
+    },
+    "narrative": {
+      "method": "Deterministic, template-based reading composed only from stored fields (median vs 7d/30d-ago, divergence, dominant bucket, confidence caveat). No language model in the data path; reproducible from narrative_components.",
+      "robust": true,
+      "assumptions": [
+        "Every clause maps to a field in narrative_components; nothing is asserted that is not stored."
+      ],
+      "sensitivity_note": "Same inputs always produce the same sentence."
     }
   },
   "changelog": [
+    {
+      "version": "1.1.0",
+      "date": "2026-06-05",
+      "change": "bucket_prob/CDF now volume-weighted isotonic-adjusted (removes negative-probability artifacts; raw preserved alongside adjusted); added spread-propagated median uncertainty band (live only); added mean tail-sensitivity range; added anomaly/staleness/liquidity signals to confidence; added deterministic narrative; published JSON Schema (schema.json) validated at build."
+    },
     {
       "version": "1.0.0",
       "date": "2026-06-05",

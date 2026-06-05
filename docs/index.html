@@ -50,6 +50,20 @@
     padding:2px 9px; font-size:11px; cursor:pointer; border-radius:6px; }
   #verifyState.ok { color:var(--green); } #verifyState.bad { color:var(--red); }
 
+  /* Narrative hero + confidence reasons */
+  .narrative { margin-top:18px; background:var(--bg-card-2); border:1px solid var(--border);
+    border-left:3px solid var(--amber); border-radius:10px; padding:16px 18px; font-size:15.5px; line-height:1.5; }
+  .conf-reasons { margin-top:8px; font-size:11.5px; color:var(--text-muted); }
+  .conf-reasons .chip { display:inline-block; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:12px; padding:2px 9px; margin:3px 4px 0 0; }
+  .headline .band { font-size:12px; color:var(--text-muted); font-weight:600; margin-top:3px; }
+  .card .band { font-size:10.5px; color:var(--text-muted); margin-top:3px; }
+  /* Liquidity de-emphasis */
+  tr.thin td { opacity:.5; }
+  .vdot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .vdot.high { background:var(--green); } .vdot.med { background:var(--amber); } .vdot.low { background:#6b6860; }
+  .adjmark { color:var(--amber); cursor:help; }
+
   section { margin-top:30px; }
   section > h2 { font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--text-muted); margin:0 0 14px; font-weight:600; }
 
@@ -112,20 +126,25 @@
     </div>
   </div>
 
+  <!-- NARRATIVE HERO (deterministic; baked fallback for JS-off) -->
+  <div class="narrative" id="narrative"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.15T, up $0.05T over the past month and down $0.20T this week. A monthly climb now cooling. The largest single concentration of probability (20%) sits in the $2–2.2T range. Confidence is high.<!--/BAKE:narrative--></div>
+
   <!-- HEADLINE (baked fallback — real numbers even with JS off) -->
   <div class="headline">
     <div>
       <span class="lbl">Implied median valuation</span>
-      <span class="big" id="hl-median"><!--BAKE:median-->$2.19T<!--/BAKE:median--></span>
+      <span class="big" id="hl-median"><!--BAKE:median-->$2.15T<!--/BAKE:median--></span>
+      <div class="band" id="hl-median-band"></div>
     </div>
     <div>
       <span class="lbl">Implied mean <span class="approx">(approx)</span></span>
-      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.27T<!--/BAKE:mean--></span>
+      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.24T<!--/BAKE:mean--></span>
+      <div class="band" id="hl-mean-band"></div>
     </div>
     <div>
       <span class="lbl">Confidence</span>
       <span class="badge medium" id="hl-tier" title="">
-        <!--BAKE:tier-->medium<!--/BAKE:tier-->
+        <!--BAKE:tier-->high<!--/BAKE:tier-->
       </span>
     </div>
     <div>
@@ -133,12 +152,13 @@
       <span class="sec" style="font-weight:600;font-size:15px" id="hl-date"><!--BAKE:date-->2026-06-05<!--/BAKE:date--></span>
     </div>
   </div>
+  <div class="conf-reasons" id="conf-reasons"></div>
 
   <!-- PROVENANCE STRIP -->
   <div class="prov" id="prov">
     <span>Source: <strong>Polymarket</strong></span><span class="sep">·</span>
     <span>fetched <code id="pv-fetched">…</code> UTC</span><span class="sep">·</span>
-    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.0.0<!--/BAKE:methodology--></code></span><span class="sep">·</span>
+    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.1.0<!--/BAKE:methodology--></code></span><span class="sep">·</span>
     <span>sha256 <code id="pv-hash">…</code></span>
     <button id="verifyBtn" type="button">verify hash</button>
     <span id="verifyState"></span>
@@ -203,13 +223,13 @@
     <details>
       <summary>How these numbers are computed (methodology v<span id="md-version">1.0.0</span>)</summary>
       <ul>
-        <li><b>Probabilities</b> = Polymarket YES midpoint prices per "above $X" market.</li>
-        <li><b>Implied median</b> = valuation where P(cap &gt; X) crosses 50% (linear interpolation). Robust.</li>
-        <li><b>Implied mean (approx)</b> = bucket-weighted EV; tail midpoints lowest−$0.15T / highest+$0.40T. <i>Assumption-sensitive.</i></li>
-        <li><b>50% confidence band</b> = p25/p75 valuations (CDF at 0.75 / 0.25).</li>
-        <li><b>Bucket %</b> = P(&gt;this)−P(&gt;next); incl. a &lt;$1T bucket so the distribution sums to 100% (asserted at build).</li>
-        <li><b>Confidence</b> = worst of {threshold count, monotonicity violations, mean bid/ask spread}; backfilled history is price-only → capped at medium.</li>
-        <li><b>Provenance</b>: every snapshot stores raw inputs + a sha256 you can re-verify (button above). Full spec: <a href="./api/v1/methodology.json">methodology.json</a> · <a href="./api/v1/latest.json">latest.json</a> · <a href="https://github.com/ilanbenamaro-cyber/polymarket-tracker/blob/main/API.md">API docs</a>.</li>
+        <li><b>Arbitrage adjustment</b>: each "above $X" market is a separate book, so raw midpoints can violate monotonicity (negative buckets). We apply <b>volume-weighted isotonic regression</b> (PAVA) to a non-increasing CDF; <b>every metric uses the adjusted curve, and raw_prob is preserved</b> (△ marks an adjusted row). Per-snapshot adjustment size is published.</li>
+        <li><b>Implied median</b> = adjusted CDF crosses 50% (interpolation). The <b>range</b> is the spread-implied band: the bid and ask curves each crossed at 50% (live only).</li>
+        <li><b>Implied mean (approx)</b> = bucket-weighted EV; the <b>range</b> is a 3×3 tail-midpoint sensitivity grid (lowest−0.10/0.15/0.20, highest+0.30/0.40/0.60). <i>Assumption-sensitive.</i></li>
+        <li><b>50% confidence band</b> = p25/p75 valuations (adjusted CDF at 0.75 / 0.25).</li>
+        <li><b>Bucket %</b> = adjusted P(&gt;this)−P(&gt;next); incl. a &lt;$1T bucket; all buckets ≥ 0 and sum to 100% (asserted at build).</li>
+        <li><b>Confidence</b> = worst of {threshold count, monotonicity adjustments, spread, thin-liquidity breadth, anomalies (stale / closed markets / volume drop)}; reasons shown up top. Backfilled history is price-only → capped at medium.</li>
+        <li><b>Provenance</b>: every snapshot stores raw inputs + a sha256 you can re-verify (button above). Contract: <a href="./api/v1/schema.json">schema.json</a> · <a href="./api/v1/methodology.json">methodology.json</a> · <a href="./api/v1/latest.json">latest.json</a> · <a href="https://github.com/ilanbenamaro-cyber/polymarket-tracker/blob/main/API.md">API docs</a>.</li>
       </ul>
     </details>
   </section>
@@ -247,15 +267,23 @@
     const e=entryOnOrBefore(h,dateMinus(today,n)); return e&&e.date!==today?e:null; }
 
   // ── HEADLINE + PROVENANCE ──
+  const rangeStr=(o)=> (o&&o.low!=null&&o.high!=null)?'$'+o.low.toFixed(2)+'–$'+o.high.toFixed(2)+'T':null;
   function renderHeadline(){
     const d=LATEST.snapshot.derived, s=LATEST.snapshot;
+    document.getElementById('narrative').textContent=d.narrative||'';
     document.getElementById('hl-median').textContent=money(d.implied_median);
     document.getElementById('hl-mean').textContent=money(d.implied_mean);
+    const mb=rangeStr(d.median);
+    document.getElementById('hl-median-band').textContent=mb?('range '+mb+' · bid/ask'):'point estimate (price-only)';
+    const meanb=rangeStr(d.mean);
+    document.getElementById('hl-mean-band').textContent=meanb?('range '+meanb+' · tail-sensitivity'):'';
     document.getElementById('hl-date').textContent=s.fetched_at.slice(0,10);
     const badge=document.getElementById('hl-tier');
     badge.textContent=d.confidence.tier;
     badge.className='badge '+d.confidence.tier;
-    badge.title=d.confidence.reasons.join(' · ')+'  (score '+d.confidence.score+')';
+    badge.title='score '+d.confidence.score;
+    document.getElementById('conf-reasons').innerHTML='Confidence basis: '+
+      d.confidence.reasons.map(r=>'<span class="chip">'+r+'</span>').join('');
     document.getElementById('pv-fetched').textContent=s.fetched_at.replace('T',' ').slice(0,19);
     document.getElementById('pv-method').textContent=LATEST.methodology_version;
     document.getElementById('pv-hash').textContent=s.source.raw_sha256.slice(0,16)+'…';
@@ -286,21 +314,25 @@
   function renderCards(){
     const c=LATEST.snapshot.derived; const prior=entryNDaysAgo(HIST,1);
     const band=c.iqr?money(c.iqr.p25)+' – '+money(c.iqr.p75):'n/a';
+    const mb=rangeStr(c.median), meanb=rangeStr(c.mean);
     const defs=[
       {label:'Implied median',cls:'blue',value:money(c.implied_median),
-        delta:prior?moneyDelta(c.implied_median-prior.implied_median):''},
+        delta:prior?moneyDelta(c.implied_median-prior.implied_median):'',
+        band:mb?mb+' (bid/ask)':'point estimate'},
       {label:'Implied mean <span class="approx">(approx)</span>',cls:'',value:money(c.implied_mean),
-        delta:prior&&prior.implied_mean!=null?moneyDelta(c.implied_mean-prior.implied_mean):''},
-      {label:'50% confidence band',cls:'',value:'<span style="font-size:15px">'+band+'</span>',delta:''},
+        delta:prior&&prior.implied_mean!=null?moneyDelta(c.implied_mean-prior.implied_mean):'',
+        band:meanb?meanb+' (tail)':''},
+      {label:'50% confidence band',cls:'',value:'<span style="font-size:15px">'+band+'</span>',delta:'',band:'p25–p75 valuation'},
       {label:'P(&gt;$1.8T)',cls:'amber',value:pct(probAt(c.markets,1.8)),
-        delta:prior?deltaSpan(probAt(c.markets,1.8)-prior.prob_1_8t):''},
+        delta:prior?deltaSpan(probAt(c.markets,1.8)-prior.prob_1_8t):'',band:''},
       {label:'P(&gt;$2.4T)',cls:'amber',value:pct(probAt(c.markets,2.4)),
-        delta:prior?deltaSpan(probAt(c.markets,2.4)-prior.prob_2_4t):''},
-      {label:'Total volume',cls:'',value:c.total_volume!=null?'$'+(c.total_volume/1e6).toFixed(1)+'M':'—',delta:''},
+        delta:prior?deltaSpan(probAt(c.markets,2.4)-prior.prob_2_4t):'',band:''},
+      {label:'Total volume',cls:'',value:c.total_volume!=null?'$'+(c.total_volume/1e6).toFixed(1)+'M':'—',delta:'',band:''},
     ];
     document.getElementById('cards').innerHTML=defs.map(d=>
       '<div class="card '+d.cls+'"><div class="label">'+d.label+'</div>'+
-      '<div class="value">'+d.value+'</div><div class="delta">'+d.delta+'</div></div>').join('');
+      '<div class="value">'+d.value+'</div><div class="delta">'+d.delta+'</div>'+
+      (d.band?'<div class="band">'+d.band+'</div>':'')+'</div>').join('');
   }
 
   const vLine={ id:'vline', afterDraw(ch,a,o){ if(o.x==null||!ch.scales.x) return;
@@ -328,9 +360,11 @@
         scales:{x:{type:'linear',title:{display:true,text:'Market cap threshold ($T)',color:'#9a9890'},ticks:{color:'#9a9890',callback:v=>'$'+v+'T'},grid:{color:'rgba(255,255,255,.05)'}},
           y:{min:0,max:100,ticks:{color:'#9a9890',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'}}}}});
 
-    const labels=['<$'+m[0].threshold+'T'], vals=[(1-m[0].prob)*100];
-    for(let i=0;i<m.length;i++){ const nx=m[i+1]; const bp=nx?m[i].prob-nx.prob:m[i].prob;
-      labels.push(nx?'$'+m[i].threshold+'–'+nx.threshold+'T':'>$'+m[i].threshold+'T'); vals.push(bp*100); }
+    // Use the stored bucket_prob (computed once in core/) — never re-derive a metric here.
+    // The "<lowest" bar is the definitional complement 1 - adjusted_prob[0].
+    const labels=['<$'+m[0].threshold+'T'], vals=[(1-m[0].adjusted_prob)*100];
+    for(let i=0;i<m.length;i++){ const nx=m[i+1];
+      labels.push(nx?'$'+m[i].threshold+'–'+nx.threshold+'T':'>$'+m[i].threshold+'T'); vals.push(m[i].bucket_prob*100); }
     const colors=labels.map(()=> '#3a4a5a');
     if(median!=null){ let bi=0; for(let i=0;i<m.length;i++){ const lo=m[i].threshold,hi=m[i+1]?m[i+1].threshold:Infinity;
       if(median>=lo&&median<hi){ bi=i+1; break; } } colors[bi]='#c47f3a'; }
@@ -339,7 +373,7 @@
       data:{labels,datasets:[{label:'Bucket probability',data:vals,backgroundColor:colors}]},
       options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw.toFixed(1)+'%'}}},
         scales:{x:{ticks:{color:'#9a9890',maxRotation:60,minRotation:60,font:{size:9}},grid:{display:false}},
-          y:{ticks:{color:'#9a9890',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'}}}}});
+          y:{min:0,ticks:{color:'#9a9890',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'}}}}});
   }
 
   // ── TRENDS ──
@@ -361,12 +395,13 @@
     const line=(label,f,color,axis,dash)=>({label,data:h.map(e=>e[f]==null?null:(axis==='yP'?e[f]*100:e[f])),
       borderColor:color,borderDash:dash||[],pointRadius:0,borderWidth:axis==='yM'?2:1.8,tension:.25,yAxisID:axis,spanGaps:true,segment:lowSeg});
     if(trendChart) trendChart.destroy();
+    // Distinct hue per series — median gets its own colour (teal), mean = teal dashed.
     trendChart=new Chart(canvas,{type:'line',data:{labels,datasets:[
       line('P(>$1.8T)','prob_1_8t','#c47f3a','yP'),
       line('P(>$2T)','prob_2_0t','#5B9BD5','yP'),
       line('P(>$2.4T)','prob_2_4t','#9a9890','yP'),
-      line('Implied median','implied_median','#c47f3a','yM'),
-      line('Implied mean','implied_mean','#e8e6df','yM',[5,4]),
+      line('Implied median','implied_median','#2dd4bf','yM'),
+      line('Implied mean','implied_mean','#2dd4bf','yM',[5,4]),
     ]},
       options:{interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#9a9890',boxWidth:12,font:{size:11}}}},
         scales:{x:{ticks:{color:'#9a9890',maxTicksLimit:10,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
@@ -378,22 +413,27 @@
   function renderTable(){
     const m=LATEST.snapshot.derived.markets;
     if(!HISTFULL){ document.getElementById('tableBody').innerHTML=m.map(x=>{
-      const tr=TRACKED.has(x.threshold);
-      return '<tr class="'+(tr?'tracked':'')+'"><td>'+(tr?'● ':'')+x.label+'</td><td>'+pct(x.prob)+'</td><td>'+pct1(x.bucket_prob)+
-        '</td><td class="flat">—</td><td class="flat">—</td><td class="flat">—</td><td>'+fmtVol(x.volume)+'</td></tr>'; }).join('');
+      const tr=TRACKED.has(x.threshold), thin=x.volume_tier==='low';
+      return '<tr class="'+((tr?'tracked ':'')+(thin?'thin':'')).trim()+'"><td>'+(tr?'● ':'')+x.label+adjMark(x)+'</td><td>'+pct(x.prob)+'</td><td>'+pct1(x.bucket_prob)+
+        '</td><td class="flat">—</td><td class="flat">—</td><td class="flat">—</td><td>'+volCell(x)+'</td></tr>'; }).join('');
       return; }
     const e1=entryNDaysAgo(HISTFULL,1),e7=entryNDaysAgo(HISTFULL,7),e30=entryNDaysAgo(HISTFULL,30);
     let topMover=null,topAbs=0;
     if(e7) for(const x of m){ const p=probAt(e7.markets,x.threshold); if(p==null) continue; const a=Math.abs(x.prob-p); if(a>topAbs){topAbs=a;topMover=x.threshold;} }
     document.getElementById('tableBody').innerHTML=m.map(x=>{
       const p1=e1?probAt(e1.markets,x.threshold):null,p7=e7?probAt(e7.markets,x.threshold):null,p30=e30?probAt(e30.markets,x.threshold):null;
-      const tr=TRACKED.has(x.threshold), mv=x.threshold===topMover&&topAbs>=.01;
-      return '<tr class="'+((tr?'tracked ':'')+(mv?'mover':'')).trim()+'"><td>'+(tr?'● ':'')+x.label+'</td><td>'+pct(x.prob)+
+      const tr=TRACKED.has(x.threshold), mv=x.threshold===topMover&&topAbs>=.01, thin=x.volume_tier==='low';
+      return '<tr class="'+((tr?'tracked ':'')+(mv?'mover ':'')+(thin?'thin':'')).trim()+'"><td>'+(tr?'● ':'')+x.label+adjMark(x)+'</td><td>'+pct(x.prob)+
         '</td><td>'+pct1(x.bucket_prob)+'</td><td>'+deltaSpan(p1==null?null:x.prob-p1)+'</td><td>'+deltaSpan(p7==null?null:x.prob-p7)+
-        '</td><td>'+deltaSpan(p30==null?null:x.prob-p30)+'</td><td>'+fmtVol(x.volume)+'</td></tr>'; }).join('');
+        '</td><td>'+deltaSpan(p30==null?null:x.prob-p30)+'</td><td>'+volCell(x)+'</td></tr>'; }).join('');
   }
+  // raw→adjusted marker (arbitrage adjustment applied to this market today)
+  function adjMark(x){ return (x.raw_prob!=null&&Math.abs(x.raw_prob-x.adjusted_prob)>0.005)
+    ? ' <span class="adjmark" title="isotonic-adjusted from raw '+pct(x.raw_prob)+'">△</span>' : ''; }
+  function volCell(x){ const t=x.volume_tier; const dot=t?'<span class="vdot '+t+'"></span>':''; return dot+fmtVol(x.volume); }
   function renderMovers(){
-    document.getElementById('moversTf').textContent=timeframeDays==='all'?'All':timeframeDays+'D';
+    const winLabel=timeframeDays==='all'?'All':timeframeDays+'D';
+    document.getElementById('moversTf').textContent=winLabel;
     const el=document.getElementById('movers');
     if(!HISTFULL){ el.innerHTML='<div class="skeleton" style="grid-column:1/-1">Loading detail…</div>'; return; }
     const m=LATEST.snapshot.derived.markets;
@@ -406,7 +446,7 @@
     if(!top.length){ el.innerHTML='<div class="muted" style="font-size:13px">Not enough history in this window.</div>'; return; }
     el.innerHTML=top.map(mv=>{ const c=mv.delta>0?'up':'down', ar=mv.delta>0?'↑':'↓';
       return '<div class="mover"><div class="thr">'+mv.label+'</div><div class="chg '+c+'">'+ar+' '+pct(mv.before)+' → '+pct(mv.after)+
-        ' ('+(mv.delta>0?'+':'')+Math.round(mv.delta*100)+'%)</div><div class="sub">over selected window</div></div>'; }).join('');
+        ' ('+(mv.delta>0?'+':'')+Math.round(mv.delta*100)+'%)</div><div class="sub">over '+winLabel+'</div></div>'; }).join('');
   }
 
   function renderTimeframeDependent(){ renderTrends(); renderTable(); renderMovers(); }

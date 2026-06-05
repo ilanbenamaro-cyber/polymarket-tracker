@@ -11,42 +11,70 @@ A small, static, **public JSON API** for the SpaceX-IPO-market-cap signal. The f
 
 ## Endpoints
 
+### `GET /api/v1/schema.json`
+JSON Schema (draft 2020-12) for the canonical record. `core/validate.js` validates every
+published `latest.json` against it at build (via `ajv`) and fails the build on any violation.
+
 ### `GET /api/v1/latest.json`
-The full canonical snapshot record — the single source of truth. Contains provenance
-(`raw_inputs` + `raw_sha256`) and all derived metrics with a confidence assessment.
+The full canonical snapshot record — the single source of truth. Each "above $X" market is a
+separate book, so raw midpoints are **arbitrage-adjusted** (volume-weighted isotonic regression)
+into a monotone CDF before any metric is computed; `raw_prob` is preserved alongside `adjusted_prob`.
 
 ```jsonc
 {
-  "schema_version": "1.0.0",
-  "methodology_version": "1.0.0",
-  "asset": { "id": "spacex-ipo-market-cap", "name": "SpaceX IPO closing market cap",
-             "platform": "polymarket", "market_url": "https://polymarket.com/event/spacex-ipo-closing-market-cap-above",
-             "resolves": "2027-12-31" },
+  "schema_version": "1.1.0",
+  "methodology_version": "1.1.0",
+  "asset": { "id": "spacex-ipo-market-cap", "platform": "polymarket",
+             "market_url": "https://polymarket.com/event/…", "resolves": "2027-12-31" },
   "snapshot": {
     "snapshot_id": "2026-06-05T14:10:01.123Z",
     "fetched_at": "2026-06-05T14:10:01.123Z",
     "source": {
       "provider": "Polymarket",
-      "endpoints": ["https://gamma-api.polymarket.com/events?slug=…", "https://clob.polymarket.com/midpoints", "https://clob.polymarket.com/prices"],
-      "raw_sha256": "1ebdf8d98876…"
+      "endpoints": ["…/events?slug=…", "…/midpoints", "…/prices"],
+      "raw_sha256": "1ebdf8d98876…"            // sha256 of canonical raw_inputs
     },
     "raw_inputs": [
-      { "token_id": "2449486313…", "threshold": 2, "midpoint": "0.69", "best_bid": "0.68", "best_ask": "0.7", "volume": 764193.186 }
+      { "token_id": "2449…", "threshold": 2, "midpoint": "0.69", "best_bid": "0.68", "best_ask": "0.70", "volume": 764193.186 }
     ],
     "derived": {
-      "implied_median": 2.19, "implied_mean": 2.273125,
-      "iqr": { "p25": 1.927, "p75": 2.55 }, "total_volume": 5523019.4,
-      "confidence": { "tier": "medium", "score": 0.889, "reasons": ["1 monotonicity violation(s)"] },
-      "markets": [ { "label": ">$2T", "threshold": 2, "prob": 0.69, "volume": 764193.186, "bucket_prob": 0.2 } ]
+      "implied_median": 2.13,                  // central (= adjusted CDF @ 0.50)
+      "median": { "central": 2.13, "low": 2.12, "high": 2.13 },   // spread band (live; null if price-only)
+      "implied_mean": 2.233,                   // central (base-case tails)
+      "mean": { "central": 2.233, "low": 2.231, "high": 2.237 },  // tail-sensitivity range
+      "iqr": { "p25": 1.93, "p75": 2.55 },
+      "total_volume": 5523019.4,
+      "adjustment": { "monotonicity_violations": 1, "max_adjustment": 0.0015 },
+      "confidence": { "tier": "high", "score": 0.965, "reasons": ["…"] },
+      "markets": [
+        { "label": ">$2T", "threshold": 2, "raw_prob": 0.69, "adjusted_prob": 0.69,
+          "prob": 0.69, "bucket_prob": 0.20, "volume": 764193.186, "volume_tier": "high" }
+      ],
+      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.13T, …",
+      "narrative_components": { "median_now": 2.13, "change_7d": { "abs": -0.22, "dir": "down" }, "…": "…" }
     }
   }
 }
 ```
 
-**Verify provenance:** SHA-256 of the canonical JSON of `raw_inputs` (keys ordered
-`token_id, threshold, midpoint, best_bid, best_ask, volume`; array sorted ascending by
-`threshold`; values exactly as stored) equals `snapshot.source.raw_sha256`. The dashboard's
-*verify hash* button does this in-browser via `crypto.subtle`.
+`prob` is a retained alias of `adjusted_prob` (keeps consumers working). `raw_prob` is the
+pre-adjustment midpoint.
+
+**Verify provenance (any record, not just latest):** SHA-256 of the canonical JSON of `raw_inputs`
+— keys ordered `token_id, threshold, midpoint, best_bid, best_ask, volume`; array sorted ascending
+by `threshold`; values exactly as stored — equals `snapshot.source.raw_sha256`. Works on
+`latest.json` and on every archived `snapshots/YYYY-MM-DD.json`. The dashboard's *verify hash*
+button does this in-browser via `crypto.subtle`; in Node:
+
+```js
+import { createHash } from 'node:crypto';
+const ordered = rec.snapshot.raw_inputs
+  .sort((a,b)=>a.threshold-b.threshold)
+  .map(({token_id,threshold,midpoint,best_bid,best_ask,volume}) =>
+    ({token_id,threshold,midpoint,best_bid,best_ask,volume}));
+const h = createHash('sha256').update(JSON.stringify(ordered)).digest('hex');
+// h === rec.snapshot.source.raw_sha256
+```
 
 ### `GET /api/v1/history.json`  *(lean — for charts)*
 One small object per UTC day; this is what the dashboard loads for its trend chart.

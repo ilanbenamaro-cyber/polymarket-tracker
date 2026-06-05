@@ -45,6 +45,7 @@ export function bakeFallback(record) {
     date: record.snapshot.fetched_at.slice(0, 10),
     methodology: record.methodology_version,
     tier: d.confidence.tier,
+    narrative: d.narrative || '',
   };
   for (const file of TARGETS) {
     const path = join(DOCS, file);

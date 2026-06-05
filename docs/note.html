@@ -59,22 +59,22 @@
   <div class="page" id="page">
     <div class="kicker">Prediction-market signal · Polymarket</div>
     <h1>SpaceX IPO closing market cap</h1>
-    <div class="asof">As of <span id="asof"><!--BAKE:date-->2026-06-05<!--/BAKE:date--></span> (UTC) · methodology v<span id="mver"><!--BAKE:methodology-->1.0.0<!--/BAKE:methodology--></span> · resolves Dec 31 2027</div>
+    <div class="asof">As of <span id="asof"><!--BAKE:date-->2026-06-05<!--/BAKE:date--></span> (UTC) · methodology v<span id="mver"><!--BAKE:methodology-->1.1.0<!--/BAKE:methodology--></span> · resolves Dec 31 2027</div>
     <hr/>
 
     <div class="headline">
       <div>
-        <div class="num" id="hl-median"><!--BAKE:median-->$2.19T<!--/BAKE:median--></div>
+        <div class="num" id="hl-median"><!--BAKE:median-->$2.15T<!--/BAKE:median--></div>
         <div class="cap">Implied median valuation</div>
       </div>
       <div>
-        <span class="badge medium" id="tier"><!--BAKE:tier-->medium<!--/BAKE:tier--></span>
+        <span class="badge medium" id="tier"><!--BAKE:tier-->high<!--/BAKE:tier--></span>
         <div class="cap" style="margin-top:4px">confidence</div>
       </div>
     </div>
 
     <p class="read" id="read">The market's central estimate for SpaceX's IPO-closing market cap is
-      <strong><!--BAKE:median-->$2.19T<!--/BAKE:median--></strong>.</p>
+      <strong><!--BAKE:median-->$2.15T<!--/BAKE:median--></strong>.</p>
 
     <div class="metrics" id="metrics"></div>
 
@@ -102,17 +102,16 @@
     document.getElementById('hl-median').textContent=money(d.implied_median);
     const tier=document.getElementById('tier'); tier.textContent=d.confidence.tier; tier.className='badge '+d.confidence.tier;
 
-    const p18=(d.markets.find(m=>m.threshold===1.8)||{}).prob;
     const band=d.iqr?money(d.iqr.p25)+'–'+money(d.iqr.p75):'n/a';
-    document.getElementById('read').innerHTML=
-      'The market’s central estimate for SpaceX’s IPO-closing market cap is <strong>'+money(d.implied_median)+
-      '</strong> (mean '+money(d.implied_mean)+'), with a 50% confidence band of <strong>'+band+'</strong>. '+
-      'The market assigns '+pct(p18)+' probability to a close above $1.8T. Confidence in this reading is <strong>'+
-      d.confidence.tier+'</strong>.';
+    const rng=o=>(o&&o.low!=null&&o.high!=null)?'$'+o.low.toFixed(2)+'–$'+o.high.toFixed(2)+'T':null;
+    // The deterministic narrative IS the signal — use it verbatim.
+    document.getElementById('read').textContent=d.narrative||'';
 
+    const medCell=money(d.implied_median)+(rng(d.median)?'<div class="l" style="margin-top:3px">band '+rng(d.median)+'</div>':'');
+    const meanCell=money(d.implied_mean)+(rng(d.mean)?'<div class="l" style="margin-top:3px">range '+rng(d.mean)+'</div>':'');
     document.getElementById('metrics').innerHTML=[
-      ['Implied median',money(d.implied_median)],
-      ['Implied mean (approx)',money(d.implied_mean)],
+      ['Implied median',medCell],
+      ['Implied mean (approx)',meanCell],
       ['50% band',band],
       ['Total volume',d.total_volume!=null?'$'+(d.total_volume/1e6).toFixed(1)+'M':'—'],
     ].map(([l,v])=>'<div class="metric"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>').join('');
