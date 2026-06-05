@@ -77,6 +77,22 @@ export function computeBucketProbs(snapshot) {
 }
 
 /**
+ * Return a copy of a markets array with `bucket_prob` attached to each entry,
+ * so callers don't re-derive the per-threshold lookup. Preserves all existing
+ * fields (label/threshold/prob/volume). Used for both current and history so
+ * data.json carries bucket_prob everywhere the schema specifies it.
+ */
+export function withBucketProbs(markets) {
+  const byThreshold = new Map(
+    computeBucketProbs(markets).map((b) => [b.threshold, b.bucket_prob])
+  );
+  return markets.map((m) => ({
+    ...m,
+    bucket_prob: byThreshold.get(m.threshold) ?? null,
+  }));
+}
+
+/**
  * Approximate expected valuation (mean) as a bucket-weighted sum of midpoints.
  * Middle buckets use the threshold midpoint; the two tails use fixed offsets
  * (BELOW/ABOVE_TAIL_OFFSET). Returns null for an empty snapshot.

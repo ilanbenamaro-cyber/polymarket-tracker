@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import {
   computeImpliedMedian,
   computeImpliedMean,
+  withBucketProbs,
 } from './metrics.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -130,7 +131,7 @@ async function main() {
   // its own first point is simply omitted that day (metrics use what exists).
   const history = [];
   for (const date of dateRange(globalFirst, globalLast)) {
-    const markets = tokens
+    const base = tokens
       .filter((t) => t.byDate.has(date))
       .map((t) => ({
         label: t.label,
@@ -140,8 +141,9 @@ async function main() {
       }))
       .sort((a, b) => a.threshold - b.threshold);
 
-    if (markets.length === 0) continue;
+    if (base.length === 0) continue;
 
+    const markets = withBucketProbs(base);
     history.push({
       date,
       implied_median: computeImpliedMedian(markets),

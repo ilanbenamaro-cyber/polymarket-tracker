@@ -490,15 +490,29 @@
   }
 
   async function load() {
+    // Step 1: fetch + parse. Only genuine data-layer failures (404, network,
+    // bad JSON, missing current) surface as "Unable to load current data".
     try {
       const res = await fetch('./data.json?t=' + Date.now());
       if (!res.ok) throw new Error('fetch ' + res.status);
-      DATA = await res.json();
+      const parsed = await res.json();
+      if (!parsed || !parsed.current || !Array.isArray(parsed.current.markets)) {
+        throw new Error('data.json missing current snapshot');
+      }
+      DATA = parsed;
       document.getElementById('loadError').style.display = 'none';
-      renderAll();
     } catch (err) {
       document.getElementById('loadError').style.display = 'block';
       console.error('Failed to load data.json:', err);
+      return;
+    }
+
+    // Step 2: render. A rendering bug must NOT be reported as a load failure —
+    // log it distinctly so it can be diagnosed for what it is.
+    try {
+      renderAll();
+    } catch (err) {
+      console.error('Render error (data loaded OK):', err);
     }
   }
 

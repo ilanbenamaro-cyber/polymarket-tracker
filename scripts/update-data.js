@@ -15,7 +15,7 @@ import {
   computeImpliedMedian,
   computeImpliedMean,
   computeIqr,
-  computeBucketProbs,
+  withBucketProbs,
 } from './metrics.js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -58,8 +58,10 @@ async function main() {
   const today = new Date().toISOString().split('T')[0];
   const impliedMedian = computeImpliedMedian(markets);
   const impliedMean = computeImpliedMean(markets);
+  const enrichedMarkets = withBucketProbs(markets); // attach bucket_prob once
 
-  // Lean per-day history record (used for trend lines and Δ columns).
+  // Per-day history record (used for trend lines and Δ columns). Carries
+  // bucket_prob so history matches the same schema as current.
   const historyEntry = {
     date: today,
     implied_median: impliedMedian,
@@ -67,27 +69,18 @@ async function main() {
     prob_1_8t: probAt(markets, 1.8),
     prob_2_0t: probAt(markets, 2.0),
     prob_2_4t: probAt(markets, 2.4),
-    markets,
+    markets: enrichedMarkets,
   };
 
   // Enriched snapshot for the cards / distribution view.
-  const bucketByThreshold = new Map(
-    computeBucketProbs(markets).map((b) => [b.threshold, b.bucket_prob])
-  );
-  const totalVolume = markets.reduce(
-    (sum, m) => sum + (m.volume ?? 0),
-    0
-  );
+  const totalVolume = markets.reduce((sum, m) => sum + (m.volume ?? 0), 0);
   const current = {
     date: today,
     implied_median: impliedMedian,
     implied_mean: impliedMean,
     iqr: computeIqr(markets),
     total_volume: totalVolume,
-    markets: markets.map((m) => ({
-      ...m,
-      bucket_prob: bucketByThreshold.get(m.threshold) ?? null,
-    })),
+    markets: enrichedMarkets,
   };
 
   const data = readData();
