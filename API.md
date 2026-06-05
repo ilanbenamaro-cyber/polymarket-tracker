@@ -15,6 +15,17 @@ A small, static, **public JSON API** for the SpaceX-IPO-market-cap signal. The f
 JSON Schema (draft 2020-12) for the canonical record. `core/validate.js` validates every
 published `latest.json` against it at build (via `ajv`) and fails the build on any violation.
 
+### Two output tiers (the firewall)
+`derived` carries **Tier 1** market signal (pure price transforms), including
+`derived.market.analytics` (shape, dispersion-over-time, velocity, calibration scaffold).
+`derived.scenarios` is **Tier 2** — assumption-based (implied share price, round-over-round). Every
+Tier-2 number carries an `assumptions[]` entry `{ name, value, unit, source, source_url, as_of,
+confidence, range:[low,high], adjustable }`; with no usable input it is `status:"input_required"`.
+The build fails if a scenario number lacks a sourced+dated assumption, or if an `assumptions` key
+appears anywhere under `derived` outside `derived.scenarios`. Top-level `assumptions_version`
+(registry `core/assumptions.json`) is embedded in every snapshot alongside `schema_version` and
+`methodology_version`. SpaceX is private, so scenario inputs are dated, low-confidence press estimates.
+
 ### `GET /api/v1/latest.json`
 The full canonical snapshot record — the single source of truth. Each "above $X" market is a
 separate book, so raw midpoints are **arbitrage-adjusted** (volume-weighted isotonic regression)

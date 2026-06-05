@@ -69,7 +69,57 @@ function bucketErrors(markets, label) {
   return errors;
 }
 
-/** Throw with all problems joined, or return true. Validates schema + invariants. */
+/**
+ * THE FIREWALL. Tier-2 (assumption-based) output is quarantined from Tier-1:
+ *   1. assumptions_version must be present.
+ *   2. Any derived.scenarios leaf with NUMBERS must carry a non-empty assumptions[]
+ *      with at least one entry that has a source, an as_of, AND a value.
+ *   3. No `assumptions` key may appear anywhere under `derived` except inside
+ *      `derived.scenarios` (no Tier-2 assumption leaking into the market tier).
+ */
+function firewallErrors(record) {
+  const errors = [];
+  if (record.assumptions_version == null) errors.push('missing assumptions_version');
+
+  const d = record?.snapshot?.derived;
+  if (!d) return errors;
+
+  const sc = d.scenarios;
+  if (sc) {
+    for (const [name, scenario] of Object.entries(sc)) {
+      if (name === 'assumptions_version' || !scenario || typeof scenario !== 'object') continue;
+      const hasNumbers =
+        scenario.at_median ||
+        scenario.implied_change_pct ||
+        (Array.isArray(scenario.ladder) && scenario.ladder.some((x) => x && x.price));
+      if (hasNumbers) {
+        const a = scenario.assumptions;
+        if (!Array.isArray(a) || a.length === 0) {
+          errors.push(`firewall: scenario "${name}" has numeric output but no assumptions[]`);
+        } else if (!a.some((x) => x && x.source && x.as_of && x.value != null)) {
+          errors.push(`firewall: scenario "${name}" lacks a sourced+dated assumption with a value`);
+        }
+      }
+    }
+  }
+
+  // No 'assumptions' key anywhere under derived except the scenarios subtree.
+  const scan = (obj, path) => {
+    if (!obj || typeof obj !== 'object') return;
+    for (const k of Object.keys(obj)) {
+      if (path === '' && k === 'scenarios') continue; // Tier-2 is allowed to hold assumptions
+      if (k === 'assumptions') {
+        errors.push(`firewall: Tier-2 leak — 'assumptions' at derived.${path ? path + '.' : ''}${k}`);
+      } else {
+        scan(obj[k], path ? `${path}.${k}` : k);
+      }
+    }
+  };
+  scan(d, '');
+  return errors;
+}
+
+/** Throw with all problems joined, or return true. Validates schema + invariants + firewall. */
 export function validateRecord(record) {
   const errors = [];
 
@@ -80,6 +130,7 @@ export function validateRecord(record) {
 
   const d = record?.snapshot?.derived;
   if (d) errors.push(...bucketErrors(d.markets, 'derived'));
+  errors.push(...firewallErrors(record));
 
   if (errors.length > 0) {
     throw new Error('Record invalid:\n  - ' + errors.join('\n  - '));

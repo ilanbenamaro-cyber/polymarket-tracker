@@ -14,9 +14,11 @@ import {
 import { adjustSnapshot, medianBand, meanSensitivity } from './stats.js';
 import { scoreConfidence } from './confidence.js';
 import { buildNarrative } from './narrative.js';
+import { buildAnalytics } from './analytics.js';
+import { buildScenarios } from './scenarios.js';
 import { ASSET } from './fetch.js';
 
-const SCHEMA_VERSION = '1.1.0';
+const SCHEMA_VERSION = '1.2.0';
 
 function totalVolume(markets) {
   return markets.reduce((sum, m) => sum + (m.volume ?? 0), 0);
@@ -93,15 +95,45 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null) 
 }
 
 /**
- * Attach the deterministic narrative to a built record, using history priors.
- * Done as a separate step because the narrative needs day-over-day context that
- * the pure record builder does not have. Mutates and returns the record.
+ * Attach Tier-1 analytics (derived.market.analytics). Needs history priors, so it
+ * runs in orchestration like the narrative. priors = { median_1d, median_7d,
+ * median_30d, iqr_width_7d, iqr_width_30d }.
+ */
+export function attachAnalytics(record, { priors = {} } = {}) {
+  const d = record.snapshot.derived;
+  const analytics = buildAnalytics({
+    markets: d.markets,
+    iqr: d.iqr,
+    median: d.implied_median,
+    priors,
+    asOf: record.snapshot.fetched_at.slice(0, 10),
+  });
+  d.market = { ...(d.market || {}), analytics };
+  return record;
+}
+
+/**
+ * Attach Tier-2 scenarios (derived.scenarios) + the top-level assumptions_version.
+ * registry = parsed core/assumptions.json. Firewall: scenarios are the only place
+ * assumption-based numbers live; each leaf carries its sourced assumptions.
+ */
+export function attachScenarios(record, registry) {
+  const d = record.snapshot.derived;
+  d.scenarios = buildScenarios({ median: d.implied_median, markets: d.markets, registry });
+  record.assumptions_version = registry?.version ?? null;
+  return record;
+}
+
+/**
+ * Attach the deterministic narrative. Uses the already-attached analytics (velocity
+ * deltas + shape descriptor), so call AFTER attachAnalytics. Mutates and returns.
  */
 export function attachNarrative(record, { prior7d = null, prior30d = null } = {}) {
   const d = record.snapshot.derived;
   const density = computeDensity(d.markets).map((b) => ({ label: b.label, prob: b.prob }));
   const { narrative, narrative_components } = buildNarrative({
     derived: d,
+    analytics: d.market?.analytics ?? null,
     prior7d,
     prior30d,
     density,

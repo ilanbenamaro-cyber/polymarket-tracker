@@ -11,7 +11,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { fetchLiveSnapshot, countClosed } from '../core/fetch.js';
-import { buildSnapshotRecord, buildHistoryEntry, attachNarrative } from '../core/snapshot.js';
+import {
+  buildSnapshotRecord, buildHistoryEntry,
+  attachAnalytics, attachScenarios, attachNarrative,
+} from '../core/snapshot.js';
 import { validateRecord, validateHistoryEntry } from '../core/validate.js';
 import {
   writeLatest, writeMethodology, archiveSnapshot, writeHistory, readHistoryFull,
@@ -21,6 +24,7 @@ import { bakeFallback } from '../renderers/dashboard.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const API_DIR = join(__dirname, '../docs/api/v1');
 const METHODOLOGY = JSON.parse(readFileSync(join(__dirname, '../core/methodology.json'), 'utf8'));
+const ASSUMPTIONS = JSON.parse(readFileSync(join(__dirname, '../core/assumptions.json'), 'utf8'));
 const HISTORY_CAP = 730;
 const LIQUIDITY_DROP_FRACTION = 0.4; // >40% below 7-day median total volume
 const MIN_LIVE_DAYS_FOR_DROP = 3;
@@ -72,16 +76,31 @@ async function main() {
     liquidityDrop: liquidityDrop(history, today, currentTotal),
   };
 
-  // ── canonical record + narrative ──
+  // ── canonical record ──
   const record = buildSnapshotRecord(live, METHODOLOGY.version, anomalies);
-  const prior7d = entryOnOrBefore(history, dateMinus(today, 7));
-  const prior30d = entryOnOrBefore(history, dateMinus(today, 30));
+
+  // History priors for analytics (velocity + dispersion-over-time) and narrative.
+  const p1d = entryOnOrBefore(history, dateMinus(today, 1));
+  const p7d = entryOnOrBefore(history, dateMinus(today, 7));
+  const p30d = entryOnOrBefore(history, dateMinus(today, 30));
+  const widthOf = (e) => (e && e.iqr && e.iqr.p25 != null && e.iqr.p75 != null ? e.iqr.p75 - e.iqr.p25 : null);
+  const priors = {
+    median_1d: p1d ? p1d.implied_median : null,
+    median_7d: p7d ? p7d.implied_median : null,
+    median_30d: p30d ? p30d.implied_median : null,
+    iqr_width_7d: widthOf(p7d),
+    iqr_width_30d: widthOf(p30d),
+  };
+
+  // Order matters: analytics first (narrative reads stored velocity/shape).
+  attachAnalytics(record, { priors });
+  attachScenarios(record, ASSUMPTIONS);
   attachNarrative(record, {
-    prior7d: prior7d ? prior7d.implied_median : null,
-    prior30d: prior30d ? prior30d.implied_median : null,
+    prior7d: priors.median_7d,
+    prior30d: priors.median_30d,
   });
 
-  validateRecord(record); // schema + invariants; throws on any violation
+  validateRecord(record); // schema + invariants + firewall; throws on any violation
 
   // ── render API ──
   writeLatest(record);

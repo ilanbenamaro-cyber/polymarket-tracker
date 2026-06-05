@@ -1,6 +1,34 @@
 # Methodology
 
-**Version 1.1.0** · asset `spacex-ipo-market-cap` · source: Polymarket (public market data only)
+**Version 1.2.0** · asset `spacex-ipo-market-cap` · source: Polymarket (public market data only)
+
+## Two tiers (the firewall)
+- **Tier 1 — market signal** (`derived` + `derived.market.analytics`): pure transforms of observed
+  Polymarket prices. No assumptions.
+- **Tier 2 — scenario analysis** (`derived.scenarios`): anything needing an input the market did not
+  provide (shares outstanding, a prior valuation). Every Tier-2 number carries a sourced, dated,
+  ranged, low-confidence assumption from `core/assumptions.json`; with no usable input it renders
+  `status:"input_required"` — never a fabricated number. The build **fails** if a scenario number
+  lacks a sourced+dated assumption, or if an `assumptions` key appears outside `derived.scenarios`.
+
+## Tier-1 analytics (added 1.2.0; quantile/probability-only — zero assumptions)
+- **Shape** — Bowley quartile skewness `((p75-med)-(med-p25))/(p75-p25)`; a robust fat-tail ratio
+  (10th–90th percentile valuation spread / IQR vs a normal's 1.90); normalized Shannon entropy + Gini
+  over the density buckets (consensus vs dispersion); dominant bucket.
+- **Dispersion over time** — the 25–75% band width tracked vs 7d/30d ago; `trend` = converging
+  (narrowing → growing certainty) / diverging / stable.
+- **Velocity** — 24h/7d/30d median change (the single source for every displayed median delta),
+  annualized drift, and acceleration (sign of the second difference).
+- **Calibration** — structural only: `status:"pending_resolution"`. The market resolves once (2027),
+  so a Brier score is impossible now and is **not faked**; the standing forecast is recorded for later.
+
+## Tier-2 scenarios (assumption-based)
+- **Implied share price** = market cap / shares outstanding, as `{central, low, high}` from the shares
+  range. **Round-over-round** = implied IPO-close median vs the last reported valuation. Inputs are
+  press-estimated (SpaceX is private), low-confidence, wide-range, cited and dated in `assumptions.json`
+  (v1.0.0). The dashboard lets a user explore their own input client-side without mutating the feed.
+
+
 
 Human-readable companion to [`core/methodology.json`](core/methodology.json) (served at
 [`/api/v1/methodology.json`](docs/api/v1/methodology.json)). Every snapshot embeds the
@@ -72,6 +100,11 @@ The canonical record conforms to [`/api/v1/schema.json`](docs/api/v1/schema.json
 secondary-market (Forge, Caplight, EquityZen) data.
 
 ## Changelog
+- **1.2.0** (2026-06-05) — Tier-1 analytics (Bowley skew, robust fat-tail ratio, entropy/Gini,
+  dispersion-over-time, velocity/acceleration) + a calibration scaffold (pending resolution, not
+  faked). Firewalled Tier-2 scenario tier (implied share price, round-over-round) with sourced/dated
+  assumptions (assumptions.json v1.0.0) and build-time firewall validation. Unified delta rounding.
+  Schema 1.2.0 (additive: derived.market, derived.scenarios, assumptions_version).
 - **1.1.0** (2026-06-05) — Volume-weighted isotonic adjustment (removes negative-probability
   artifacts; raw preserved); spread-implied median band; mean tail-sensitivity range;
   anomaly/staleness/liquidity confidence signals; deterministic narrative; published JSON Schema.

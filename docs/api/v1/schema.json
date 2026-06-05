@@ -3,10 +3,11 @@
   "$id": "https://ilanbenamaro-cyber.github.io/polymarket-tracker/api/v1/schema.json",
   "title": "Polymarket SpaceX-IPO canonical snapshot record",
   "type": "object",
-  "required": ["schema_version", "methodology_version", "asset", "snapshot"],
+  "required": ["schema_version", "methodology_version", "assumptions_version", "asset", "snapshot"],
   "properties": {
     "schema_version": { "type": "string" },
     "methodology_version": { "type": "string" },
+    "assumptions_version": { "type": "string" },
     "asset": {
       "type": "object",
       "required": ["id", "platform", "resolves"],
@@ -53,9 +54,40 @@
           "type": "object",
           "required": [
             "implied_median", "implied_mean", "mean", "iqr",
-            "total_volume", "adjustment", "confidence", "markets"
+            "total_volume", "adjustment", "confidence", "markets",
+            "market", "scenarios"
           ],
           "properties": {
+            "market": {
+              "type": "object",
+              "required": ["analytics"],
+              "properties": {
+                "analytics": {
+                  "type": "object",
+                  "required": ["shape", "dispersion", "velocity", "calibration", "descriptor"],
+                  "properties": {
+                    "shape": { "type": "object" },
+                    "dispersion": { "type": "object" },
+                    "velocity": { "type": "object" },
+                    "calibration": {
+                      "type": "object",
+                      "required": ["status"],
+                      "properties": { "status": { "type": "string" } }
+                    },
+                    "descriptor": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "scenarios": {
+              "type": "object",
+              "required": ["assumptions_version", "share_price", "round_over_round"],
+              "properties": {
+                "assumptions_version": { "type": ["string", "null"] },
+                "share_price": { "type": "object" },
+                "round_over_round": { "type": "object" }
+              }
+            },
             "implied_median": { "type": ["number", "null"] },
             "implied_mean": { "type": ["number", "null"] },
             "median": {

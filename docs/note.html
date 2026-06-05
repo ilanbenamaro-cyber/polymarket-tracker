@@ -8,133 +8,227 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root { --ink:#16140f; --muted:#6b6860; --amber:#a8651f; --blue:#1f5a92;
-    --line:#e3ddd0; --bg:#faf7f0; --green:#1f7a3d; --red:#a32525; }
+    --line:#e3ddd0; --bg:#faf7f0; --green:#1f7a3d; --red:#a32525; --t2:#8a5a16; }
   * { box-sizing:border-box; }
-  html,body { margin:0; padding:0; background:#d9d6cd; color:var(--ink);
-    font-family:Georgia,"Times New Roman",serif; }
-  .page { background:var(--bg); width:200mm; min-height:280mm; margin:18px auto; padding:18mm 18mm 14mm;
-    box-shadow:0 2px 16px rgba(0,0,0,.2); }
-  .toolbar { width:200mm; margin:14px auto 0; display:flex; justify-content:flex-end; gap:8px; }
-  .toolbar button, .toolbar a { font-family:system-ui,sans-serif; font-size:13px; padding:8px 16px;
-    background:var(--ink); color:#fff; border:none; border-radius:6px; cursor:pointer; text-decoration:none; }
+  html,body { margin:0; padding:0; background:#d9d6cd; color:var(--ink); font-family:Georgia,"Times New Roman",serif; }
+  .toolbar { width:210mm; margin:14px auto 0; display:flex; justify-content:flex-end; gap:8px; }
+  .toolbar button, .toolbar a { font-family:system-ui,sans-serif; font-size:13px; padding:8px 16px; background:var(--ink); color:#fff; border:none; border-radius:6px; cursor:pointer; text-decoration:none; }
   .toolbar a { background:#fff; color:var(--ink); border:1px solid #bbb; }
 
-  h1 { font-size:21px; margin:0; letter-spacing:.2px; }
+  .page { background:var(--bg); width:210mm; min-height:296mm; margin:16px auto; padding:16mm 18mm; box-shadow:0 2px 16px rgba(0,0,0,.2); position:relative; display:flex; flex-direction:column; }
+  .pagelabel { font-family:system-ui,sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); }
+  .pfoot { margin-top:auto; padding-top:10mm; font-family:system-ui,sans-serif; font-size:9px; color:var(--muted); border-top:1px solid var(--line); display:flex; justify-content:space-between; }
+
+  h1 { font-size:22px; margin:4px 0 0; }
+  h2 { font-size:15px; margin:0 0 8px; border-bottom:2px solid var(--ink); padding-bottom:3px; }
   .kicker { font-family:system-ui,sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:1.5px; color:var(--amber); font-weight:700; }
   .asof { font-family:system-ui,sans-serif; font-size:11px; color:var(--muted); margin-top:3px; }
-  hr { border:none; border-top:1px solid var(--line); margin:14px 0; }
+  hr { border:none; border-top:1px solid var(--line); margin:12px 0; }
 
-  .headline { display:flex; align-items:baseline; gap:18px; margin-top:10px; }
-  .headline .num { font-size:40px; font-weight:700; color:var(--blue); font-family:Georgia,serif; line-height:1; }
-  .headline .cap { font-family:system-ui,sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .hero { display:flex; align-items:baseline; gap:18px; margin:10px 0; }
+  .hero .num { font-size:40px; font-weight:700; color:var(--blue); line-height:1; }
+  .hero .cap { font-family:system-ui,sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
   .badge { font-family:system-ui,sans-serif; display:inline-block; padding:2px 9px; border-radius:14px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
   .badge.high { background:#dff3e4; color:var(--green); } .badge.medium { background:#f3e6d2; color:var(--amber); } .badge.low { background:#f5dada; color:var(--red); }
+  .read { font-size:14.5px; line-height:1.55; margin:10px 0; }
+  .reasons { font-family:system-ui,sans-serif; font-size:11px; color:var(--muted); margin-top:4px; }
 
-  .read { font-size:14.5px; line-height:1.55; margin:12px 0 4px; }
-  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0; }
-  .metric { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-  .metric .l { font-family:system-ui,sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
-  .metric .v { font-size:18px; font-weight:700; margin-top:5px; }
-  .chartwrap { margin:6px 0 2px; }
-  .reasons { font-family:system-ui,sans-serif; font-size:11.5px; color:var(--muted); margin-top:6px; }
-  .src { font-family:system-ui,sans-serif; font-size:10.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
-  .src code { background:#efe9dc; padding:1px 5px; border-radius:4px; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; }
+  .cell { border:1px solid var(--line); border-radius:7px; padding:9px 10px; }
+  .cell .l { font-family:system-ui,sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .cell .v { font-size:16px; font-weight:700; margin-top:4px; }
+  .cell .s { font-family:system-ui,sans-serif; font-size:9.5px; color:var(--muted); margin-top:3px; }
+
+  table { width:100%; border-collapse:collapse; font-family:system-ui,sans-serif; }
+  th,td { padding:4px 8px; font-size:11px; text-align:right; border-bottom:1px solid var(--line); }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-size:9.5px; text-transform:uppercase; }
+  .up { color:var(--green); } .down { color:var(--red); }
+  .chartwrap { margin:8px 0; }
+
+  /* Tier-2 — visually distinct, assumption-based */
+  .t2banner { background:repeating-linear-gradient(135deg,rgba(168,101,31,.08) 0 10px,transparent 10px 20px); border:1px dashed var(--amber); border-radius:8px; padding:9px 12px; margin:8px 0; }
+  .t2banner b { color:var(--t2); font-family:system-ui,sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; }
+  .t2banner span { font-family:system-ui,sans-serif; font-size:11px; color:var(--muted); }
+  .scen { border:1px solid var(--line); border-left:3px solid var(--amber); border-radius:7px; padding:10px 12px; margin:8px 0; }
+  .scen .v { font-size:20px; font-weight:800; color:var(--t2); }
+  .scen .rng { font-family:system-ui,sans-serif; font-size:11px; color:var(--muted); }
+  .assump { font-family:system-ui,sans-serif; font-size:10px; color:var(--muted); margin-top:6px; border-top:1px dotted var(--line); padding-top:6px; line-height:1.5; }
+  .verify { font-family:ui-monospace,Menlo,monospace; font-size:9.5px; background:#efe9dc; padding:8px 10px; border-radius:6px; white-space:pre-wrap; }
   .err { color:var(--red); font-family:system-ui,sans-serif; font-size:12px; }
 
   @media print {
     html,body { background:#fff; }
     .toolbar { display:none; }
-    .page { width:auto; min-height:auto; margin:0; padding:12mm 14mm; box-shadow:none; }
+    .page { width:auto; min-height:auto; margin:0; box-shadow:none; padding:12mm 14mm; break-after:page; }
+    .page:last-child { break-after:auto; }
     @page { size:A4 portrait; margin:0; }
-    h1,.headline,.metrics,.chartwrap,.read,.src { break-inside:avoid; page-break-inside:avoid; }
+    h1,.hero,.grid,.scen,table,.chartwrap,.read { break-inside:avoid; }
   }
 </style>
 </head>
 <body>
   <div class="toolbar">
     <a href="./index.html">← Dashboard</a>
-    <button id="printBtn" type="button">Print / Save as PDF</button>
+    <button id="printBtn" type="button">Print / Save as PDF (3 pages)</button>
   </div>
 
-  <div class="page" id="page">
+  <!-- PAGE 1 — SIGNAL (forwardable; stands alone) -->
+  <div class="page" id="p1">
+    <div class="pagelabel">Page 1 of 3 — Signal</div>
     <div class="kicker">Prediction-market signal · Polymarket</div>
     <h1>SpaceX IPO closing market cap</h1>
-    <div class="asof">As of <span id="asof"><!--BAKE:date-->2026-06-05<!--/BAKE:date--></span> (UTC) · methodology v<span id="mver"><!--BAKE:methodology-->1.1.0<!--/BAKE:methodology--></span> · resolves Dec 31 2027</div>
+    <div class="asof" id="asof1">…</div>
     <hr/>
-
-    <div class="headline">
-      <div>
-        <div class="num" id="hl-median"><!--BAKE:median-->$2.18T<!--/BAKE:median--></div>
-        <div class="cap">Implied median valuation</div>
-      </div>
-      <div>
-        <span class="badge medium" id="tier"><!--BAKE:tier-->medium<!--/BAKE:tier--></span>
-        <div class="cap" style="margin-top:4px">confidence</div>
-      </div>
+    <div class="hero">
+      <div><div class="num" id="hl-median"><!--BAKE:median-->$2.18T<!--/BAKE:median--></div><div class="cap">Implied median valuation</div></div>
+      <div><span class="badge medium" id="tier"><!--BAKE:tier-->high<!--/BAKE:tier--></span><div class="cap" style="margin-top:4px">confidence</div></div>
+      <div><div class="v" id="medband" style="font-size:14px;font-weight:700"></div><div class="cap">50% spread band</div></div>
     </div>
-
-    <p class="read" id="read">The market's central estimate for SpaceX's IPO-closing market cap is
-      <strong><!--BAKE:median-->$2.18T<!--/BAKE:median--></strong>.</p>
-
-    <div class="metrics" id="metrics"></div>
-
-    <div class="chartwrap"><canvas id="curve" height="150"></canvas></div>
-
+    <p class="read" id="read"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.18T, up $0.08T over the past month and down $0.16T this week. A monthly climb now cooling. The largest single concentration of probability (22%) sits in the $2.2–2.4T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></p>
     <div class="reasons" id="reasons"></div>
-
-    <div class="src" id="src">
-      Source: Polymarket public market data (YES midpoint prices). This note is generated from a single
-      canonical snapshot; every number is reproducible from the stored raw inputs and their sha256 hash.
-      <div id="prov" style="margin-top:6px"></div>
-    </div>
-    <div class="err" id="err" style="display:none;">Live data unavailable — figures above are the last published snapshot.</div>
+    <div class="chartwrap"><canvas id="curve" height="150"></canvas></div>
+    <div class="pfoot"><span id="f1">Source: Polymarket public market data</span><span id="h1hash"></span></div>
   </div>
+
+  <!-- PAGE 2 — MARKET ANALYSIS (Tier 1) -->
+  <div class="page" id="p2">
+    <div class="pagelabel">Page 2 of 3 — Market analysis (Tier 1 · no assumptions)</div>
+    <h2>Distribution shape, dispersion &amp; velocity</h2>
+    <div class="grid" id="anGrid"></div>
+    <p class="read" id="anDesc" style="font-size:12.5px"></p>
+    <h2 style="margin-top:10px">Implied median &amp; key probabilities (trend)</h2>
+    <div class="chartwrap"><canvas id="trend" height="150"></canvas></div>
+    <h2 style="margin-top:10px">All thresholds &amp; biggest 30-day moves</h2>
+    <table id="thTable"><thead><tr><th>Threshold</th><th>Prob</th><th>Bucket %</th><th>7d Δ</th><th>30d Δ</th></tr></thead><tbody id="thBody"></tbody></table>
+    <div id="movers" style="font-family:system-ui,sans-serif;font-size:11px;color:var(--muted);margin-top:8px"></div>
+    <div class="pfoot"><span>Tier 1 — pure transforms of observed Polymarket prices</span><span id="h2hash"></span></div>
+  </div>
+
+  <!-- PAGE 3 — SCENARIO ANALYSIS (Tier 2) + METHODOLOGY -->
+  <div class="page" id="p3">
+    <div class="pagelabel">Page 3 of 3 — Scenario analysis (Tier 2) &amp; methodology</div>
+    <h2>Scenario analysis</h2>
+    <div class="t2banner"><b>Assumption-based</b> &nbsp;<span>These figures require inputs the market did not provide (SpaceX is private). Each is driven by a sourced, dated, low-confidence assumption — not a market price.</span></div>
+    <div id="scenarios"></div>
+    <h2 style="margin-top:12px">Methodology &amp; verification</h2>
+    <div id="methods" style="font-family:system-ui,sans-serif;font-size:11px;color:var(--muted);line-height:1.6"></div>
+    <div class="verify" id="verify"></div>
+    <div class="pfoot"><span>Tier 2 — assumption-based, quarantined from the market signal</span><span id="h3hash"></span></div>
+  </div>
+
+  <div class="err" id="err" style="display:none;text-align:center;margin:20px">Live data unavailable — showing last published snapshot.</div>
 
 <script>
   const API='./api/v1/';
   const money=m=>m==null?'n/a':'$'+m.toFixed(2)+'T';
   const pct=p=>p==null?'—':Math.round(p*100)+'%';
+  const pct1=p=>p==null?'—':(p*100).toFixed(1)+'%';
+  const fmtPrice=p=>p==null?'—':'$'+Math.round(p).toLocaleString('en-US');
+  const fmtShares=n=>n==null?'—':(n/1e9).toFixed(2)+'B';
+  const rng=o=>(o&&o.low!=null&&o.high!=null)?'$'+o.low.toFixed(2)+'–$'+o.high.toFixed(2)+'T':null;
+  const dlt=d=>{ if(d==null) return '—'; const pp=Math.round(d*100); if(pp===0) return '—'; const c=pp>0?'up':'down'; return '<span class="'+c+'">'+(pp>0?'+':'')+pp+'%</span>'; };
+  const dateMinus=(s,n)=>{const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-n);return d.toISOString().slice(0,10);};
+  const onOrBefore=(h,t)=>{let r=null;for(const e of h){if(e.date<=t)r=e;else break;}return r;};
+  const probAt=(mk,t)=>{const r=mk.find(m=>m.threshold===t);return r?r.prob:null;};
 
-  function render(rec){
-    const s=rec.snapshot, d=s.derived;
-    document.getElementById('asof').textContent=s.fetched_at.slice(0,10);
-    document.getElementById('mver').textContent=rec.methodology_version;
+  Promise.all([
+    fetch(API+'latest.json?t='+Date.now()).then(r=>{if(!r.ok)throw 0;return r.json();}),
+    fetch(API+'history.json?t='+Date.now()).then(r=>r.ok?r.json():[]),
+    fetch(API+'history-full.json?t='+Date.now()).then(r=>r.ok?r.json():[]),
+  ]).then(([rec,hist,full])=>render(rec,hist,full)).catch(()=>{document.getElementById('err').style.display='block';});
+
+  function render(rec,hist,full){
+    const s=rec.snapshot, d=s.derived, an=d.market&&d.market.analytics, sc=d.scenarios;
+    const hashShort=s.source.raw_sha256.slice(0,16)+'…';
+    const versions='methodology v'+rec.methodology_version+' · schema v'+rec.schema_version+' · assumptions v'+rec.assumptions_version;
+    const asof=s.fetched_at.slice(0,19).replace('T',' ');
+
+    // ── PAGE 1 ──
+    document.getElementById('asof1').textContent='As of '+asof+' UTC · '+versions+' · resolves Dec 31 2027';
     document.getElementById('hl-median').textContent=money(d.implied_median);
     const tier=document.getElementById('tier'); tier.textContent=d.confidence.tier; tier.className='badge '+d.confidence.tier;
-
-    const band=d.iqr?money(d.iqr.p25)+'–'+money(d.iqr.p75):'n/a';
-    const rng=o=>(o&&o.low!=null&&o.high!=null)?'$'+o.low.toFixed(2)+'–$'+o.high.toFixed(2)+'T':null;
-    // The deterministic narrative IS the signal — use it verbatim.
+    document.getElementById('medband').textContent=rng(d.median)||'point estimate';
     document.getElementById('read').textContent=d.narrative||'';
+    document.getElementById('reasons').textContent='Confidence basis: '+d.confidence.reasons.join(' · ')+'.';
+    [['h1hash',hashShort],['h2hash',hashShort],['h3hash',hashShort]].forEach(([id,v])=>document.getElementById(id).textContent='sha256 '+v+' · '+asof.slice(0,10));
+    drawCurve(d.markets, d.implied_median);
 
-    const medCell=money(d.implied_median)+(rng(d.median)?'<div class="l" style="margin-top:3px">band '+rng(d.median)+'</div>':'');
-    const meanCell=money(d.implied_mean)+(rng(d.mean)?'<div class="l" style="margin-top:3px">range '+rng(d.mean)+'</div>':'');
-    document.getElementById('metrics').innerHTML=[
-      ['Implied median',medCell],
-      ['Implied mean (approx)',meanCell],
-      ['50% band',band],
-      ['Total volume',d.total_volume!=null?'$'+(d.total_volume/1e6).toFixed(1)+'M':'—'],
-    ].map(([l,v])=>'<div class="metric"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>').join('');
+    // ── PAGE 2: analytics ──
+    if(an){
+      const sh=an.shape, di=an.dispersion, ve=an.velocity;
+      const cells=[
+        ['Shape (Bowley skew)', sh.skew_bowley==null?'—':sh.skew_bowley.toFixed(2), (sh.fat_tail!=null&&sh.fat_tail>1.1?'fat-tailed ':'')+'tail '+(sh.tail_ratio==null?'—':sh.tail_ratio)],
+        ['Consensus (entropy)', sh.entropy==null?'—':sh.entropy.toFixed(2), sh.dominant_bucket?('mass '+sh.dominant_bucket.label):''],
+        ['Dispersion (25–75)', di.iqr_width!=null?('$'+di.iqr_width.toFixed(2)+'T'):'—', di.trend||''],
+        ['Velocity (30d drift)', ve.drift_30d_annualized!=null?((ve.drift_30d_annualized>0?'+':'')+ve.drift_30d_annualized.toFixed(2)+'$T/yr'):'—', ve.acceleration||''],
+      ];
+      document.getElementById('anGrid').innerHTML=cells.map(c=>'<div class="cell"><div class="l">'+c[0]+'</div><div class="v">'+c[1]+'</div><div class="s">'+c[2]+'</div></div>').join('');
+      document.getElementById('anDesc').textContent=an.descriptor||'';
+    }
+    drawTrend(hist);
 
-    document.getElementById('reasons').textContent='Confidence basis: '+d.confidence.reasons.join(' · ')+' (score '+d.confidence.score+').';
-    document.getElementById('prov').innerHTML='snapshot <code>'+s.snapshot_id+'</code> · sha256 <code>'+s.source.raw_sha256.slice(0,24)+'…</code>';
+    // table + movers (30d) from history-full
+    const today=full.length?full[full.length-1].date:s.fetched_at.slice(0,10);
+    const e7=onOrBefore(full,dateMinus(today,7)), e30=onOrBefore(full,dateMinus(today,30));
+    document.getElementById('thBody').innerHTML=d.markets.map(x=>{
+      const p7=e7?probAt(e7.markets,x.threshold):null, p30=e30?probAt(e30.markets,x.threshold):null;
+      return '<tr><td>'+x.label+'</td><td>'+pct(x.prob)+'</td><td>'+pct1(x.bucket_prob)+'</td><td>'+dlt(p7==null?null:x.prob-p7)+'</td><td>'+dlt(p30==null?null:x.prob-p30)+'</td></tr>';
+    }).join('');
+    if(e30){ const mv=d.markets.map(x=>{const b=probAt(e30.markets,x.threshold);return b==null?null:{l:x.label,d:x.prob-b};}).filter(Boolean).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d)).slice(0,3);
+      document.getElementById('movers').innerHTML='<b>Biggest 30-day moves:</b> '+mv.map(m=>m.l+' '+(m.d>0?'+':'')+Math.round(m.d*100)+'%').join(' · '); }
 
-    const m=d.markets;
-    new Chart(document.getElementById('curve'),{type:'line',
-      data:{datasets:[
-        {label:'P(>X)',data:m.map(x=>({x:x.threshold,y:x.prob*100})),parsing:false,borderColor:'#1f5a92',backgroundColor:'rgba(31,90,146,.08)',pointRadius:2,tension:.3,fill:true},
-        {label:'50%',data:[{x:m[0].threshold,y:50},{x:m[m.length-1].threshold,y:50}],parsing:false,borderColor:'#a8651f',borderDash:[5,4],borderWidth:1,pointRadius:0},
-      ]},
-      options:{animation:false,plugins:{legend:{display:false},title:{display:true,text:'Implied probability P(market cap > X)',color:'#6b6860',font:{size:11,family:'system-ui'}}},
-        scales:{x:{type:'linear',ticks:{color:'#6b6860',callback:v=>'$'+v+'T',font:{size:9}},grid:{color:'#ece6d8'}},
-          y:{min:0,max:100,ticks:{color:'#6b6860',callback:v=>v+'%',font:{size:9}},grid:{color:'#ece6d8'}}}}});
+    // ── PAGE 3: scenarios + methodology ──
+    document.getElementById('scenarios').innerHTML=scenarioHtml(sc, d.implied_median);
+    document.getElementById('methods').innerHTML=
+      '<p><b>Tier 1 (market signal)</b>: probabilities are Polymarket YES midpoints; each "above $X" market is isotonic-adjusted (volume-weighted) into a monotone CDF before any metric. Median = CDF@50%; band = bid/ask CDFs; mean = bucket-EV (tail-sensitivity range); shape/dispersion/velocity are quantile/probability transforms with no assumptions. Calibration is pending resolution (no Brier before 2027).</p>'+
+      '<p><b>Tier 2 (scenarios)</b> require external inputs (above), each sourced, dated, ranged and low-confidence; the firewall fails the build if any scenario number lacks a sourced assumption.</p>'+
+      '<p>'+versions+'. Full spec: <a href="./api/v1/methodology.json">methodology.json</a>, <a href="./api/v1/schema.json">schema.json</a>, <a href="./api/v1/latest.json">latest.json</a>.</p>';
+    document.getElementById('verify').textContent=
+      'Verify provenance (latest.json or any snapshots/YYYY-MM-DD.json):\n'+
+      '  sha256( canonical_json(raw_inputs) ) === snapshot.source.raw_sha256\n'+
+      '  keys ordered token_id,threshold,midpoint,best_bid,best_ask,volume; ascending by threshold.\n'+
+      '  this snapshot: '+s.source.raw_sha256;
   }
 
-  fetch(API+'latest.json?t='+Date.now())
-    .then(r=>{ if(!r.ok) throw new Error('latest '+r.status); return r.json(); })
-    .then(render)
-    .catch(err=>{ console.error(err); document.getElementById('err').style.display='block'; });
+  function scenarioHtml(sc, median){
+    if(!sc) return '';
+    const sp=sc.share_price, rr=sc.round_over_round;
+    const aBox=a=>{ if(!a) return ''; const v=a.value!=null?(a.unit==='shares'?fmtShares(a.value)+' shares':a.unit==='USD_trillions'?'$'+a.value+'T':a.value):'(input required)';
+      const r=a.range?(a.unit==='shares'?fmtShares(a.range[0])+'–'+fmtShares(a.range[1]):'$'+a.range[0]+'–$'+a.range[1]+'T'):'';
+      return '<div class="assump"><b>Assumption:</b> '+a.name+' = '+v+(r?' (range '+r+')':'')+' · confidence '+(a.confidence||'—')+' · as of '+(a.as_of||'—')+'. '+(a.source||'')+(a.note?'<br>'+a.note:'')+'</div>'; };
+    let h='';
+    h+='<div class="scen"><div style="font-family:system-ui,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">Implied share price (at the implied median)</div>';
+    if(sp.status==='input_required') h+='<div class="v">input required</div><div class="rng">'+(sp.note||'')+'</div>';
+    else h+='<div class="v">'+fmtPrice(sp.at_median.central)+'</div><div class="rng">range '+fmtPrice(sp.at_median.low)+' – '+fmtPrice(sp.at_median.high)+' per share (from the shares range) · cap '+money(median)+' ÷ shares</div>';
+    h+=aBox(sp.assumptions&&sp.assumptions[0])+'</div>';
+    h+='<div class="scen"><div style="font-family:system-ui,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">Round-over-round (vs last reported valuation)</div>';
+    if(rr.status==='input_required') h+='<div class="v">input required</div>';
+    else h+='<div class="v">'+(rr.implied_change_pct.central>0?'+':'')+rr.implied_change_pct.central.toFixed(1)+'%</div><div class="rng">range '+rr.implied_change_pct.low.toFixed(1)+'% – '+rr.implied_change_pct.high.toFixed(1)+'%</div>';
+    h+=aBox(rr.assumptions&&rr.assumptions[0])+'</div>';
+    return h;
+  }
 
+  function drawCurve(m, median){
+    new Chart(document.getElementById('curve'),{type:'line',data:{datasets:[
+      {label:'P(>X)',data:m.map(x=>({x:x.threshold,y:x.prob*100})),parsing:false,borderColor:'#1f5a92',backgroundColor:'rgba(31,90,146,.08)',pointRadius:2,tension:.3,fill:true},
+      {label:'50%',data:[{x:m[0].threshold,y:50},{x:m[m.length-1].threshold,y:50}],parsing:false,borderColor:'#a8651f',borderDash:[5,4],borderWidth:1,pointRadius:0},
+    ]},options:{animation:false,plugins:{legend:{display:false},title:{display:true,text:'Implied probability P(market cap > X)',color:'#6b6860',font:{size:11,family:'system-ui'}}},
+      scales:{x:{type:'linear',ticks:{color:'#6b6860',callback:v=>'$'+v+'T',font:{size:9}},grid:{color:'#ece6d8'}},y:{min:0,max:100,ticks:{color:'#6b6860',callback:v=>v+'%',font:{size:9}},grid:{color:'#ece6d8'}}}}});
+  }
+  function drawTrend(hist){
+    if(!hist||hist.length<2) return;
+    const h=hist.slice(-90), labels=h.map(e=>e.date);
+    const ds=(lbl,f,col,axis,w,dash)=>({label:lbl,data:h.map(e=>e[f]==null?null:(axis==='yP'?e[f]*100:e[f])),borderColor:col,borderWidth:w,borderDash:dash||[],pointRadius:0,tension:.25,yAxisID:axis,spanGaps:true});
+    new Chart(document.getElementById('trend'),{type:'line',data:{labels,datasets:[
+      ds('P(>$1.8T)','prob_1_8t','#a8651f','yP',1.2),
+      ds('P(>$2.4T)','prob_2_4t','#9a9890','yP',1.2),
+      ds('Implied median','implied_median','#1f5a92','yM',2.4),
+    ]},options:{animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#6b6860',boxWidth:10,font:{size:9,family:'system-ui'}}}},
+      scales:{x:{ticks:{color:'#6b6860',maxTicksLimit:8,font:{size:8}},grid:{color:'#ece6d8'}},
+        yP:{position:'left',min:0,max:100,ticks:{color:'#6b6860',callback:v=>v+'%',font:{size:8}},grid:{color:'#ece6d8'}},
+        yM:{position:'right',ticks:{color:'#6b6860',callback:v=>'$'+v+'T',font:{size:8}},grid:{drawOnChartArea:false}}}}});
+  }
   document.getElementById('printBtn').addEventListener('click',()=>window.print());
 </script>
 </body>

@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "as_of": "2026-06-05",
+  "note": "Registry of EXTERNAL inputs used only by Tier-2 scenario analysis (derived.scenarios). Never used by Tier-1 market metrics. SpaceX is private and does not disclose these figures; values below are dated, attributed press estimates with low confidence and wide ranges. Bump version on any change.",
+  "assumptions": {
+    "shares_outstanding": {
+      "name": "SpaceX shares outstanding (implied, ~fully diluted)",
+      "value": 1900000000,
+      "unit": "shares",
+      "source": "Reuters, 'SpaceX insider share sale sets $800 billion valuation' (Dec 13, 2025): implied from a reported ~$800B valuation at $421/share (800e9 / 421 ≈ 1.90B).",
+      "source_url": "https://www.reuters.com/business/spacex-sets-800-billion-valuation-bloomberg-news-reports-2025-12-13/",
+      "as_of": "2025-12-13",
+      "confidence": "low",
+      "range": [1700000000, 2100000000],
+      "adjustable": true,
+      "note": "Private company — share count not officially disclosed. Implied from a reported insider tender, not a filing. Basic vs fully-diluted differ materially; treat as a rough public anchor, not precision. A tender is secondary liquidity, included here only as a press-reported estimate."
+    },
+    "last_round_valuation": {
+      "name": "SpaceX last reported valuation (Dec 2025 insider tender)",
+      "value": 0.8,
+      "unit": "USD_trillions",
+      "source": "Reuters, 'SpaceX insider share sale sets $800 billion valuation' (Dec 13, 2025).",
+      "source_url": "https://www.reuters.com/business/spacex-sets-800-billion-valuation-bloomberg-news-reports-2025-12-13/",
+      "as_of": "2025-12-13",
+      "confidence": "low",
+      "range": [0.75, 0.8],
+      "adjustable": true,
+      "note": "Reported insider/secondary tender valuation, not a primary raise. A rough public anchor for round-over-round context only."
+    }
+  }
+}

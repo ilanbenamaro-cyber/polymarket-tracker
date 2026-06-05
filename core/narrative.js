@@ -1,76 +1,66 @@
 // core/narrative.js — deterministic plain-English signal reading.
 //
-// Why this exists: the page is titled "signal" but makes the generalist assemble
-// the story themselves. This composes a reproducible narrative from stored fields
-// ONLY — no LLM in the data path, and it never asserts anything that is not in
-// narrative_components. Same inputs → same sentence, every time.
+// Why this exists: compose a reproducible narrative from stored fields ONLY — no
+// LLM, never asserting anything absent from narrative_components. It now reads the
+// already-computed analytics (velocity deltas, shape, dispersion) so the median
+// moves it states are the SAME stored numbers the cards show (fixes defect D1),
+// and it softens trend claims on low-confidence days.
 
-const FLAT_EPS = 0.02; // |Δ median| below $0.02T reads as "broadly flat"
-
-function signedT(d) {
-  const a = Math.abs(d).toFixed(2);
-  return d > 0 ? `up $${a}T` : d < 0 ? `down $${a}T` : `flat`;
-}
-function dir(d) {
-  if (d == null) return null;
-  if (d > FLAT_EPS) return 'up';
-  if (d < -FLAT_EPS) return 'down';
+/** Word form of a stored velocity change object {abs, dir}: "up $0.05T" / "down $0.20T" / "flat". */
+function changeWords(c) {
+  if (!c || c.abs == null) return null;
+  if (c.dir === 'up') return `up $${Math.abs(c.abs).toFixed(2)}T`;
+  if (c.dir === 'down') return `down $${Math.abs(c.abs).toFixed(2)}T`;
   return 'flat';
 }
 
-/**
- * Build the narrative + its structured components.
- *   derived   : the snapshot's derived block (implied_median, confidence, ...)
- *   prior7d   : implied_median 7 days ago (or null)
- *   prior30d  : implied_median 30 days ago (or null)
- *   density   : Array<{label, prob}> incl. the "<lowest" bucket (max => dominant)
- * Returns { narrative, narrative_components }.
- */
-export function buildNarrative({ derived, prior7d = null, prior30d = null, density = [] }) {
+export function buildNarrative({ derived, analytics = null, prior7d = null, prior30d = null, density = [] }) {
   const median = derived.implied_median;
-  const change7d = prior7d != null && median != null ? median - prior7d : null;
-  const change30d = prior30d != null && median != null ? median - prior30d : null;
-
-  const dominant =
-    density.length > 0
-      ? density.reduce((a, b) => (b.prob > a.prob ? b : a))
-      : null;
-
-  const dir7 = dir(change7d);
-  const dir30 = dir(change30d);
-  const divergence =
-    dir7 && dir30 && dir7 !== 'flat' && dir30 !== 'flat' && dir7 !== dir30
-      ? dir30 === 'up'
-        ? 'monthly climb now cooling'
-        : 'monthly decline now rebounding'
-      : null;
-
   const tier = derived.confidence.tier;
+  const velocity = analytics?.velocity ?? null;
+  const shape = analytics?.shape ?? null;
+  const dispersion = analytics?.dispersion ?? null;
+
+  // Deltas come from stored velocity (single source) — falls back to priors only
+  // if analytics is absent (e.g. a price-only history entry).
+  const change7d = velocity?.change_7d ?? (prior7d != null && median != null ? { abs: median - prior7d, dir: median - prior7d > 0.02 ? 'up' : median - prior7d < -0.02 ? 'down' : 'flat' } : null);
+  const change30d = velocity?.change_30d ?? (prior30d != null && median != null ? { abs: median - prior30d, dir: median - prior30d > 0.02 ? 'up' : median - prior30d < -0.02 ? 'down' : 'flat' } : null);
+
+  const dominant = density.length ? density.reduce((a, b) => (b.prob > a.prob ? b : a)) : null;
+  const divergence =
+    change7d && change30d && change7d.dir !== 'flat' && change30d.dir !== 'flat' && change7d.dir !== change30d.dir
+      ? change30d.dir === 'up' ? 'monthly climb now cooling' : 'monthly decline now rebounding'
+      : null;
+
+  // Shape / dispersion claims are gated: never tout a trend on a low-confidence day.
+  const trendClaim = tier !== 'low' && dispersion?.trend && dispersion.trend !== 'stable' ? dispersion.trend : null;
+  const skewClaim =
+    shape?.skew_bowley == null ? null
+      : shape.skew_bowley > 0.1 ? 'a longer upside tail'
+      : shape.skew_bowley < -0.1 ? 'a longer downside tail'
+      : null;
   const caveat = tier !== 'high' ? derived.confidence.reasons[0] : null;
 
   const components = {
     median_now: median,
-    change_7d: change7d == null ? null : { abs: change7d, dir: dir7 },
-    change_30d: change30d == null ? null : { abs: change30d, dir: dir30 },
+    change_7d: change7d ? { abs: change7d.abs, dir: change7d.dir } : null,
+    change_30d: change30d ? { abs: change30d.abs, dir: change30d.dir } : null,
     divergence,
     dominant_bucket: dominant ? { label: dominant.label, prob: dominant.prob } : null,
+    dispersion_trend: trendClaim,
+    skew: skewClaim,
     confidence_tier: tier,
     confidence_caveat: caveat,
   };
 
-  // ── assemble the sentence; every clause maps to a component above ──
   const parts = [];
   if (median == null) {
-    parts.push(
-      `The market does not cross a 50% threshold within the quoted range, so no implied median is available.`
-    );
+    parts.push('The market does not cross a 50% threshold within the quoted range, so no implied median is available.');
   } else {
     let lead = `The market values SpaceX's IPO-closing cap at a median $${median.toFixed(2)}T`;
     const tail = [];
-    if (change30d != null)
-      tail.push(dir30 === 'flat' ? 'broadly flat over the past month' : `${signedT(change30d)} over the past month`);
-    if (change7d != null)
-      tail.push(dir7 === 'flat' ? 'flat this week' : `${signedT(change7d)} this week`);
+    if (change30d) tail.push(change30d.dir === 'flat' ? 'broadly flat over the past month' : `${changeWords(change30d)} over the past month`);
+    if (change7d) tail.push(change7d.dir === 'flat' ? 'flat this week' : `${changeWords(change7d)} this week`);
     if (tail.length) lead += ', ' + tail.join(' and ');
     lead += '.';
     if (divergence) lead += ` A ${divergence}.`;
@@ -78,16 +68,16 @@ export function buildNarrative({ derived, prior7d = null, prior30d = null, densi
   }
 
   if (dominant) {
-    parts.push(
-      `The largest single concentration of probability (${Math.round(dominant.prob * 100)}%) sits in the ${dominant.label} range.`
-    );
+    parts.push(`The largest single concentration of probability (${Math.round(dominant.prob * 100)}%) sits in the ${dominant.label} range${skewClaim ? `, with ${skewClaim}` : ''}.`);
   }
 
-  parts.push(
-    caveat
-      ? `Confidence is ${tier}: ${caveat}.`
-      : `Confidence is ${tier}.`
-  );
+  if (trendClaim) {
+    parts.push(trendClaim === 'converging'
+      ? 'The 25–75% band is narrowing — the market is converging on a view.'
+      : 'The 25–75% band is widening — the market is growing less certain.');
+  }
+
+  parts.push(caveat ? `Confidence is ${tier}: ${caveat}.` : `Confidence is ${tier}.`);
 
   return { narrative: parts.join(' '), narrative_components: components };
 }

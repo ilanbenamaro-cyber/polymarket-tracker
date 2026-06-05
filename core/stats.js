@@ -165,14 +165,19 @@ export function meanSensitivity(adjustedMarkets) {
     belowOffset: 0.15,
     aboveOffset: 0.4,
   });
-  if (central == null) return { central: null, low: null, high: null };
+  if (central == null) return { central: null, low: null, high: null, width: null, tail_insensitive: null };
   const vals = [];
   for (const b of MEAN_GRID.below) {
     for (const a of MEAN_GRID.above) {
       vals.push(computeImpliedMean(adjustedMarkets, { belowOffset: b, aboveOffset: a }));
     }
   }
-  return { central, low: Math.min(...vals), high: Math.max(...vals) };
+  const low = Math.min(...vals);
+  const high = Math.max(...vals);
+  const width = high - low;
+  // D2: if the grid barely moves the mean (rounds to the same 2dp), say so
+  // explicitly rather than rendering a false-precision "$x–$x" band.
+  return { central, low, high, width, tail_insensitive: width < 0.01 };
 }
 
 /**

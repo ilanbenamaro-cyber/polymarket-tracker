@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "asset": "spacex-ipo-market-cap",
-  "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones.",
+  "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
     "isotonic_adjustment": {
       "method": "Volume-weighted Pool Adjacent Violators (PAVA) enforces a non-increasing CDF across thresholds. On a violation (an earlier P(>X) below a later one), adjacent markets pool to their volume-weighted mean, pulling the estimate toward the more liquid quote. Each market stores raw_prob and adjusted_prob; all metrics use the adjusted curve.",
@@ -62,13 +62,48 @@
       "sensitivity_note": "Provenance check: proves derived numbers came from the stored, unaltered inputs. Status flags (closed/active) are deliberately excluded from the hashed inputs."
     },
     "narrative": {
-      "method": "Deterministic, template-based reading composed only from stored fields (median vs 7d/30d-ago, divergence, dominant bucket, confidence caveat). No language model in the data path; reproducible from narrative_components.",
+      "method": "Deterministic, template-based reading composed only from stored fields (median vs 7d/30d-ago, divergence, dominant bucket, shape, dispersion trend, confidence caveat). No language model in the data path; reproducible from narrative_components. Trend claims are suppressed on low-confidence days.",
       "robust": true,
       "assumptions": ["Every clause maps to a field in narrative_components; nothing is asserted that is not stored."],
       "sensitivity_note": "Same inputs always produce the same sentence."
+    },
+    "analytics_shape": {
+      "method": "Distribution shape from the adjusted CDF: Bowley quartile skewness ((p75-med)-(med-p25))/(p75-p25); a robust fat-tail ratio (10th-90th percentile valuation spread) / IQR vs a normal's 1.90; normalized Shannon entropy and Gini over the density buckets (consensus vs dispersion); dominant bucket.",
+      "robust": true,
+      "assumptions": ["Quantile- and probability-based only; no tail-midpoint assumptions."],
+      "sensitivity_note": "Bowley skew and the tail ratio use only interpolated quantiles, so they inherit none of the mean's tail sensitivity."
+    },
+    "analytics_dispersion": {
+      "method": "The 25-75% band width (p75-p25) tracked over time; trend = converging when the width is shrinking (growing certainty), diverging when widening.",
+      "robust": true,
+      "assumptions": ["Reads stored historical IQR; no assumptions."],
+      "sensitivity_note": "A genuine signal: a tightening band means the market is concentrating its view."
+    },
+    "analytics_velocity": {
+      "method": "Rate of change of the implied median: 24h/7d/30d changes (the single source for displayed median deltas), 7d/30d annualized drift, and acceleration from the sign of the second difference.",
+      "robust": true,
+      "assumptions": ["Reads stored historical medians; no assumptions."],
+      "sensitivity_note": "All surfaces display the same stored delta values through one rounding helper."
+    },
+    "calibration": {
+      "method": "Structural scaffold only. The market resolves once, at IPO close (2027-12-31), so a true calibration / Brier score is impossible before resolution. The standing forecast is recorded so it can be scored later; NO score is computed now.",
+      "robust": true,
+      "assumptions": ["None — explicitly pending resolution."],
+      "sensitivity_note": "Deliberately not faked. status = 'pending_resolution'."
+    },
+    "scenarios": {
+      "method": "TIER 2. Implied share price = market_cap / shares_outstanding, reported as {central, low, high} from the shares range; round-over-round = implied IPO-close median vs the last reported valuation. Each scenario carries its sourced, dated assumption from assumptions.json; with no usable input it renders 'input_required'.",
+      "robust": false,
+      "assumptions": ["shares_outstanding and last_round_valuation are external, press-estimated, low-confidence inputs (SpaceX is private). See assumptions.json and the embedded per-scenario assumptions."],
+      "sensitivity_note": "Quarantined from Tier 1 and validated: no scenario number exists without a sourced+dated assumption; no assumption leaks into derived.market. The published feed uses the registry value; the dashboard lets a user explore their own without mutating the feed."
     }
   },
   "changelog": [
+    {
+      "version": "1.2.0",
+      "date": "2026-06-05",
+      "change": "Added Tier-1 market analytics (Bowley skew, robust fat-tail ratio, entropy/Gini, dispersion-over-time, velocity/acceleration) and a calibration scaffold (pending resolution, not faked). Added a firewalled Tier-2 scenario tier (derived.scenarios: implied share price, round-over-round) where every number carries a sourced, dated, ranged assumption (assumptions.json v1.0.0); validation fails the build on any unsourced scenario or Tier-2 leak. Unified delta rounding (fixes a narrative/card mismatch). Schema 1.2.0 (additive: derived.market, derived.scenarios, assumptions_version)."
+    },
     {
       "version": "1.1.0",
       "date": "2026-06-05",

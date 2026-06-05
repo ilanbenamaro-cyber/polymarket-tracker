@@ -64,6 +64,33 @@
   .vdot.high { background:var(--green); } .vdot.med { background:var(--amber); } .vdot.low { background:#6b6860; }
   .adjmark { color:var(--amber); cursor:help; }
 
+  /* Tier-1 analytics */
+  .analytics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .acard { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .acard .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-muted); }
+  .acard .v { font-size:18px; font-weight:700; margin-top:6px; }
+  .acard .s { font-size:11px; color:var(--text-muted); margin-top:4px; }
+  .tag { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    padding:2px 7px; border-radius:10px; background:rgba(45,212,191,.14); color:#2dd4bf; }
+  /* Tier-2 scenario tier — visually distinct, assumption-based */
+  .tier2 { background:repeating-linear-gradient(135deg, rgba(196,127,58,.05) 0 12px, transparent 12px 24px);
+    border:1px dashed var(--amber); border-radius:12px; padding:16px 18px; }
+  .tier2 .banner { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .tier2 .banner .lbl { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--amber);
+    border:1px solid var(--amber); border-radius:6px; padding:3px 8px; }
+  .tier2 .banner .txt { font-size:12px; color:var(--text-muted); }
+  .scen-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .scen { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .scen h4 { margin:0 0 8px; font-size:13px; }
+  .scen .big2 { font-size:22px; font-weight:800; color:#d4a373; }
+  .scen .rng { font-size:12px; color:var(--text-muted); margin-top:3px; }
+  .scen .req { color:var(--amber); font-weight:700; }
+  .assump { margin-top:10px; font-size:11px; color:var(--text-muted); border-top:1px solid var(--border); padding-top:8px; line-height:1.5; }
+  .assump b { color:var(--text); }
+  .scen input { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 8px; font-size:12.5px; width:130px; }
+  .scen .yours { color:#2dd4bf; font-weight:700; font-size:11px; }
+  @media (max-width:860px){ .analytics{grid-template-columns:repeat(2,1fr);} .scen-grid{grid-template-columns:1fr;} }
+
   section { margin-top:30px; }
   section > h2 { font-size:12px; text-transform:uppercase; letter-spacing:.7px; color:var(--text-muted); margin:0 0 14px; font-weight:600; }
 
@@ -127,7 +154,7 @@
   </div>
 
   <!-- NARRATIVE HERO (deterministic; baked fallback for JS-off) -->
-  <div class="narrative" id="narrative"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.18T, up $0.08T over the past month and down $0.16T this week. A monthly climb now cooling. The largest single concentration of probability (28%) sits in the $2.2–2.4T range. Confidence is medium: 1 monotonicity adjustment(s) today (max 0.1%).<!--/BAKE:narrative--></div>
+  <div class="narrative" id="narrative"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.18T, up $0.08T over the past month and down $0.16T this week. A monthly climb now cooling. The largest single concentration of probability (22%) sits in the $2.2–2.4T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></div>
 
   <!-- HEADLINE (baked fallback — real numbers even with JS off) -->
   <div class="headline">
@@ -138,13 +165,13 @@
     </div>
     <div>
       <span class="lbl">Implied mean <span class="approx">(approx)</span></span>
-      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.18T<!--/BAKE:mean--></span>
+      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.19T<!--/BAKE:mean--></span>
       <div class="band" id="hl-mean-band"></div>
     </div>
     <div>
       <span class="lbl">Confidence</span>
       <span class="badge medium" id="hl-tier" title="">
-        <!--BAKE:tier-->medium<!--/BAKE:tier-->
+        <!--BAKE:tier-->high<!--/BAKE:tier-->
       </span>
     </div>
     <div>
@@ -158,7 +185,7 @@
   <div class="prov" id="prov">
     <span>Source: <strong>Polymarket</strong></span><span class="sep">·</span>
     <span>fetched <code id="pv-fetched">…</code> UTC</span><span class="sep">·</span>
-    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.1.0<!--/BAKE:methodology--></code></span><span class="sep">·</span>
+    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.2.0<!--/BAKE:methodology--></code></span><span class="sep">·</span>
     <span>sha256 <code id="pv-hash">…</code></span>
     <button id="verifyBtn" type="button">verify hash</button>
     <span id="verifyState"></span>
@@ -181,6 +208,13 @@
       <div class="chart-box"><h3>Cumulative — P(market cap &gt; X)</h3><canvas id="curveChart" height="220"></canvas></div>
       <div class="chart-box"><h3>Density — where the market expects the cap to land</h3><canvas id="densityChart" height="220"></canvas></div>
     </div>
+  </section>
+
+  <!-- TIER-1 ANALYTICS -->
+  <section>
+    <h2>Market analytics <span class="tag">Tier 1 · market-derived</span></h2>
+    <div class="analytics" id="analytics"><div class="skeleton" style="grid-column:1/-1">Loading…</div></div>
+    <div class="chart-note" id="analyticsDesc"></div>
   </section>
 
   <!-- TRENDS -->
@@ -215,6 +249,18 @@
   <section>
     <h2>Biggest moves (<span id="moversTf">30D</span>)</h2>
     <div class="movers" id="movers"><div class="skeleton" style="grid-column:1/-1">Loading…</div></div>
+  </section>
+
+  <!-- TIER-2 SCENARIO ANALYSIS (assumption-based, firewalled) -->
+  <section>
+    <h2>Scenario analysis</h2>
+    <div class="tier2">
+      <div class="banner">
+        <span class="lbl">Assumption-based</span>
+        <span class="txt">Tier 2 — requires inputs the market did not provide. Not a market price. Every number below is driven by a sourced, dated, adjustable assumption; the published feed uses the cited value, and you can explore your own without changing it.</span>
+      </div>
+      <div class="scen-grid" id="scenarios"><div class="skeleton" style="grid-column:1/-1">Loading…</div></div>
+    </div>
   </section>
 
   <!-- METHODOLOGY -->
@@ -275,8 +321,9 @@
     document.getElementById('hl-mean').textContent=money(d.implied_mean);
     const mb=rangeStr(d.median);
     document.getElementById('hl-median-band').textContent=mb?('range '+mb+' · bid/ask'):'point estimate (price-only)';
-    const meanb=rangeStr(d.mean);
-    document.getElementById('hl-mean-band').textContent=meanb?('range '+meanb+' · tail-sensitivity'):'';
+    document.getElementById('hl-mean-band').textContent=(d.mean&&d.mean.tail_insensitive)
+      ? 'tail-insensitive (±<$0.01T)'
+      : (rangeStr(d.mean)?('range '+rangeStr(d.mean)+' · tail-sensitivity'):'');
     document.getElementById('hl-date').textContent=s.fetched_at.slice(0,10);
     const badge=document.getElementById('hl-tier');
     badge.textContent=d.confidence.tier;
@@ -310,18 +357,29 @@
     else { st.textContent='✗ mismatch'; st.className='bad'; }
   });
 
+  // Colored delta span from a STORED velocity change object (single source — D1).
+  function velDelta(ch){ if(!ch||ch.abs==null) return '<span class="flat">—</span>';
+    if(ch.dir==='flat') return '<span class="flat">flat</span>';
+    const c=ch.dir==='up'?'up':'down', ar=ch.dir==='up'?'↑ ':'↓ ';
+    return '<span class="'+c+'">'+ar+'$'+Math.abs(ch.abs).toFixed(2)+'T</span>'; }
+
   // ── CARDS ──
   function renderCards(){
     const c=LATEST.snapshot.derived; const prior=entryNDaysAgo(HIST,1);
+    const an=c.market&&c.market.analytics?c.market.analytics:null;
+    const vel=an?an.velocity:null;
     const band=c.iqr?money(c.iqr.p25)+' – '+money(c.iqr.p75):'n/a';
-    const mb=rangeStr(c.median), meanb=rangeStr(c.mean);
+    const mb=rangeStr(c.median);
+    // D2: never imply precision the tail grid doesn't have.
+    const meanBandTxt=(c.mean&&c.mean.tail_insensitive)?'tail-insensitive (±<$0.01T)'
+      :(rangeStr(c.mean)?rangeStr(c.mean)+' (tail)':'');
     const defs=[
       {label:'Implied median',cls:'blue',value:money(c.implied_median),
-        delta:prior?moneyDelta(c.implied_median-prior.implied_median):'',
+        delta:vel?velDelta(vel.change_24h):'',
         band:mb?mb+' (bid/ask)':'point estimate'},
       {label:'Implied mean <span class="approx">(approx)</span>',cls:'',value:money(c.implied_mean),
-        delta:prior&&prior.implied_mean!=null?moneyDelta(c.implied_mean-prior.implied_mean):'',
-        band:meanb?meanb+' (tail)':''},
+        delta:'',
+        band:meanBandTxt},
       {label:'50% confidence band',cls:'',value:'<span style="font-size:15px">'+band+'</span>',delta:'',band:'p25–p75 valuation'},
       {label:'P(&gt;$1.8T)',cls:'amber',value:pct(probAt(c.markets,1.8)),
         delta:prior?deltaSpan(probAt(c.markets,1.8)-prior.prob_1_8t):'',band:''},
@@ -392,16 +450,18 @@
     const isLow=i=>h[i]&&h[i].confidence&&h[i].confidence.tier==='low';
     const lowSeg={ borderDash:ctx=>(isLow(ctx.p0DataIndex)||isLow(ctx.p1DataIndex))?[4,3]:undefined,
                    borderColor:ctx=>(isLow(ctx.p0DataIndex)||isLow(ctx.p1DataIndex))?'rgba(196,127,58,.45)':undefined };
-    const line=(label,f,color,axis,dash)=>({label,data:h.map(e=>e[f]==null?null:(axis==='yP'?e[f]*100:e[f])),
-      borderColor:color,borderDash:dash||[],pointRadius:0,borderWidth:axis==='yM'?2:1.8,tension:.25,yAxisID:axis,spanGaps:true,segment:lowSeg});
+    const line=(label,f,color,axis,width,dash)=>({label,data:h.map(e=>e[f]==null?null:(axis==='yP'?e[f]*100:e[f])),
+      borderColor:color,borderDash:dash||[],pointRadius:0,borderWidth:width,tension:.25,yAxisID:axis,spanGaps:true,segment:lowSeg});
     if(trendChart) trendChart.destroy();
-    // Distinct hue per series — median gets its own colour (teal), mean = teal dashed.
+    // Deliberate hierarchy (D3): implied MEDIAN is the headline summary (bright teal,
+    // thickest); threshold probabilities are supporting context (moderate); implied
+    // MEAN is a faint secondary reference (low-alpha dashed). No two series share a hue.
     trendChart=new Chart(canvas,{type:'line',data:{labels,datasets:[
-      line('P(>$1.8T)','prob_1_8t','#c47f3a','yP'),
-      line('P(>$2T)','prob_2_0t','#5B9BD5','yP'),
-      line('P(>$2.4T)','prob_2_4t','#9a9890','yP'),
-      line('Implied median','implied_median','#2dd4bf','yM'),
-      line('Implied mean','implied_mean','#2dd4bf','yM',[5,4]),
+      line('P(>$1.8T)','prob_1_8t','#c47f3a','yP',1.4),
+      line('P(>$2T)','prob_2_0t','#5B9BD5','yP',1.4),
+      line('P(>$2.4T)','prob_2_4t','#9a9890','yP',1.4),
+      line('Implied median','implied_median','#2dd4bf','yM',2.8),
+      line('Implied mean','implied_mean','rgba(45,212,191,.40)','yM',1.2,[5,4]),
     ]},
       options:{interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#9a9890',boxWidth:12,font:{size:11}}}},
         scales:{x:{ticks:{color:'#9a9890',maxTicksLimit:10,font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}},
@@ -451,6 +511,82 @@
 
   function renderTimeframeDependent(){ renderTrends(); renderTable(); renderMovers(); }
 
+  // ── TIER-1 ANALYTICS (reads stored derived.market.analytics — never recompute) ──
+  function renderAnalytics(){
+    const an=LATEST.snapshot.derived.market && LATEST.snapshot.derived.market.analytics;
+    const el=document.getElementById('analytics');
+    if(!an){ el.innerHTML='<div class="muted" style="font-size:13px">No analytics.</div>'; return; }
+    const sh=an.shape, di=an.dispersion, ve=an.velocity;
+    const skewTxt=sh.skew_bowley==null?'—':(sh.skew_bowley>0.1?'right (upside)':sh.skew_bowley<-0.1?'left (downside)':'~symmetric')+' ('+sh.skew_bowley.toFixed(2)+')';
+    const consensus=sh.entropy==null?'—':(sh.entropy<0.5?'tight consensus':sh.entropy<0.78?'moderate':'wide')+' ('+(sh.entropy).toFixed(2)+')';
+    const fat=sh.fat_tail==null?'—':(sh.fat_tail>1.1?'fat-tailed':'~normal')+' ('+sh.fat_tail.toFixed(2)+'×)';
+    const dispTxt=di.trend?di.trend+' · width '+(di.iqr_width!=null?'$'+di.iqr_width.toFixed(2)+'T':'—'):'—';
+    const velTxt=ve.acceleration?ve.acceleration:'—';
+    const drift=ve.drift_30d_annualized!=null?(ve.drift_30d_annualized>0?'+':'')+ve.drift_30d_annualized.toFixed(2)+'$T/yr (30d)':'—';
+    const cards=[
+      {l:'Distribution shape',v:skewTxt,s:'Bowley skew · '+fat},
+      {l:'Consensus (entropy)',v:consensus,s:'low = market agrees · mass '+(sh.dominant_bucket?sh.dominant_bucket.label:'—')},
+      {l:'Dispersion (25–75 band)',v:dispTxt,s:di.trend==='converging'?'narrowing → growing certainty':di.trend==='diverging'?'widening → less certain':'stable'},
+      {l:'Velocity',v:velTxt,s:'median drift '+drift},
+    ];
+    el.innerHTML=cards.map(c=>'<div class="acard"><div class="l">'+c.l+'</div><div class="v">'+c.v+'</div><div class="s">'+c.s+'</div></div>').join('');
+    document.getElementById('analyticsDesc').textContent=an.descriptor||'';
+  }
+
+  // ── TIER-2 SCENARIOS (assumption-based; published value + your-own exploration) ──
+  const fmtShares=n=>n==null?'—':(n/1e9).toFixed(2)+'B';
+  const fmtPrice=p=>p==null?'—':'$'+Math.round(p).toLocaleString('en-US');
+  function assumptionBox(a){
+    if(!a) return '';
+    const v=a.value!=null?(a.unit==='shares'?fmtShares(a.value):a.unit==='USD_trillions'?'$'+a.value+'T':a.value):'(input required)';
+    const rng=a.range?(a.unit==='shares'?fmtShares(a.range[0])+'–'+fmtShares(a.range[1]):'$'+a.range[0]+'–$'+a.range[1]+'T'):'';
+    return '<div class="assump"><b>Assumption:</b> '+a.name+' = <b>'+v+'</b>'+(rng?' (range '+rng+')':'')+
+      ' · confidence '+(a.confidence||'—')+' · as of '+(a.as_of||'—')+
+      (a.source_url?' · <a href="'+a.source_url+'" target="_blank" rel="noopener">source</a>':'')+
+      (a.note?'<br><span style="opacity:.8">'+a.note+'</span>':'')+'</div>';
+  }
+  function renderScenarios(){
+    const sc=LATEST.snapshot.derived.scenarios; const el=document.getElementById('scenarios');
+    if(!sc){ el.innerHTML='<div class="muted">No scenarios.</div>'; return; }
+    const sp=sc.share_price, rr=sc.round_over_round;
+    const shareA=sp.assumptions&&sp.assumptions[0];
+
+    // Share price card (interactive: explore your own shares without touching the feed)
+    let spHtml;
+    if(sp.status==='input_required'){
+      spHtml='<div class="big2 req">input required</div><div class="rng">'+(sp.note||'')+'</div>';
+    } else {
+      const a=sp.at_median;
+      spHtml='<div class="big2" id="sp-central">'+fmtPrice(a.central)+'</div>'+
+             '<div class="rng" id="sp-range">range '+fmtPrice(a.low)+' – '+fmtPrice(a.high)+' · at implied median $'+LATEST.snapshot.derived.implied_median.toFixed(2)+'T</div>';
+    }
+    el.innerHTML=
+      '<div class="scen"><h4>Implied share price <span class="tag" style="background:rgba(212,163,115,.15);color:#d4a373">scenario</span></h4>'+
+        spHtml+
+        '<div style="margin-top:10px;font-size:12px">Explore your own: shares = <input id="sharesIn" type="number" step="0.1" value="'+(shareA&&shareA.value?(shareA.value/1e9):'')+'"> B '+
+        '<span id="yoursTag" class="yours" style="display:none">your assumption</span><div id="yoursOut" class="rng" style="margin-top:4px"></div></div>'+
+        assumptionBox(shareA)+
+      '</div>'+
+      '<div class="scen"><h4>Round-over-round <span class="tag" style="background:rgba(212,163,115,.15);color:#d4a373">scenario</span></h4>'+
+        (rr.status==='input_required'?'<div class="big2 req">input required</div>'
+          :'<div class="big2">'+(rr.implied_change_pct.central>0?'+':'')+rr.implied_change_pct.central.toFixed(1)+'%</div>'+
+           '<div class="rng">range '+rr.implied_change_pct.low.toFixed(1)+'% – '+rr.implied_change_pct.high.toFixed(1)+'% vs last reported valuation</div>')+
+        assumptionBox(rr.assumptions&&rr.assumptions[0])+
+      '</div>';
+
+    // Interactivity — recompute client-side, never mutate the feed.
+    const inp=document.getElementById('sharesIn');
+    if(inp) inp.addEventListener('input',()=>{
+      const shares=parseFloat(inp.value)*1e9; const med=LATEST.snapshot.derived.implied_median;
+      const out=document.getElementById('yoursOut'); const tag=document.getElementById('yoursTag');
+      const published=shareA&&shareA.value?shareA.value:null;
+      if(!shares||shares<=0||med==null){ out.textContent=''; tag.style.display='none'; return; }
+      const price=med*1e12/shares;
+      out.innerHTML='→ implied $'+fmtPrice(price).slice(1)+'/share at the median (your input)';
+      tag.style.display=(published&&Math.abs(shares-published)>1e6)?'inline':'none';
+    });
+  }
+
   // ── LOAD ──
   async function load(){
     // Step 1: canonical record + lean history drive headline/cards/charts.
@@ -467,7 +603,7 @@
       console.error('Failed to load API:',err);
       return; // baked headline stays visible
     }
-    try { renderHeadline(); renderCards(); renderDistribution(); renderTimeframeDependent(); }
+    try { renderHeadline(); renderCards(); renderDistribution(); renderAnalytics(); renderScenarios(); renderTimeframeDependent(); }
     catch(err){ console.error('Render error (data loaded OK):',err); }
 
     // Step 2: heavier full history for table deltas + movers (non-blocking).

@@ -12,6 +12,7 @@ const SPREAD_HIGH = 0.04;
 const SPREAD_MEDIUM = 0.08;
 const THIN_SHARE_HIGH = 0.2; // < 20% thin books → fine
 const THIN_SHARE_MEDIUM = 0.5; // 20–50% thin → medium
+const MATERIAL_ADJUSTMENT = 0.005; // 0.5%: below this an isotonic tweak is immaterial
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 
 /** Mean bid/ask spread across raw_inputs, or null if no book data present. */
@@ -59,18 +60,22 @@ export function scoreConfidence({
     reasons.push(`only ${count} active thresholds (sparse CDF)`);
   }
 
-  // 2) Monotonicity — surfaced as the size of the isotonic adjustment applied.
-  if (rawViolations === 0) tiers.push('high');
-  else if (rawViolations <= 2) {
+  // 2) Monotonicity — penalize by the MAGNITUDE of the isotonic adjustment, not
+  //    the raw count: a violation pooled to a sub-0.5% tweak is immaterial noise and
+  //    must not drop the tier (a quant would rightly call that over-penalizing).
+  const adjPct = maxAdjustment * 100;
+  const adjStr = adjPct < 0.05 ? '<0.05%' : `${adjPct.toFixed(1)}%`;
+  if (rawViolations === 0) {
+    tiers.push('high');
+  } else if (maxAdjustment < MATERIAL_ADJUSTMENT) {
+    tiers.push('high');
+    reasons.push(`${rawViolations} negligible monotonicity tweak(s) (max ${adjStr})`);
+  } else if (rawViolations <= 2) {
     tiers.push('medium');
-    reasons.push(
-      `${rawViolations} monotonicity adjustment(s) today (max ${(maxAdjustment * 100).toFixed(1)}%)`
-    );
+    reasons.push(`${rawViolations} monotonicity adjustment(s) today (max ${adjStr})`);
   } else {
     tiers.push('low');
-    reasons.push(
-      `${rawViolations} monotonicity adjustments (max ${(maxAdjustment * 100).toFixed(1)}%) — noisy quotes`
-    );
+    reasons.push(`${rawViolations} monotonicity adjustments (max ${adjStr}) — noisy quotes`);
   }
 
   // 3) Spread — liquidity at the touch (live only).
