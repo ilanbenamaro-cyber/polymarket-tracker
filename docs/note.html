@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpaceX IPO market cap — research note</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --ink:#16140f; --muted:#6b6860; --amber:#a8651f; --blue:#1f5a92;
+    --line:#e3ddd0; --bg:#faf7f0; --green:#1f7a3d; --red:#a32525; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:#d9d6cd; color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif; }
+  .page { background:var(--bg); width:200mm; min-height:280mm; margin:18px auto; padding:18mm 18mm 14mm;
+    box-shadow:0 2px 16px rgba(0,0,0,.2); }
+  .toolbar { width:200mm; margin:14px auto 0; display:flex; justify-content:flex-end; gap:8px; }
+  .toolbar button, .toolbar a { font-family:system-ui,sans-serif; font-size:13px; padding:8px 16px;
+    background:var(--ink); color:#fff; border:none; border-radius:6px; cursor:pointer; text-decoration:none; }
+  .toolbar a { background:#fff; color:var(--ink); border:1px solid #bbb; }
+
+  h1 { font-size:21px; margin:0; letter-spacing:.2px; }
+  .kicker { font-family:system-ui,sans-serif; font-size:10.5px; text-transform:uppercase; letter-spacing:1.5px; color:var(--amber); font-weight:700; }
+  .asof { font-family:system-ui,sans-serif; font-size:11px; color:var(--muted); margin-top:3px; }
+  hr { border:none; border-top:1px solid var(--line); margin:14px 0; }
+
+  .headline { display:flex; align-items:baseline; gap:18px; margin-top:10px; }
+  .headline .num { font-size:40px; font-weight:700; color:var(--blue); font-family:Georgia,serif; line-height:1; }
+  .headline .cap { font-family:system-ui,sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+  .badge { font-family:system-ui,sans-serif; display:inline-block; padding:2px 9px; border-radius:14px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+  .badge.high { background:#dff3e4; color:var(--green); } .badge.medium { background:#f3e6d2; color:var(--amber); } .badge.low { background:#f5dada; color:var(--red); }
+
+  .read { font-size:14.5px; line-height:1.55; margin:12px 0 4px; }
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0; }
+  .metric { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .metric .l { font-family:system-ui,sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .metric .v { font-size:18px; font-weight:700; margin-top:5px; }
+  .chartwrap { margin:6px 0 2px; }
+  .reasons { font-family:system-ui,sans-serif; font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .src { font-family:system-ui,sans-serif; font-size:10.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
+  .src code { background:#efe9dc; padding:1px 5px; border-radius:4px; }
+  .err { color:var(--red); font-family:system-ui,sans-serif; font-size:12px; }
+
+  @media print {
+    html,body { background:#fff; }
+    .toolbar { display:none; }
+    .page { width:auto; min-height:auto; margin:0; padding:12mm 14mm; box-shadow:none; }
+    @page { size:A4 portrait; margin:0; }
+    h1,.headline,.metrics,.chartwrap,.read,.src { break-inside:avoid; page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="./index.html">← Dashboard</a>
+    <button id="printBtn" type="button">Print / Save as PDF</button>
+  </div>
+
+  <div class="page" id="page">
+    <div class="kicker">Prediction-market signal · Polymarket</div>
+    <h1>SpaceX IPO closing market cap</h1>
+    <div class="asof">As of <span id="asof"><!--BAKE:date-->2026-06-05<!--/BAKE:date--></span> (UTC) · methodology v<span id="mver"><!--BAKE:methodology-->1.0.0<!--/BAKE:methodology--></span> · resolves Dec 31 2027</div>
+    <hr/>
+
+    <div class="headline">
+      <div>
+        <div class="num" id="hl-median"><!--BAKE:median-->$2.19T<!--/BAKE:median--></div>
+        <div class="cap">Implied median valuation</div>
+      </div>
+      <div>
+        <span class="badge medium" id="tier"><!--BAKE:tier-->medium<!--/BAKE:tier--></span>
+        <div class="cap" style="margin-top:4px">confidence</div>
+      </div>
+    </div>
+
+    <p class="read" id="read">The market's central estimate for SpaceX's IPO-closing market cap is
+      <strong><!--BAKE:median-->$2.19T<!--/BAKE:median--></strong>.</p>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="chartwrap"><canvas id="curve" height="150"></canvas></div>
+
+    <div class="reasons" id="reasons"></div>
+
+    <div class="src" id="src">
+      Source: Polymarket public market data (YES midpoint prices). This note is generated from a single
+      canonical snapshot; every number is reproducible from the stored raw inputs and their sha256 hash.
+      <div id="prov" style="margin-top:6px"></div>
+    </div>
+    <div class="err" id="err" style="display:none;">Live data unavailable — figures above are the last published snapshot.</div>
+  </div>
+
+<script>
+  const API='./api/v1/';
+  const money=m=>m==null?'n/a':'$'+m.toFixed(2)+'T';
+  const pct=p=>p==null?'—':Math.round(p*100)+'%';
+
+  function render(rec){
+    const s=rec.snapshot, d=s.derived;
+    document.getElementById('asof').textContent=s.fetched_at.slice(0,10);
+    document.getElementById('mver').textContent=rec.methodology_version;
+    document.getElementById('hl-median').textContent=money(d.implied_median);
+    const tier=document.getElementById('tier'); tier.textContent=d.confidence.tier; tier.className='badge '+d.confidence.tier;
+
+    const p18=(d.markets.find(m=>m.threshold===1.8)||{}).prob;
+    const band=d.iqr?money(d.iqr.p25)+'–'+money(d.iqr.p75):'n/a';
+    document.getElementById('read').innerHTML=
+      'The market’s central estimate for SpaceX’s IPO-closing market cap is <strong>'+money(d.implied_median)+
+      '</strong> (mean '+money(d.implied_mean)+'), with a 50% confidence band of <strong>'+band+'</strong>. '+
+      'The market assigns '+pct(p18)+' probability to a close above $1.8T. Confidence in this reading is <strong>'+
+      d.confidence.tier+'</strong>.';
+
+    document.getElementById('metrics').innerHTML=[
+      ['Implied median',money(d.implied_median)],
+      ['Implied mean (approx)',money(d.implied_mean)],
+      ['50% band',band],
+      ['Total volume',d.total_volume!=null?'$'+(d.total_volume/1e6).toFixed(1)+'M':'—'],
+    ].map(([l,v])=>'<div class="metric"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>').join('');
+
+    document.getElementById('reasons').textContent='Confidence basis: '+d.confidence.reasons.join(' · ')+' (score '+d.confidence.score+').';
+    document.getElementById('prov').innerHTML='snapshot <code>'+s.snapshot_id+'</code> · sha256 <code>'+s.source.raw_sha256.slice(0,24)+'…</code>';
+
+    const m=d.markets;
+    new Chart(document.getElementById('curve'),{type:'line',
+      data:{datasets:[
+        {label:'P(>X)',data:m.map(x=>({x:x.threshold,y:x.prob*100})),parsing:false,borderColor:'#1f5a92',backgroundColor:'rgba(31,90,146,.08)',pointRadius:2,tension:.3,fill:true},
+        {label:'50%',data:[{x:m[0].threshold,y:50},{x:m[m.length-1].threshold,y:50}],parsing:false,borderColor:'#a8651f',borderDash:[5,4],borderWidth:1,pointRadius:0},
+      ]},
+      options:{animation:false,plugins:{legend:{display:false},title:{display:true,text:'Implied probability P(market cap > X)',color:'#6b6860',font:{size:11,family:'system-ui'}}},
+        scales:{x:{type:'linear',ticks:{color:'#6b6860',callback:v=>'$'+v+'T',font:{size:9}},grid:{color:'#ece6d8'}},
+          y:{min:0,max:100,ticks:{color:'#6b6860',callback:v=>v+'%',font:{size:9}},grid:{color:'#ece6d8'}}}}});
+  }
+
+  fetch(API+'latest.json?t='+Date.now())
+    .then(r=>{ if(!r.ok) throw new Error('latest '+r.status); return r.json(); })
+    .then(render)
+    .catch(err=>{ console.error(err); document.getElementById('err').style.display='block'; });
+
+  document.getElementById('printBtn').addEventListener('click',()=>window.print());
+</script>
+</body>
+</html>

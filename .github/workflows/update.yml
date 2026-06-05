@@ -47,15 +47,15 @@ jobs:
             echo "MODE=snapshot" >> "$GITHUB_ENV"
           fi
 
-      - name: Fetch and update data.json
-        run: node scripts/update-data.js
+      - name: Build canonical snapshot + render API
+        run: node scripts/snapshot.js
 
-      - name: Commit data.json
+      - name: Commit API + baked dashboard
         run: |
           git config user.name "polymarket-tracker[bot]"
           git config user.email "polymarket-tracker@users.noreply.github.com"
-          git add docs/data.json
-          git diff --staged --quiet || git commit -m "chore: market data $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+          git add docs/api/v1 docs/index.html docs/note.html
+          git diff --staged --quiet || git commit -m "chore: snapshot $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
           git push
 
       - name: Send emails

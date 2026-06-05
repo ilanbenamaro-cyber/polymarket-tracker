@@ -7,31 +7,16 @@
 // future Jarvis daemon; printDigest() is the only part that writes to stdout.
 
 import chalk from 'chalk';
+// Single source of truth for every formula lives in core/metrics.js. The CLI
+// re-exports the median from there so there is no duplicate implementation.
+import { computeImpliedMedian } from './core/metrics.js';
+
+export { computeImpliedMedian };
 
 // Thresholds we actively track / surface prominently.
 const TRACKED = new Set([1.8, 2.4]);
 // A delta of this magnitude (in probability fraction) is "significant".
 const SIGNIFICANT_DELTA = 0.05;
-// Probability boundary used for the implied-median crossover.
-const MEDIAN_P = 0.5;
-
-/**
- * Linear interpolation of the valuation where P(above X) crosses 50%.
- * Returns null if every prob is >= 0.5 or every prob is < 0.5 (no crossover).
- */
-export function computeImpliedMedian(snapshot) {
-  for (let i = 0; i < snapshot.length - 1; i++) {
-    const a = snapshot[i];
-    const b = snapshot[i + 1];
-    if (a.prob >= MEDIAN_P && b.prob < MEDIAN_P) {
-      return (
-        a.threshold +
-        ((b.threshold - a.threshold) * (a.prob - MEDIAN_P)) / (a.prob - b.prob)
-      );
-    }
-  }
-  return null;
-}
 
 /** Probability at an exact threshold, or null if that threshold is absent. */
 function probAt(snapshot, threshold) {

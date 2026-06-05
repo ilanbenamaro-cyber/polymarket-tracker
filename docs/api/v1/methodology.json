@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "asset": "spacex-ipo-market-cap",
+  "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES-midpoint prices. Probabilities are market midpoints; metrics are interpolated from the implied survival function P(cap > X).",
+  "metrics": {
+    "implied_median": {
+      "method": "Linear interpolation of the threshold where the implied CDF P(cap > X) crosses 0.50.",
+      "robust": true,
+      "assumptions": [
+        "Monotonic survival curve between bracketing thresholds."
+      ],
+      "sensitivity_note": "Robust: depends only on the two thresholds straddling 50%, not on tail shape."
+    },
+    "implied_mean": {
+      "method": "Bucket-weighted expected value: sum of (bucket probability x bucket midpoint) across all buckets.",
+      "robust": false,
+      "assumptions": [
+        "Below-lowest bucket midpoint = lowest_threshold - 0.15 ($T).",
+        "Above-highest bucket midpoint = highest_threshold + 0.40 ($T).",
+        "Within-bucket mass sits at the bucket midpoint."
+      ],
+      "sensitivity_note": "Assumption-sensitive: the two tail-midpoint offsets materially affect the result when tail probabilities are non-trivial. Treat as approximate."
+    },
+    "iqr": {
+      "method": "p25/p75 valuations = interpolated thresholds where P(cap > X) crosses 0.75 and 0.25 respectively (the 50% confidence band).",
+      "robust": true,
+      "assumptions": [
+        "Monotonic survival curve between bracketing thresholds."
+      ],
+      "sensitivity_note": "Robust: interpolation between observed thresholds; null when the band extends beyond the quoted range."
+    },
+    "bucket_prob": {
+      "method": "P(cap > this threshold) - P(cap > next threshold); top bucket = P(cap > top). The '< lowest' bucket = 1 - P(cap > lowest).",
+      "robust": true,
+      "assumptions": [
+        "All buckets including '< lowest' sum to 1.0 (enforced by validation)."
+      ],
+      "sensitivity_note": "Direct differences of observed probabilities; no modelling assumptions."
+    },
+    "confidence": {
+      "method": "Worst-of three signals: active-threshold count, monotonicity-violation count, and mean best_ask-best_bid spread. Tier capped at 'medium' when order-book (spread) data is unavailable (price-only history).",
+      "robust": true,
+      "assumptions": [
+        "high: >=12 thresholds AND 0 violations AND mean spread < 0.04.",
+        "medium: 8-11 thresholds, OR <=2 violations, OR spread 0.04-0.08, OR price-only.",
+        "low: <8 thresholds, OR >2 violations, OR spread > 0.08."
+      ],
+      "sensitivity_note": "Backfilled history is price-only (no book) and therefore capped at 'medium'."
+    },
+    "raw_sha256": {
+      "method": "sha256 over the canonical JSON serialization of raw_inputs (fixed key order: token_id, threshold, midpoint, best_bid, best_ask, volume; ascending by threshold; literal API string values).",
+      "robust": true,
+      "assumptions": [
+        "Consumers re-serialize the stored raw_inputs identically to reproduce the hash."
+      ],
+      "sensitivity_note": "Provenance check, not a metric: proves derived numbers came from the stored, unaltered inputs."
+    }
+  },
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-06-05",
+      "change": "Initial published methodology: median, mean (with tail assumptions), IQR band, bucket probabilities, three-signal confidence, and raw_sha256 provenance."
+    }
+  ]
+}
