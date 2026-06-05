@@ -9,8 +9,8 @@
     "resolves": "2027-12-31"
   },
   "snapshot": {
-    "snapshot_id": "2026-06-05T16:41:41.707Z",
-    "fetched_at": "2026-06-05T16:41:41.707Z",
+    "snapshot_id": "2026-06-05T16:46:15.919Z",
+    "fetched_at": "2026-06-05T16:46:15.919Z",
     "source": {
       "provider": "Polymarket",
       "endpoints": [
@@ -18,7 +18,7 @@
         "https://clob.polymarket.com/midpoints",
         "https://clob.polymarket.com/prices"
       ],
-      "raw_sha256": "a419d58d7362b3acba6fe54d9a81901aa269b1a34248e61220b47551d16678c5"
+      "raw_sha256": "64a515e23817535ffef4f81041c036e1f80c9766a0e60f714fecb2200d63fa7a"
     },
     "raw_inputs": [
       {
@@ -27,7 +27,7 @@
         "midpoint": "0.9845",
         "best_bid": "0.984",
         "best_ask": "0.985",
-        "volume": 516407.89871399995
+        "volume": 516607.89871399995
       },
       {
         "token_id": "75003753002679923894537312357172113105853115281332544195556791407917452165923",
@@ -40,18 +40,18 @@
       {
         "token_id": "67641397102605806228361374843080866800323545226688452157631077923438116186153",
         "threshold": 1.4,
-        "midpoint": "0.957",
-        "best_bid": "0.955",
+        "midpoint": "0.9575",
+        "best_bid": "0.956",
         "best_ask": "0.959",
         "volume": 210509.35030899986
       },
       {
         "token_id": "2818609015308428141360442152525230687041966194776736323729988983894064824317",
         "threshold": 1.6,
-        "midpoint": "0.906",
-        "best_bid": "0.901",
-        "best_ask": "0.911",
-        "volume": 324316.71844799945
+        "midpoint": "0.904",
+        "best_bid": "0.9",
+        "best_ask": "0.908",
+        "volume": 324596.38844799943
       },
       {
         "token_id": "80822496881187464044904323930735374814391442763100022480297070361136099568761",
@@ -67,7 +67,7 @@
         "midpoint": "0.665",
         "best_bid": "0.66",
         "best_ask": "0.67",
-        "volume": 798215.4878820016
+        "volume": 798683.1238230015
       },
       {
         "token_id": "24072803866223209204149583292380503594462879571215445980530727827404541949542",
@@ -88,10 +88,10 @@
       {
         "token_id": "71159046706559946614838550297854568404887218587719425214188523542407764628668",
         "threshold": 2.6,
-        "midpoint": "0.11",
-        "best_bid": "0.1",
-        "best_ask": "0.12",
-        "volume": 297497.34837399994
+        "midpoint": "0.125",
+        "best_bid": "0.12",
+        "best_ask": "0.13",
+        "volume": 297789.22746299993
       },
       {
         "token_id": "82401981844570459445359822314569677854555896567740320197589353169069933841639",
@@ -99,7 +99,7 @@
         "midpoint": "0.085",
         "best_bid": "0.08",
         "best_ask": "0.09",
-        "volume": 191144.03150900005
+        "volume": 191617.59150900005
       },
       {
         "token_id": "55958836263606977559718392614296122222017017739103942039630390156504843811835",
@@ -107,15 +107,15 @@
         "midpoint": "0.055",
         "best_bid": "0.05",
         "best_ask": "0.06",
-        "volume": 1463993.7232270013
+        "volume": 1467697.4532270012
       },
       {
         "token_id": "20355017105238902441463382948256977165790622115934877551667602544354048330506",
         "threshold": 3.2,
-        "midpoint": "0.0355",
-        "best_bid": "0.031",
+        "midpoint": "0.036",
+        "best_bid": "0.032",
         "best_ask": "0.04",
-        "volume": 291441.013589
+        "volume": 292045.163589
       },
       {
         "token_id": "19952439152492058516345781992393757369305199157113455033097368737586861079173",
@@ -152,21 +152,21 @@
     ],
     "derived": {
       "implied_median": 2.1833333333333336,
-      "implied_mean": 2.1944078158508145,
+      "implied_mean": 2.1972750000000003,
       "iqr": {
         "p25": 1.9055555555555557,
-        "p75": 2.413333333333333
+        "p75": 2.414814814814815
       },
-      "total_volume": 5948581.009533002,
+      "total_volume": 5954601.634563002,
       "adjustment": {
-        "monotonicity_violations": 1,
-        "max_adjustment": 0.00041796037296341904
+        "monotonicity_violations": 0,
+        "max_adjustment": 1.1102230246251565e-16
       },
       "confidence": {
         "tier": "high",
-        "score": 0.9,
+        "score": 0.966,
         "reasons": [
-          "1 negligible monotonicity tweak(s) (max <0.05%)"
+          "full threshold set, monotonic, tight spreads, deep books"
         ]
       },
       "markets": [
@@ -177,7 +177,7 @@
           "adjusted_prob": 0.9845,
           "prob": 0.9845,
           "bucket_prob": 0.012000000000000122,
-          "volume": 516407.89871399995,
+          "volume": 516607.89871399995,
           "volume_tier": "high"
         },
         {
@@ -186,28 +186,28 @@
           "raw_prob": 0.9725,
           "adjusted_prob": 0.9724999999999999,
           "prob": 0.9724999999999999,
-          "bucket_prob": 0.015499999999999958,
+          "bucket_prob": 0.014999999999999902,
           "volume": 316226.61839700054,
           "volume_tier": "high"
         },
         {
           "label": ">$1.4T",
           "threshold": 1.4,
-          "raw_prob": 0.957,
-          "adjusted_prob": 0.957,
-          "prob": 0.957,
-          "bucket_prob": 0.050999999999999934,
+          "raw_prob": 0.9575,
+          "adjusted_prob": 0.9575,
+          "prob": 0.9575,
+          "bucket_prob": 0.05349999999999999,
           "volume": 210509.35030899986,
           "volume_tier": "med"
         },
         {
           "label": ">$1.6T",
           "threshold": 1.6,
-          "raw_prob": 0.906,
-          "adjusted_prob": 0.906,
-          "prob": 0.906,
-          "bucket_prob": 0.061000000000000054,
-          "volume": 324316.71844799945,
+          "raw_prob": 0.904,
+          "adjusted_prob": 0.904,
+          "prob": 0.904,
+          "bucket_prob": 0.05900000000000005,
+          "volume": 324596.38844799943,
           "volume_tier": "high"
         },
         {
@@ -216,7 +216,7 @@
           "raw_prob": 0.845,
           "adjusted_prob": 0.845,
           "prob": 0.845,
-          "bucket_prob": 0.17999999999999994,
+          "bucket_prob": 0.17999999999999983,
           "volume": 448928.53790900006,
           "volume_tier": "high"
         },
@@ -224,10 +224,10 @@
           "label": ">$2T",
           "threshold": 2,
           "raw_prob": 0.665,
-          "adjusted_prob": 0.665,
-          "prob": 0.665,
-          "bucket_prob": 0.18000000000000005,
-          "volume": 798215.4878820016,
+          "adjusted_prob": 0.6650000000000001,
+          "prob": 0.6650000000000001,
+          "bucket_prob": 0.18000000000000016,
+          "volume": 798683.1238230015,
           "volume_tier": "high"
         },
         {
@@ -246,18 +246,18 @@
           "raw_prob": 0.26,
           "adjusted_prob": 0.26,
           "prob": 0.26,
-          "bucket_prob": 0.15000000000000002,
+          "bucket_prob": 0.135,
           "volume": 603273.9551129998,
           "volume_tier": "high"
         },
         {
           "label": ">$2.6T",
           "threshold": 2.6,
-          "raw_prob": 0.11,
-          "adjusted_prob": 0.11,
-          "prob": 0.11,
-          "bucket_prob": 0.024999999999999994,
-          "volume": 297497.34837399994,
+          "raw_prob": 0.125,
+          "adjusted_prob": 0.125,
+          "prob": 0.125,
+          "bucket_prob": 0.039999999999999994,
+          "volume": 297789.22746299993,
           "volume_tier": "med"
         },
         {
@@ -266,37 +266,37 @@
           "raw_prob": 0.085,
           "adjusted_prob": 0.085,
           "prob": 0.085,
-          "bucket_prob": 0.03,
-          "volume": 191144.03150900005,
+          "bucket_prob": 0.030000000000000006,
+          "volume": 191617.59150900005,
           "volume_tier": "med"
         },
         {
           "label": ">$3T",
           "threshold": 3,
           "raw_prob": 0.055,
-          "adjusted_prob": 0.05500000000000001,
-          "prob": 0.05500000000000001,
-          "bucket_prob": 0.01941796037296343,
-          "volume": 1463993.7232270013,
+          "adjusted_prob": 0.055,
+          "prob": 0.055,
+          "bucket_prob": 0.019000000000000003,
+          "volume": 1467697.4532270012,
           "volume_tier": "high"
         },
         {
           "label": ">$3.2T",
           "threshold": 3.2,
-          "raw_prob": 0.0355,
-          "adjusted_prob": 0.03558203962703658,
-          "prob": 0.03558203962703658,
+          "raw_prob": 0.036,
+          "adjusted_prob": 0.036,
+          "prob": 0.036,
           "bucket_prob": 0,
-          "volume": 291441.013589,
+          "volume": 292045.163589,
           "volume_tier": "med"
         },
         {
           "label": ">$3.4T",
           "threshold": 3.4,
           "raw_prob": 0.036,
-          "adjusted_prob": 0.03558203962703658,
-          "prob": 0.03558203962703658,
-          "bucket_prob": 0.005582039627036576,
+          "adjusted_prob": 0.036,
+          "prob": 0.036,
+          "bucket_prob": 0.005999999999999995,
           "volume": 57205.691267999995,
           "volume_tier": "low"
         },
@@ -337,31 +337,31 @@
         "high": 2.188888888888889
       },
       "mean": {
-        "central": 2.1944078158508145,
-        "low": 2.1924828158508145,
-        "high": 2.1974828158508144,
+        "central": 2.1972750000000003,
+        "low": 2.1953500000000004,
+        "high": 2.2003500000000003,
         "width": 0.004999999999999893,
         "tail_insensitive": true
       },
       "market": {
         "analytics": {
           "shape": {
-            "skew_bowley": -0.094,
-            "tail_ratio": 2.088,
-            "fat_tail": 1.099,
-            "entropy": 0.771,
-            "gini": 0.6,
+            "skew_bowley": -0.091,
+            "tail_ratio": 2.182,
+            "fat_tail": 1.148,
+            "entropy": 0.778,
+            "gini": 0.594,
             "dominant_bucket": {
               "label": "$2.2–2.4T",
               "prob": 0.225
             }
           },
           "dispersion": {
-            "iqr_width": 0.508,
+            "iqr_width": 0.509,
             "width_7d": 0.781,
             "width_30d": 0.924,
-            "change_7d": -0.273,
-            "change_30d": -0.416,
+            "change_7d": -0.271,
+            "change_30d": -0.415,
             "trend": "converging"
           },
           "velocity": {
@@ -392,11 +392,11 @@
               "as_of": "2026-06-05",
               "median": 2.18,
               "prob_1_8t": 0.845,
-              "prob_2_0t": 0.665,
+              "prob_2_0t": 0.6650000000000001,
               "prob_2_4t": 0.26
             }
           },
-          "descriptor": "moderate dispersion; roughly symmetric; mass centred on $2.2–2.4T; band converging."
+          "descriptor": "moderate dispersion; roughly symmetric; fat-tailed; mass centred on $2.2–2.4T; band converging."
         }
       },
       "scenarios": {

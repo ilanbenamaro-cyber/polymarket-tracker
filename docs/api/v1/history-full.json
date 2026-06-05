@@ -19740,23 +19740,23 @@
   {
     "date": "2026-06-05",
     "implied_median": 2.1833333333333336,
-    "implied_mean": 2.1944078158508145,
+    "implied_mean": 2.1972750000000003,
     "iqr": {
       "p25": 1.9055555555555557,
-      "p75": 2.413333333333333
+      "p75": 2.414814814814815
     },
     "prob_1_8t": 0.845,
-    "prob_2_0t": 0.665,
+    "prob_2_0t": 0.6650000000000001,
     "prob_2_4t": 0.26,
     "adjustment": {
-      "monotonicity_violations": 1,
-      "max_adjustment": 0.00041796037296341904
+      "monotonicity_violations": 0,
+      "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
       "tier": "high",
-      "score": 0.9,
+      "score": 0.966,
       "reasons": [
-        "1 negligible monotonicity tweak(s) (max <0.05%)"
+        "full threshold set, monotonic, tight spreads, deep books"
       ]
     },
     "markets": [
@@ -19767,7 +19767,7 @@
         "adjusted_prob": 0.9845,
         "prob": 0.9845,
         "bucket_prob": 0.012000000000000122,
-        "volume": 516407.89871399995,
+        "volume": 516607.89871399995,
         "volume_tier": "high"
       },
       {
@@ -19776,28 +19776,28 @@
         "raw_prob": 0.9725,
         "adjusted_prob": 0.9724999999999999,
         "prob": 0.9724999999999999,
-        "bucket_prob": 0.015499999999999958,
+        "bucket_prob": 0.014999999999999902,
         "volume": 316226.61839700054,
         "volume_tier": "high"
       },
       {
         "label": ">$1.4T",
         "threshold": 1.4,
-        "raw_prob": 0.957,
-        "adjusted_prob": 0.957,
-        "prob": 0.957,
-        "bucket_prob": 0.050999999999999934,
+        "raw_prob": 0.9575,
+        "adjusted_prob": 0.9575,
+        "prob": 0.9575,
+        "bucket_prob": 0.05349999999999999,
         "volume": 210509.35030899986,
         "volume_tier": "med"
       },
       {
         "label": ">$1.6T",
         "threshold": 1.6,
-        "raw_prob": 0.906,
-        "adjusted_prob": 0.906,
-        "prob": 0.906,
-        "bucket_prob": 0.061000000000000054,
-        "volume": 324316.71844799945,
+        "raw_prob": 0.904,
+        "adjusted_prob": 0.904,
+        "prob": 0.904,
+        "bucket_prob": 0.05900000000000005,
+        "volume": 324596.38844799943,
         "volume_tier": "high"
       },
       {
@@ -19806,7 +19806,7 @@
         "raw_prob": 0.845,
         "adjusted_prob": 0.845,
         "prob": 0.845,
-        "bucket_prob": 0.17999999999999994,
+        "bucket_prob": 0.17999999999999983,
         "volume": 448928.53790900006,
         "volume_tier": "high"
       },
@@ -19814,10 +19814,10 @@
         "label": ">$2T",
         "threshold": 2,
         "raw_prob": 0.665,
-        "adjusted_prob": 0.665,
-        "prob": 0.665,
-        "bucket_prob": 0.18000000000000005,
-        "volume": 798215.4878820016,
+        "adjusted_prob": 0.6650000000000001,
+        "prob": 0.6650000000000001,
+        "bucket_prob": 0.18000000000000016,
+        "volume": 798683.1238230015,
         "volume_tier": "high"
       },
       {
@@ -19836,18 +19836,18 @@
         "raw_prob": 0.26,
         "adjusted_prob": 0.26,
         "prob": 0.26,
-        "bucket_prob": 0.15000000000000002,
+        "bucket_prob": 0.135,
         "volume": 603273.9551129998,
         "volume_tier": "high"
       },
       {
         "label": ">$2.6T",
         "threshold": 2.6,
-        "raw_prob": 0.11,
-        "adjusted_prob": 0.11,
-        "prob": 0.11,
-        "bucket_prob": 0.024999999999999994,
-        "volume": 297497.34837399994,
+        "raw_prob": 0.125,
+        "adjusted_prob": 0.125,
+        "prob": 0.125,
+        "bucket_prob": 0.039999999999999994,
+        "volume": 297789.22746299993,
         "volume_tier": "med"
       },
       {
@@ -19856,37 +19856,37 @@
         "raw_prob": 0.085,
         "adjusted_prob": 0.085,
         "prob": 0.085,
-        "bucket_prob": 0.03,
-        "volume": 191144.03150900005,
+        "bucket_prob": 0.030000000000000006,
+        "volume": 191617.59150900005,
         "volume_tier": "med"
       },
       {
         "label": ">$3T",
         "threshold": 3,
         "raw_prob": 0.055,
-        "adjusted_prob": 0.05500000000000001,
-        "prob": 0.05500000000000001,
-        "bucket_prob": 0.01941796037296343,
-        "volume": 1463993.7232270013,
+        "adjusted_prob": 0.055,
+        "prob": 0.055,
+        "bucket_prob": 0.019000000000000003,
+        "volume": 1467697.4532270012,
         "volume_tier": "high"
       },
       {
         "label": ">$3.2T",
         "threshold": 3.2,
-        "raw_prob": 0.0355,
-        "adjusted_prob": 0.03558203962703658,
-        "prob": 0.03558203962703658,
+        "raw_prob": 0.036,
+        "adjusted_prob": 0.036,
+        "prob": 0.036,
         "bucket_prob": 0,
-        "volume": 291441.013589,
+        "volume": 292045.163589,
         "volume_tier": "med"
       },
       {
         "label": ">$3.4T",
         "threshold": 3.4,
         "raw_prob": 0.036,
-        "adjusted_prob": 0.03558203962703658,
-        "prob": 0.03558203962703658,
-        "bucket_prob": 0.005582039627036576,
+        "adjusted_prob": 0.036,
+        "prob": 0.036,
+        "bucket_prob": 0.005999999999999995,
         "volume": 57205.691267999995,
         "volume_tier": "low"
       },
