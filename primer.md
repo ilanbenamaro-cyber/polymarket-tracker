@@ -40,13 +40,13 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
 - **Freshness** verified via Playwright: fresh state shows "as-of age" muted + badge hidden; stale state
   shows red age + STALE pill; 0 console errors.
 - node --test 43/43.
+- **CI pipeline proven END-TO-END** ✅ — `workflow_dispatch` (mode snapshot) ran green
+  (run 27154304762): npm ci on ubuntu, snapshot, schema validation, and the bot commit/push all
+  succeeded. The new **concurrency-safe push** path worked (snapshot commit `01d505b` landed on
+  `origin/main` via fetch→rebase→push). Was UNVERIFIED #1 — now done.
 
 ## UNVERIFIED (do these — top item FIRST)
-1. **`workflow_dispatch` has NEVER been run in the Actions runner.** The cron pipeline calling
-   `scripts/snapshot.js` inside CI is **unproven** (npm ci on ubuntu, git commit/push as the bot,
-   schema validation in CI). **Run this first** from the GitHub Actions tab (mode: snapshot) and
-   confirm it goes green + commits `docs/api/v1/**`.
-2. Email/push path (`send-emails.js`) is dormant and unrun in CI (intended; guarded to skip without secrets).
+1. Email/push path (`send-emails.js`) is dormant and unrun in CI (intended; guarded to skip without secrets).
 
 ## Recently shipped (this session, 2026-06-08)
 - [x] **Data-accuracy verifier** (`scripts/verify-accuracy.js`) — proves the feed matches Polymarket
@@ -55,11 +55,12 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
   lagging cross-check, never an input. See [[decisions]].
 - [x] **Tier-1 data freshness** (`core/freshness.js`, `derived.freshness`) — as-of age + STALE badge on
   dashboard/note; 50h threshold, evaluated client-side. See [[decisions]].
+- [x] **CI push made concurrency-safe** (`update.yml`: concurrency group + rebase `-X theirs` + retry +
+  fetch-depth:0; actions @v5) and **proven green via workflow_dispatch**. See [[decisions]], [[gotchas]].
 
-## Immediate open tasks (unchanged — none of these were touched this session)
-- [ ] **Run `update.yml` via workflow_dispatch (snapshot mode)** and confirm green — see UNVERIFIED #1.
-  (The verifier is the natural post-snapshot CI gate to add here — but user said NOT to wire it in until
-  the pipeline is proven. Wire `verify-accuracy.js --strict` only AFTER workflow_dispatch goes green.)
+## Immediate open tasks
+- [ ] **Wire `verify-accuracy.js --strict` as a post-snapshot CI gate** in `update.yml` — now UNBLOCKED
+  (the pipeline is proven green). Canonical pattern: snapshot → verify while seconds-old → exit 0.
 - [ ] **Scenario-tier precision check:** confirm the share-price band width is driven by the
   shares-outstanding `range` (1.7B–2.1B) and reads sensibly; sanity-check the round-over-round
   `+172%` rounding (1dp) isn't implying false precision on a low-confidence input.

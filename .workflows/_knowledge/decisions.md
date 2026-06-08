@@ -5,6 +5,24 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Concurrency-safe CI commit/push (the snapshot bot races itself + humans)
+**Decided:** `update.yml`'s "Commit API + baked dashboard" step is robust to a remote that advances
+mid-run: a **`concurrency: { group: snapshot-commit, cancel-in-progress: false }`** serializes runs
+(queued, never cancelled — no snapshot dropped); the push then does **fetch → `git rebase -X theirs
+FETCH_HEAD` → push, retrying up to 5×**; `actions/checkout`/`setup-node` are **@v5** with
+**`fetch-depth: 0`** so the rebase always has its merge base.
+**Why:** A naive `git push` is rejected ("fetch first") whenever the bot or a human pushed after the
+runner checked out `main` — this is exactly what failed run 27096553941. Rebasing our one generated-file
+commit onto the latest tip integrates the advance instead of failing. `-X theirs` keeps the **freshly
+built** artifacts on a generated-file conflict (during rebase "theirs" = the commit being replayed, i.e.
+this snapshot — they are the authoritative current state). The concurrency group means two *snapshot*
+runs can't overlap, so the retry mainly absorbs non-snapshot pushes. Proven green: run 27154304762,
+commit `01d505b` landed via this path.
+**Constrains:** Keep this YAML-only — never let push robustness changes touch `core/` formulas, the
+schema, or `scripts/snapshot.js` (the pipeline itself was correct). When editing the workflow, trigger a
+**fresh** dispatch, not "Re-run jobs" (see [[gotchas]]). The bot's `-X theirs` could in principle clobber
+a *newer* concurrent snapshot — the concurrency group is what prevents that, so don't remove it.
+
 ## Canonical source of record — the CLOB midpoint
 **Decided:** Two public Polymarket surfaces expose a YES price and they are **different statistics**:
 the **CLOB `/midpoints`** value `(best_bid + best_ask)/2` and **Gamma**'s `outcomePrices`. The feed's

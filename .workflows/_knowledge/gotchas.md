@@ -5,6 +5,18 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## "Re-run jobs" replays the workflow at the ORIGINAL commit — not your YAML fix
+**Symptom:** Fixed a bug in `.github/workflows/update.yml`, pushed it, then clicked GitHub's
+**"Re-run jobs" / "Re-run failed jobs"** on the failed run — and it failed the **same way**, as if the
+fix never landed. (Cost real time today.)
+**Reality:** Re-running a run replays the workflow **at the exact commit SHA the original run used**, with
+the original workflow file and event payload. A workflow YAML change pushed afterward is **not** picked
+up by re-running — re-run is "retry this historical run", not "run latest".
+**Lesson:** After editing a workflow file, trigger a **fresh** run, never "Re-run jobs":
+`gh workflow run update.yml -f mode=snapshot` (or the **Run workflow** button on the Actions tab). The
+fresh dispatch checks out the latest `main` and uses the updated YAML. Verify the run's commit SHA is
+your fix, not the old one.
+
 ## Verifier: price-match window ≠ liveness window (two different horizons)
 **Symptom:** `scripts/verify-accuracy.js` returned **FAIL** on a correct, recently-published snapshot
 because one thin mid-tail threshold (`$2.6T`) had drifted ~5pt since publish.
@@ -53,7 +65,11 @@ trusting a pin. A spec's pinned version may predate your runtime.
 (`docs/api/v1/**`, baked `docs/index.html`/`note.html`) → take your version
 (`git checkout --theirs <file>` during rebase) → `git rebase --continue` → **re-run
 `node scripts/snapshot.js`** to regenerate a consistent state → amend → push.
-**Lesson:** Always `git fetch`/rebase before pushing. The cron runs ~3×/weekday (14:00, 14:30, 21:00 UTC).
+**Lesson:** Always `git fetch`/rebase before pushing. Snapshot cron is **daily 14:00 UTC** (`0 14 * * *`);
+the 14:30 + 21:00 runs are **weekday-only** email runs (`* * 1-5`) — so the snapshot itself runs every day.
+**RESOLVED in CI (2026-06-08):** `update.yml`'s commit step now **self-heals** — it fetches +
+`git rebase -X theirs FETCH_HEAD` + pushes, retrying up to 5×, and a `concurrency: snapshot-commit`
+group serializes runs (proven green, run 27154304762). You still rebase manually for your OWN pushes.
 
 ## pm2 was decommissioned — do NOT re-add it
 **Symptom:** (Would cause) duplicate daily runs / double commits.
