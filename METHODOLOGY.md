@@ -115,11 +115,16 @@ rather than eyeballing it. It fetches the live market **twice** (~10 s apart) fr
 from error; (3) reconciles the **published** `latest.json` against the fresh CLOB midpoint per
 threshold (±2pt, widened by the observed drift), showing the publish-age gap; and (4) confirms the
 published curve is a **valid isotonic transform** of fresh source (monotone CDF, buckets ≥ 0, sum 1.0)
-using the production `core/stats.js` transform. **Tolerances are documented in the script with their
-rationale** (tick quantization + sub-minute capture skew for ±2pt; midpoint-vs-display divergence for
-±1pt) and are **not** widened to absorb multi-day publish-lag — staleness is a separate **freshness
-verdict**, so the tolerance cannot be tuned to mask an old feed. The harness **reports only**; it
-never mutates the feed or `fetch.js`. A discrepancy is a finding to investigate, not an auto-fix.
+using the production `core/stats.js` transform. It separates **two horizons** so it never conflates
+market movement with error: the strict ±2pt price-match is a hard PASS/FAIL **only inside a ~3h
+price-match window** (young enough that a >tol delta is a real data error); between 3h and the 50h
+liveness horizon the snapshot is "aged but live" and per-threshold deltas are reported **descriptively
+as expected market drift, never a FAIL**; past 50h it is **STALE** (a pipeline-liveness signal, shared
+with the dashboard via `core/freshness.js`). The ±2pt tolerance is **not** widened to cover aging —
+that would blind it to real source errors; instead the harness bounds *when* the strict check applies.
+The canonical green path is the CI pattern: **run the snapshot, then verify immediately while
+seconds-old → tight match → exit 0**. The harness **reports only**; it never mutates the feed or
+`fetch.js`. A discrepancy is a finding to investigate, not an auto-fix.
 
 ## Data freshness (Tier-1) — `derived.freshness`
 A silently stale number is a trust failure, so the feed **discloses its own age**. Each record

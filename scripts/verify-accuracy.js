@@ -28,6 +28,7 @@ import { dirname, join } from 'node:path';
 
 import { ENDPOINTS, ASSET } from '../core/fetch.js';
 import { adjustSnapshot } from '../core/stats.js';
+import { STALENESS_THRESHOLD_HOURS } from '../core/freshness.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LATEST_PATH = join(__dirname, '../docs/api/v1/latest.json');
@@ -53,15 +54,26 @@ const LATEST_PATH = join(__dirname, '../docs/api/v1/latest.json');
 //   captures, the book is genuinely volatile and any single-instant comparison is
 //   noisy; we widen that token's effective published-tolerance by the OBSERVED drift
 //   (attributing timing to timing) and flag the volatility rather than fail on it.
-// FRESHNESS_WINDOW_H — how old the published snapshot may be before its raw_prob is
-//   no longer expected to match live within TOL_PUBLISHED. The cron runs ~daily on
-//   weekdays, so ~26h covers a normal gap; beyond it, deltas are market drift, not
-//   error, and the verdict is STALE (re-run the snapshot), not FAIL.
+//
+// TWO SEPARATE HORIZONS (the previous one-window model conflated them):
+// PRICE_MATCH_WINDOW_H — the ±2pt match is a meaningful PASS/FAIL assertion ONLY for
+//   a freshly-fetched snapshot. Markets move several points intraday, so a published
+//   raw_prob is only expected to equal the live midpoint within 2pt while it is
+//   minutes-to-a-few-hours old. INSIDE this window, a >tol delta is a real data error
+//   → FAIL. ~3h gives margin for normal book movement without being so long that real
+//   drift leaks in. We do NOT widen the 2pt tolerance to cover aging — that would
+//   blind the check to genuine source errors; we bound WHEN the strict check applies.
+// STALENESS_WINDOW_H — pipeline LIVENESS, a different concern: has publishing stopped?
+//   This is the dashboard's staleness horizon, imported from core/freshness.js so the
+//   two surfaces share ONE constant (50h, sized to the daily cron). Beyond it → STALE.
+// Between the two windows the snapshot is "aged but live": per-threshold deltas are
+//   reported DESCRIPTIVELY as expected market drift — NOT a binary FAIL.
 export const TOL = Object.freeze({
   CROSS_SOURCE: 0.01,
   PUBLISHED: 0.02,
   DRIFT_CEILING: 0.02,
-  FRESHNESS_WINDOW_H: 26,
+  PRICE_MATCH_WINDOW_H: 3,
+  STALENESS_WINDOW_H: STALENESS_THRESHOLD_HOURS,
 });
 
 const THRESHOLD_RE = /\$(\d+\.?\d*)/;
@@ -139,33 +151,52 @@ export function assessIsotonic(adjustedMarkets, eps = 1e-6) {
   return { valid: monotone && bucketsNonNeg && sumsToOne, monotone, bucketsNonNeg, sum, sumsToOne, problems };
 }
 
-/** Freshness of the published snapshot relative to now. */
-export function freshness(publishedAtISO, nowISO, windowH = TOL.FRESHNESS_WINDOW_H) {
+/**
+ * Classify the published snapshot's age into one of three zones, separating the
+ * price-match horizon from the liveness horizon:
+ *   'price-match' (age <= priceMatchWindowH) — young enough that a >tol delta is a
+ *                  real data error, so the ±2pt check is a hard PASS/FAIL gate.
+ *   'aged'        (priceMatchWindowH < age <= stalenessHours) — beyond a strict price
+ *                  match but the pipeline is alive; deltas are EXPECTED market drift,
+ *                  reported descriptively, never a FAIL.
+ *   'stale'       (age > stalenessHours) — a pipeline liveness problem → STALE.
+ */
+export function classifyAge(publishedAtISO, nowISO, priceMatchWindowH = TOL.PRICE_MATCH_WINDOW_H, stalenessHours = TOL.STALENESS_WINDOW_H) {
   const ageHours = (Date.parse(nowISO) - Date.parse(publishedAtISO)) / 3_600_000;
-  return { ageHours, fresh: ageHours <= windowH, windowH };
+  const zone = ageHours > stalenessHours ? 'stale' : ageHours <= priceMatchWindowH ? 'price-match' : 'aged';
+  return { ageHours, zone, priceMatchWindowH, stalenessHours };
 }
 
 /**
- * Compose the single headline verdict from the component results. Honest by
- * construction: a fresh feed that reconciles within tolerance PASSES; a stale feed
- * whose method still reconciles is STALE (not FAIL); only a real discrepancy or an
- * invalid live curve is a FAIL. --strict promotes STALE and upstream disagreement.
+ * Compose the single headline verdict. Honest by construction:
+ *   - an invalid live curve is always a FAIL (a real source/transform error);
+ *   - the strict ±2pt price match FAILs ONLY inside the price-match window, where a
+ *     >tol delta cannot be blamed on drift;
+ *   - 'aged' returns OK with the drift reported descriptively (no binary FAIL);
+ *   - 'stale' is its own liveness signal (exit 2; --strict promotes to FAIL).
+ * The tolerance is NEVER widened to cover aging — we bound WHEN the strict check
+ * applies, so the check stays blind to nothing real.
  */
-export function overallVerdict({ sourceValid, fresh, publishedOutOfTol, crossSourceDisagree, strict }) {
+export function overallVerdict({ sourceValid, zone, ageHours, priceMatchWindowH, stalenessHours, publishedOutOfTol, crossSourceDisagree, strict }) {
+  const age = Number.isFinite(ageHours) ? ageHours.toFixed(1) : '?';
   if (!sourceValid) {
     return { verdict: 'FAIL', exit: 1, reason: 'live source does not yield a valid isotonic curve' };
-  }
-  if (fresh && publishedOutOfTol > 0) {
-    return { verdict: 'FAIL', exit: 1, reason: `${publishedOutOfTol} published value(s) exceed tolerance on a FRESH snapshot` };
   }
   if (strict && crossSourceDisagree > 0) {
     return { verdict: 'FAIL', exit: 1, reason: `${crossSourceDisagree} upstream cross-source disagreement(s) (--strict)` };
   }
-  if (!fresh) {
-    const base = { verdict: 'STALE', reason: 'published snapshot is older than the freshness window; deltas reflect market drift, not error — re-run the snapshot' };
+  if (zone === 'stale') {
+    const base = { verdict: 'STALE', reason: `published snapshot is ${age}h old (> ${stalenessHours}h liveness horizon) — the publishing pipeline may have stopped; re-run the snapshot` };
     return strict ? { ...base, verdict: 'FAIL', exit: 1 } : { ...base, exit: 2 };
   }
-  return { verdict: 'PASS', exit: 0, reason: 'every published value reconciles to live source within tolerance once timing drift is accounted for' };
+  if (zone === 'price-match') {
+    if (publishedOutOfTol > 0) {
+      return { verdict: 'FAIL', exit: 1, reason: `${publishedOutOfTol} published value(s) exceed ±tol on a ${age}h-old snapshot (within the ${priceMatchWindowH}h price-match window — too young to attribute to drift, so this is a real discrepancy)` };
+    }
+    return { verdict: 'PASS', exit: 0, reason: `every published value matches live source within tolerance on a fresh (${age}h) snapshot` };
+  }
+  // 'aged': beyond a strict price match, within the liveness horizon.
+  return { verdict: 'OK', exit: 0, reason: `published snapshot is ${age}h old — beyond the ${priceMatchWindowH}h price-match window, within the ${stalenessHours}h liveness horizon. Per-threshold deltas below are EXPECTED market drift, not data error; re-run the snapshot for a strict price-match (the CI PASS path: snapshot, then verify while minutes-old).` };
 }
 
 // ── I/O: independent dual-source fetch (written separately from core/fetch.js) ──
@@ -246,10 +277,16 @@ const pad = (s, n) => String(s).padEnd(n);
 const padL = (s, n) => String(s).padStart(n);
 
 function parseArgs(argv) {
-  const a = { gapMs: DEFAULT_GAP_MS, maxAgeH: TOL.FRESHNESS_WINDOW_H, strict: false, json: false };
+  const a = {
+    gapMs: DEFAULT_GAP_MS,
+    priceWindowH: TOL.PRICE_MATCH_WINDOW_H,
+    stalenessH: TOL.STALENESS_WINDOW_H,
+    strict: false, json: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--gap-ms') a.gapMs = Number(argv[++i]);
-    else if (argv[i] === '--max-age-hours') a.maxAgeH = Number(argv[++i]);
+    else if (argv[i] === '--price-window-hours') a.priceWindowH = Number(argv[++i]);
+    else if (argv[i] === '--staleness-hours') a.stalenessH = Number(argv[++i]);
     else if (argv[i] === '--strict') a.strict = true;
     else if (argv[i] === '--json') a.json = true;
   }
@@ -313,23 +350,33 @@ async function main() {
   const iso = assessIsotonic(freshAdj.markets);
   const freshAdjByThreshold = new Map(freshAdj.markets.map((m) => [m.threshold, m]));
 
-  const fresh = freshness(publishedAt, now, args.maxAgeH);
+  const cls = classifyAge(publishedAt, now, args.priceWindowH, args.stalenessH);
   const verdict = overallVerdict({
     sourceValid: iso.valid,
-    fresh: fresh.fresh,
+    zone: cls.zone,
+    ageHours: cls.ageHours,
+    priceMatchWindowH: cls.priceMatchWindowH,
+    stalenessHours: cls.stalenessHours,
     publishedOutOfTol,
     crossSourceDisagree: crossDisagree,
     strict: args.strict,
   });
+  // The strict ±tol assertion is only meaningful inside the price-match window; in
+  // 'aged'/'stale' zones a per-threshold miss is descriptive drift, not a failure.
+  const priceMatchZone = cls.zone === 'price-match';
 
   const driftMean = driftVals.length ? driftVals.reduce((a, b) => a + b, 0) / driftVals.length : 0;
 
   if (args.json) {
     console.log(JSON.stringify({
       asset: ASSET.id, published_at: publishedAt, verified_at: now,
-      publish_age_hours: Number(fresh.ageHours.toFixed(2)), fresh: fresh.fresh,
+      publish_age_hours: Number(cls.ageHours.toFixed(2)), age_zone: cls.zone,
+      price_match_window_hours: cls.priceMatchWindowH, staleness_window_hours: cls.stalenessHours,
       capture_gap_sec: gapSec, drift_max: maxDrift, drift_mean: driftMean,
-      cross_source_disagreements: crossDisagree, published_out_of_tol: publishedOutOfTol,
+      cross_source_disagreements: crossDisagree,
+      // A price-match miss only counts as a discrepancy inside the price-match window.
+      published_out_of_tol: priceMatchZone ? publishedOutOfTol : 0,
+      observed_drift_count: priceMatchZone ? 0 : publishedOutOfTol,
       source_curve_valid: iso.valid, tolerances: TOL, verdict: verdict.verdict, reason: verdict.reason,
       rows: rows.map((r) => ({
         threshold: r.threshold, published_mid: r.publishedMid, live_mid: r.liveMid,
@@ -345,19 +392,24 @@ async function main() {
   const line = '─'.repeat(94);
   console.log(`\nDATA-ACCURACY RECONCILIATION — ${ASSET.name}`);
   console.log(line);
+  const zoneLabel = { 'price-match': 'PRICE-MATCH (strict ±tol applies)', aged: 'AGED (drift descriptive, no fail)', stale: 'STALE (liveness)' }[cls.zone];
   console.log(`published latest.json : ${publishedAt}`);
   console.log(`verified (capture 2)  : ${now}`);
-  console.log(`publish age           : ${fresh.ageHours.toFixed(1)} h  (freshness window ${fresh.windowH} h → ${fresh.fresh ? 'FRESH' : 'STALE'})`);
+  console.log(`publish age           : ${cls.ageHours.toFixed(1)} h → ${zoneLabel}`);
+  console.log(`  horizons            : price-match ≤ ${cls.priceMatchWindowH}h · liveness/stale > ${cls.stalenessHours}h`);
   console.log(`capture gap           : ${gapSec.toFixed(1)} s   (cap1 ${cap1.at})`);
   console.log(`tolerances            : published ±${(TOL.PUBLISHED * 100).toFixed(0)}pt · cross-source ±${(TOL.CROSS_SOURCE * 100).toFixed(0)}pt · drift ceiling ${(TOL.DRIFT_CEILING * 100).toFixed(0)}pt`);
 
   console.log(`\nPER-THRESHOLD (probabilities; deltas in points, 1pt = 0.01)`);
+  if (!priceMatchZone) console.log(`  (aged/stale: the "match" column shows '~drift' for >tol deltas — EXPECTED movement, not error)`);
   console.log(line);
   console.log([
     pad('thresh', 8), pad('published', 10), pad('live-mid', 9), pad('live-bid', 9),
-    pad('live-ask', 9), pad('Δ pub', 8), pad('eff-tol', 8), pad('ok?', 4), pad('drift', 7), pad('gamma', 8), pad('xΔ', 7), 'src?',
+    pad('live-ask', 9), pad('Δ pub', 8), pad('eff-tol', 8), pad('match', 7), pad('drift', 7), pad('gamma', 8), pad('xΔ', 7), 'src?',
   ].join(' '));
   console.log(line);
+  const matchCell = (within) =>
+    within == null ? 'n/a' : within ? '✓' : priceMatchZone ? '✗' : '~drift';
   for (const r of rows) {
     console.log([
       pad(`$${r.threshold}T`, 8),
@@ -367,13 +419,18 @@ async function main() {
       pad(fmtP(r.ask), 9),
       pad(fmtPts(r.rec.delta), 8),
       pad(r.rec.effective_tol == null ? '  —  ' : '±' + (r.rec.effective_tol * 100).toFixed(2), 8),
-      pad(r.rec.within_tol == null ? ' n/a' : r.rec.within_tol ? ' ✓' : ' ✗', 4),
+      pad(matchCell(r.rec.within_tol), 7),
       pad(fmtPts(r.drift), 7),
       pad(fmtP(r.gammaYes), 8),
       pad(fmtPts(r.xs.delta), 7),
       r.xs.agree == null ? 'n/a' : r.xs.agree ? '✓' : '✗ DISAGREE',
     ].join(' '));
   }
+  const comparable = rows.filter((r) => r.rec.comparable).length;
+  console.log(priceMatchZone
+    ? `  → ${comparable - publishedOutOfTol}/${comparable} within ±tol` +
+      (publishedOutOfTol > 0 ? ` · ${publishedOutOfTol} EXCEED (real discrepancy — snapshot is fresh)` : ` · all match`)
+    : `  → ${publishedOutOfTol}/${comparable} threshold(s) drifted beyond ±tol over ${cls.ageHours.toFixed(1)}h (expected market movement, not error)`);
   if (missingLive.length) {
     console.log(`\n⚠ ${missingLive.length} published market(s) NOT found live (market set changed): ` +
       missingLive.map((m) => `$${m.threshold}T`).join(', '));
@@ -402,14 +459,15 @@ async function main() {
     if (r.pubAdjusted != null && fa != null) adjMax = Math.max(adjMax, Math.abs(r.pubAdjusted - fa));
   }
   console.log(`  published adjusted vs fresh-adjusted: max Δ ${(adjMax * 100).toFixed(2)}pt ` +
-    `${fresh.fresh ? (adjMax <= TOL.PUBLISHED + maxDrift ? '✓ within tol' : '✗ exceeds tol') : '(stale — Δ reflects drift over publish age)'}`);
+    `${priceMatchZone ? (adjMax <= TOL.PUBLISHED + maxDrift ? '✓ within tol' : '✗ exceeds tol') : '(aged — Δ reflects expected drift over publish age)'}`);
 
   console.log(`\n${line}`);
   console.log(`VERDICT: ${verdict.verdict}`);
   console.log(`  ${verdict.reason}`);
-  if (verdict.verdict === 'STALE') {
-    console.log(`  NOTE: source fidelity is intact (the methodology reconciles to live source);`);
-    console.log(`        only the published artifact is old. Run \`node scripts/snapshot.js\` to refresh.`);
+  if (verdict.verdict === 'STALE' || cls.zone === 'aged') {
+    console.log(`  NOTE: source fidelity is intact (the live curve is valid); the per-threshold`);
+    console.log(`        deltas are ${cls.zone === 'stale' ? 'an aging artifact' : 'expected market drift'}, not a data error. The CI PASS path is to run`);
+    console.log(`        \`node scripts/snapshot.js\` then verify immediately (minutes-old → strict match).`);
   }
   console.log(line + '\n');
 

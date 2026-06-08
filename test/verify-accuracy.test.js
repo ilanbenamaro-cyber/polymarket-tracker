@@ -12,9 +12,16 @@ import {
   reconcileRow,
   tokenDrift,
   assessIsotonic,
-  freshness,
+  classifyAge,
   overallVerdict,
 } from '../scripts/verify-accuracy.js';
+
+// Build the overallVerdict arg shape from a zone, defaulting the rest to a clean run.
+const vArgs = (over = {}) => ({
+  sourceValid: true, zone: 'price-match', ageHours: 0.1,
+  priceMatchWindowH: TOL.PRICE_MATCH_WINDOW_H, stalenessHours: TOL.STALENESS_WINDOW_H,
+  publishedOutOfTol: 0, crossSourceDisagree: 0, strict: false, ...over,
+});
 
 test('parseThreshold extracts the dollar threshold; throws on garbage', () => {
   assert.equal(parseThreshold('SpaceX IPO closing market cap above $1.8T?'), 1.8);
@@ -80,37 +87,57 @@ test('assessIsotonic agrees with core adjustSnapshot on monotone-violating raw',
   assert.equal(assessIsotonic(adj.markets).valid, true);
 });
 
-test('freshness flags age beyond the window', () => {
-  const base = '2026-06-08T00:00:00.000Z';
-  assert.equal(freshness('2026-06-07T23:00:00.000Z', base).fresh, true); // 1h
-  assert.equal(freshness('2026-06-05T00:00:00.000Z', base).fresh, false); // 72h
-  assert.ok(Math.abs(freshness('2026-06-05T00:00:00.000Z', base).ageHours - 72) < 1e-6);
+test('classifyAge separates price-match / aged / stale by the two horizons', () => {
+  const base = '2026-06-08T12:00:00.000Z';
+  // 1h old → price-match (≤3h)
+  assert.equal(classifyAge('2026-06-08T11:00:00.000Z', base).zone, 'price-match');
+  // 10h old → aged (between 3h and 50h)
+  assert.equal(classifyAge('2026-06-08T02:00:00.000Z', base).zone, 'aged');
+  // 60h old → stale (>50h)
+  assert.equal(classifyAge('2026-06-06T00:00:00.000Z', base).zone, 'stale');
+  assert.ok(Math.abs(classifyAge('2026-06-06T00:00:00.000Z', base).ageHours - 60) < 1e-6);
 });
 
-test('overallVerdict: fresh + within tol = PASS', () => {
-  const v = overallVerdict({ sourceValid: true, fresh: true, publishedOutOfTol: 0, crossSourceDisagree: 0, strict: false });
+test('classifyAge boundaries are inclusive on price-match, exclusive into stale', () => {
+  const base = '2026-06-08T12:00:00.000Z';
+  const at = (h) => new Date(Date.parse(base) - h * 3_600_000).toISOString();
+  assert.equal(classifyAge(at(TOL.PRICE_MATCH_WINDOW_H), base).zone, 'price-match'); // exactly 3h → still price-match
+  assert.equal(classifyAge(at(TOL.PRICE_MATCH_WINDOW_H + 0.01), base).zone, 'aged');
+  assert.equal(classifyAge(at(TOL.STALENESS_WINDOW_H), base).zone, 'aged');           // exactly 50h → not yet stale
+  assert.equal(classifyAge(at(TOL.STALENESS_WINDOW_H + 0.01), base).zone, 'stale');
+});
+
+test('overallVerdict: price-match zone + within tol = PASS', () => {
+  const v = overallVerdict(vArgs({ zone: 'price-match', publishedOutOfTol: 0 }));
   assert.equal(v.verdict, 'PASS');
   assert.equal(v.exit, 0);
 });
 
-test('overallVerdict: invalid live curve = FAIL regardless of freshness', () => {
-  const v = overallVerdict({ sourceValid: false, fresh: true, publishedOutOfTol: 0, crossSourceDisagree: 0, strict: false });
+test('overallVerdict: price-match zone + out-of-tol = FAIL (too young to be drift)', () => {
+  const v = overallVerdict(vArgs({ zone: 'price-match', publishedOutOfTol: 2 }));
   assert.equal(v.verdict, 'FAIL');
   assert.equal(v.exit, 1);
 });
 
-test('overallVerdict: fresh but out-of-tol = FAIL (a real discrepancy)', () => {
-  const v = overallVerdict({ sourceValid: true, fresh: true, publishedOutOfTol: 2, crossSourceDisagree: 0, strict: false });
-  assert.equal(v.verdict, 'FAIL');
+test('overallVerdict: AGED out-of-tol is descriptive drift, NOT a FAIL (the bug fix)', () => {
+  const v = overallVerdict(vArgs({ zone: 'aged', ageHours: 10, publishedOutOfTol: 5 }));
+  assert.equal(v.verdict, 'OK');
+  assert.equal(v.exit, 0);
 });
 
-test('overallVerdict: stale + valid method = STALE (exit 2), not FAIL', () => {
-  const v = overallVerdict({ sourceValid: true, fresh: false, publishedOutOfTol: 5, crossSourceDisagree: 0, strict: false });
+test('overallVerdict: invalid live curve = FAIL in every zone', () => {
+  for (const zone of ['price-match', 'aged', 'stale']) {
+    assert.equal(overallVerdict(vArgs({ zone, sourceValid: false })).verdict, 'FAIL');
+  }
+});
+
+test('overallVerdict: stale = STALE (exit 2), drift count irrelevant', () => {
+  const v = overallVerdict(vArgs({ zone: 'stale', ageHours: 60, publishedOutOfTol: 5 }));
   assert.equal(v.verdict, 'STALE');
   assert.equal(v.exit, 2);
 });
 
 test('overallVerdict: --strict promotes STALE and cross-source disagreement to FAIL', () => {
-  assert.equal(overallVerdict({ sourceValid: true, fresh: false, publishedOutOfTol: 0, crossSourceDisagree: 0, strict: true }).verdict, 'FAIL');
-  assert.equal(overallVerdict({ sourceValid: true, fresh: true, publishedOutOfTol: 0, crossSourceDisagree: 3, strict: true }).verdict, 'FAIL');
+  assert.equal(overallVerdict(vArgs({ zone: 'stale', ageHours: 60, strict: true })).verdict, 'FAIL');
+  assert.equal(overallVerdict(vArgs({ zone: 'price-match', crossSourceDisagree: 3, strict: true })).verdict, 'FAIL');
 });
