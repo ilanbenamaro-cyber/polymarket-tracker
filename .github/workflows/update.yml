@@ -16,18 +16,28 @@ on:
 permissions:
   contents: write
 
+# Serialize runs that commit to main so two snapshots never race on the push.
+# cancel-in-progress:false → a queued run waits for the in-flight one to finish
+# (and push) instead of being cancelled, so no snapshot is dropped.
+concurrency:
+  group: snapshot-commit
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Full history so a rebase onto an advanced origin/main always has the
+          # merge base (a shallow clone can reject the rebase).
+          fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -52,11 +62,50 @@ jobs:
 
       - name: Commit API + baked dashboard
         run: |
+          set -euo pipefail
           git config user.name "polymarket-tracker[bot]"
           git config user.email "polymarket-tracker@users.noreply.github.com"
           git add docs/api/v1 docs/index.html docs/note.html
-          git diff --staged --quiet || git commit -m "chore: snapshot $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
-          git push
+
+          # Nothing changed (e.g. identical re-run) → succeed without a commit.
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: snapshot $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+
+          # Concurrency-safe push. The remote may have advanced after this runner
+          # checked out main (another snapshot run or a human push). BEFORE each push
+          # we fetch + rebase our one commit onto the latest origin/main, then push;
+          # if the remote races again between the rebase and the push, we retry.
+          # On a generated-file conflict prefer OUR freshly-built artifacts (-X theirs:
+          # during rebase "theirs" = the commit being replayed, i.e. this snapshot) —
+          # the just-built files are the authoritative current state. The concurrency
+          # group above already keeps two snapshot runs from overlapping, so this
+          # primarily integrates non-snapshot pushes (rarely a real conflict).
+          attempt=0
+          max=5
+          while true; do
+            attempt=$((attempt + 1))
+            # Fetch main and rebase onto FETCH_HEAD (always set by `fetch origin main`,
+            # independent of whether the origin/main tracking ref is configured).
+            git fetch origin main
+            if ! git rebase -X theirs FETCH_HEAD; then
+              git rebase --abort || true
+              echo "Rebase onto origin/main failed."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo "Pushed on attempt $attempt."
+              break
+            fi
+            if [ "$attempt" -ge "$max" ]; then
+              echo "Push still racing after $attempt attempts — failing."
+              exit 1
+            fi
+            echo "Push rejected (attempt $attempt) — remote advanced again; retrying."
+            sleep $(( (RANDOM % 4) + 2 ))
+          done
 
       - name: Send emails
         if: env.MODE == 'market-open' || env.MODE == 'market-close'
