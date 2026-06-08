@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -96,9 +96,20 @@
       "robust": false,
       "assumptions": ["shares_outstanding and last_round_valuation are external, press-estimated, low-confidence inputs (SpaceX is private). See assumptions.json and the embedded per-scenario assumptions."],
       "sensitivity_note": "Quarantined from Tier 1 and validated: no scenario number exists without a sourced+dated assumption; no assumption leaks into derived.market. The published feed uses the registry value; the dashboard lets a user explore their own without mutating the feed."
+    },
+    "source_of_record": {
+      "method": "The canonical price is the CLOB /midpoints value = (best_bid + best_ask) / 2 of the live order book. raw_inputs.midpoint (hence every raw_prob and all derived metrics) is this CLOB midpoint. Gamma outcomePrices is a platform-surfaced display price that can lag the book; it is used ONLY for metadata (token ids, volume, threshold) and as a cross-check, never as an input. On disagreement the CLOB midpoint is authoritative and the divergence is reported.",
+      "robust": true,
+      "assumptions": ["None — both inputs are public, auth-free Polymarket endpoints."],
+      "sensitivity_note": "Accuracy is independently proven by scripts/verify-accuracy.js: dual-source fetch twice, cross-source agreement (±1pt), drift quantification, published-vs-live reconciliation (±2pt + drift) with a separate freshness verdict, and isotonic-validity of the live curve. Report-only; tolerances documented, not tuned to pass."
     }
   },
   "changelog": [
+    {
+      "version": "1.2.1",
+      "date": "2026-06-08",
+      "change": "Clarification, NO formula change. Documented the canonical source of record (CLOB /midpoints; Gamma outcomePrices is a lagging cross-check, never an input). Added scripts/verify-accuracy.js, an independent data-accuracy harness that reconciles the published feed against fresh dual-source data with documented tolerances and a freshness verdict (report-only). No change to any published number or schema."
+    },
     {
       "version": "1.2.0",
       "date": "2026-06-05",

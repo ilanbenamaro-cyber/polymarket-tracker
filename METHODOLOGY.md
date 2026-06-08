@@ -1,6 +1,6 @@
 # Methodology
 
-**Version 1.2.0** · asset `spacex-ipo-market-cap` · source: Polymarket (public market data only)
+**Version 1.2.1** · asset `spacex-ipo-market-cap` · source: Polymarket (public market data only)
 
 ## Two tiers (the firewall)
 - **Tier 1 — market signal** (`derived` + `derived.market.analytics`): pure transforms of observed
@@ -94,12 +94,44 @@ Unchanged from 1.0.0 (so archived snapshots stay verifiable): SHA-256 over the c
 **verify hash** button reproduces it in-browser. Market status flags (closed/active) are deliberately
 **excluded** from the hashed inputs.
 
+## Source of record — the CLOB midpoint (canonical)
+Two public Polymarket surfaces expose a YES price, and they are **different statistics**:
+the **CLOB `/midpoints`** endpoint — `(best_bid + best_ask) / 2` of the live order book — and the
+**Gamma** event's `outcomePrices`, a platform-surfaced display price that can reflect last trade or a
+cached value and **may lag the book**. The feed's `raw_inputs.midpoint` (hence every `raw_prob` and
+all derived metrics) is the **CLOB midpoint**. It is the **canonical source of record** because it is
+(a) the live two-sided book — the price you could actually transact near — not a trailing display
+value, (b) computed directly from `best_bid`/`best_ask`, which we already publish for the spread/
+confidence signal, so the recipe is self-consistent, and (c) the same per-token statistic across all
+thresholds. Gamma is used **only** for metadata (token ids, volume, threshold parsing); its
+`outcomePrices` is treated as a **cross-check**, never as an input. When the two disagree, the CLOB
+midpoint wins and the divergence is reported (see verification, below) — never silently reconciled.
+
+## Verification — `scripts/verify-accuracy.js`
+An independent, on-demand/CI reconciliation harness that **proves** the published feed matches source
+rather than eyeballing it. It fetches the live market **twice** (~10 s apart) from both surfaces and:
+(1) cross-checks Gamma `outcomePrices` against the CLOB midpoint per token (upstream sanity, ±1pt);
+(2) quantifies order-book **drift** between the two captures, so timing is attributable separately
+from error; (3) reconciles the **published** `latest.json` against the fresh CLOB midpoint per
+threshold (±2pt, widened by the observed drift), showing the publish-age gap; and (4) confirms the
+published curve is a **valid isotonic transform** of fresh source (monotone CDF, buckets ≥ 0, sum 1.0)
+using the production `core/stats.js` transform. **Tolerances are documented in the script with their
+rationale** (tick quantization + sub-minute capture skew for ±2pt; midpoint-vs-display divergence for
+±1pt) and are **not** widened to absorb multi-day publish-lag — staleness is a separate **freshness
+verdict**, so the tolerance cannot be tuned to mask an old feed. The harness **reports only**; it
+never mutates the feed or `fetch.js`. A discrepancy is a finding to investigate, not an auto-fix.
+
 ## Contract & scope
 The canonical record conforms to [`/api/v1/schema.json`](docs/api/v1/schema.json) (JSON Schema
 2020-12), validated at build. **v1 covers public Polymarket data only** — no grey-market /
 secondary-market (Forge, Caplight, EquityZen) data.
 
 ## Changelog
+- **1.2.1** (2026-06-08) — Clarification, **no formula change**. Documented the **canonical source of
+  record** (CLOB `/midpoints`; Gamma `outcomePrices` is a lagging cross-check, never an input) and
+  added an independent data-accuracy verification harness (`scripts/verify-accuracy.js`) that
+  reconciles the published feed against fresh dual-source data with documented tolerances and a
+  separate freshness verdict.
 - **1.2.0** (2026-06-05) — Tier-1 analytics (Bowley skew, robust fat-tail ratio, entropy/Gini,
   dispersion-over-time, velocity/acceleration) + a calibration scaffold (pending resolution, not
   faked). Firewalled Tier-2 scenario tier (implied share price, round-over-round) with sourced/dated
