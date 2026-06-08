@@ -9,8 +9,8 @@
     "resolves": "2027-12-31"
   },
   "snapshot": {
-    "snapshot_id": "2026-06-08T17:13:43.549Z",
-    "fetched_at": "2026-06-08T17:13:43.549Z",
+    "snapshot_id": "2026-06-08T17:20:14.222Z",
+    "fetched_at": "2026-06-08T17:20:14.222Z",
     "source": {
       "provider": "Polymarket",
       "endpoints": [
@@ -18,7 +18,7 @@
         "https://clob.polymarket.com/midpoints",
         "https://clob.polymarket.com/prices"
       ],
-      "raw_sha256": "1cda843cf8ae4c28e6170aafc0f754af28983611b8461272bb564690fa75d468"
+      "raw_sha256": "e9a6c2ec575231e1286dd6923eb37c3a9d920fdcb91447d1092eb1ba444cd3c9"
     },
     "raw_inputs": [
       {
@@ -67,7 +67,7 @@
         "midpoint": "0.665",
         "best_bid": "0.66",
         "best_ask": "0.67",
-        "volume": 925433.3211850022
+        "volume": 925462.7329480022
       },
       {
         "token_id": "24072803866223209204149583292380503594462879571215445980530727827404541949542",
@@ -112,9 +112,9 @@
       {
         "token_id": "20355017105238902441463382948256977165790622115934877551667602544354048330506",
         "threshold": 3.2,
-        "midpoint": "0.0465",
-        "best_bid": "0.042",
-        "best_ask": "0.051",
+        "midpoint": "0.048",
+        "best_bid": "0.043",
+        "best_ask": "0.053",
         "volume": 321216.2830840002
       },
       {
@@ -152,12 +152,12 @@
     ],
     "derived": {
       "implied_median": 2.165,
-      "implied_mean": 2.218525,
+      "implied_mean": 2.2188250000000003,
       "iqr": {
         "p25": 1.9081081081081082,
         "p75": 2.433333333333333
       },
-      "total_volume": 7629622.1188560035,
+      "total_volume": 7629651.530619004,
       "adjustment": {
         "monotonicity_violations": 0,
         "max_adjustment": 1.1102230246251565e-16
@@ -227,7 +227,7 @@
           "adjusted_prob": 0.665,
           "prob": 0.665,
           "bucket_prob": 0.19999999999999996,
-          "volume": 925433.3211850022,
+          "volume": 925462.7329480022,
           "volume_tier": "high"
         },
         {
@@ -276,17 +276,17 @@
           "raw_prob": 0.065,
           "adjusted_prob": 0.065,
           "prob": 0.065,
-          "bucket_prob": 0.018500000000000003,
+          "bucket_prob": 0.017,
           "volume": 1636262.5386310003,
           "volume_tier": "high"
         },
         {
           "label": ">$3.2T",
           "threshold": 3.2,
-          "raw_prob": 0.0465,
-          "adjusted_prob": 0.0465,
-          "prob": 0.0465,
-          "bucket_prob": 0.015999999999999997,
+          "raw_prob": 0.048,
+          "adjusted_prob": 0.048,
+          "prob": 0.048,
+          "bucket_prob": 0.017499999999999998,
           "volume": 321216.2830840002,
           "volume_tier": "med"
         },
@@ -337,16 +337,16 @@
         "high": 2.17
       },
       "mean": {
-        "central": 2.218525,
-        "low": 2.2173500000000006,
-        "high": 2.2205500000000002,
+        "central": 2.2188250000000003,
+        "low": 2.217650000000001,
+        "high": 2.2208500000000004,
         "width": 0.0031999999999996476,
         "tail_insensitive": true
       },
       "freshness": {
-        "as_of": "2026-06-08T17:13:43.549Z",
+        "as_of": "2026-06-08T17:20:14.222Z",
         "staleness_threshold_hours": 50,
-        "stale_after": "2026-06-10T19:13:43.549Z",
+        "stale_after": "2026-06-10T19:20:14.222Z",
         "expected_cadence": "daily ~14:00 UTC (incl. weekends)",
         "policy": "Considered stale 50h after as_of (daily cadence ~24h + margin for one missed run). Live age = now − as_of; stale = now > stale_after."
       },

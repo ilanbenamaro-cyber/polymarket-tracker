@@ -20295,7 +20295,7 @@
   {
     "date": "2026-06-08",
     "implied_median": 2.165,
-    "implied_mean": 2.218525,
+    "implied_mean": 2.2188250000000003,
     "iqr": {
       "p25": 1.9081081081081082,
       "p75": 2.433333333333333
@@ -20372,7 +20372,7 @@
         "adjusted_prob": 0.665,
         "prob": 0.665,
         "bucket_prob": 0.19999999999999996,
-        "volume": 925433.3211850022,
+        "volume": 925462.7329480022,
         "volume_tier": "high"
       },
       {
@@ -20421,17 +20421,17 @@
         "raw_prob": 0.065,
         "adjusted_prob": 0.065,
         "prob": 0.065,
-        "bucket_prob": 0.018500000000000003,
+        "bucket_prob": 0.017,
         "volume": 1636262.5386310003,
         "volume_tier": "high"
       },
       {
         "label": ">$3.2T",
         "threshold": 3.2,
-        "raw_prob": 0.0465,
-        "adjusted_prob": 0.0465,
-        "prob": 0.0465,
-        "bucket_prob": 0.015999999999999997,
+        "raw_prob": 0.048,
+        "adjusted_prob": 0.048,
+        "prob": 0.048,
+        "bucket_prob": 0.017499999999999998,
         "volume": 321216.2830840002,
         "volume_tier": "med"
       },
