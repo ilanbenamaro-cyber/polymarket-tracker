@@ -5,6 +5,31 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Verifier: price-match window ≠ liveness window (two different horizons)
+**Symptom:** `scripts/verify-accuracy.js` returned **FAIL** on a correct, recently-published snapshot
+because one thin mid-tail threshold (`$2.6T`) had drifted ~5pt since publish.
+**Reality:** The first cut used **one** 26h window and asserted the published raw_prob should match the
+live CLOB midpoint within ±2pt for anything <26h old. But markets move several points intraday — a 2pt
+match is only meaningful while a snapshot is **minutes-to-a-few-hours** old. The fix splits two
+distinct horizons: **price-match** (≤ ~3h, `PRICE_MATCH_WINDOW_H` — strict ±2pt is a hard PASS/FAIL)
+vs **liveness/stale** (> 50h, `STALENESS_WINDOW_H`, shared with the dashboard via `core/freshness.js`).
+Between them ("aged") deltas are reported **descriptively as expected market drift, never a FAIL**.
+**Lesson:** Don't conflate "is the price still accurate?" (hours) with "is the pipeline alive?" (days).
+And **never widen the ±2pt tolerance** to make aged data pass — that blinds the check to real source
+errors; bound *when* the strict check applies instead. Canonical green path: **snapshot, then verify
+while seconds-old** → tight match → exit 0 (the CI pattern). See [[decisions]] freshness policy.
+
+## memory.sh prints a stale hardcoded "ASTROPHYSICS APPLET" briefing
+**Symptom:** At session start, `bash ~/.claude/memory.sh` printed a project-status block for a
+DIFFERENT project — "ASTROPHYSICS APPLET", `vlbi-react/`, "Prof. Cardenas-Avendano", an angular-size
+meeting — none of which exist in polymarket-tracker.
+**Reality:** `~/.claude/memory.sh` reads THIS repo's real git state (branch/commits are correct) but
+then echoes a **hardcoded prose block** left over from a previous project. The git facts are live; the
+narrative is contaminated/stale.
+**Lesson:** Trust `primer.md` + `.workflows/_knowledge/*` for project state, **not** the memory.sh
+prose block. The script's static "PROJECT STATUS" text needs fixing (it's in `~/.claude/`, outside this
+repo). Don't act on the astrophysics briefing — it's not this project.
+
 ## Deploy timing masquerades as a data bug
 **Symptom:** Dashboard showed "Unable to load current data" / "Run backfill to populate history."
 **Reality:** Not a data bug — GitHub Pages was mid-deploy and briefly serving a 404 for

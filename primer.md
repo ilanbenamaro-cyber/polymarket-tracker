@@ -5,8 +5,9 @@
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
 ## Current state
-- **v1.2.0 is live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/
-- Methodology **1.2.0**, schema **1.2.0**, assumptions **1.0.0** — all three embedded in every snapshot.
+- **v1.2.1 is live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/
+- Methodology **1.2.1**, schema **1.2.1**, assumptions **1.0.0** — all three embedded in every snapshot.
+  (1.2.1 = source-of-record clarification + accuracy verifier + Tier-1 `derived.freshness`; additive, no formula change.)
 - All work committed + pushed to `main` (repo: `ilanbenamaro-cyber/polymarket-tracker`).
 
 ## What this is (3 sentences)
@@ -20,7 +21,11 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
   (isotonic-adjusted, analytics, scenarios, narrative) → validate (schema+invariants+firewall) →
   write API → append today to history → bake HTML fallback.
 - `node scripts/backfill.js` — one-time/idempotent: rebuild full history from Polymarket price-history.
-- `node --test` — unit tests (currently **19/19**: PAVA, band, anomalies, hash, firewall, rounding, analytics).
+- `node scripts/verify-accuracy.js` — independent accuracy harness: dual-source fetch (Gamma + CLOB) ×2,
+  cross-source + drift + published-vs-live reconciliation; report-only. Canonical green path: run
+  snapshot then verify while seconds-old → PASS (exit 0). Flags: `--strict --json --price-window-hours --staleness-hours`.
+- `node --test` — unit tests (currently **43/43**: PAVA, band, anomalies, hash, firewall, rounding,
+  analytics, **freshness, accuracy-verifier zones**).
 - Output lands in **`docs/api/v1/`** (`latest.json`, `history.json` lean, `history-full.json`,
   `history.csv`, `methodology.json`, `schema.json`, `snapshots/YYYY-MM-DD.json`).
 - Local preview: `cd docs && python3 -m http.server 8000` (the page `fetch`es the API, so use HTTP not file://).
@@ -29,8 +34,12 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
 - Local pipeline: snapshot + backfill run clean; 176-day history; 0 negative buckets across all days.
 - Dashboard + 3-page note render with **0 console errors** (favicon present); verify-hash MATCH/MISMATCH works.
 - Firewall enforced: validate.js throws on a stripped/unsourced scenario assumption and on a Tier-1 leak.
-- Live API serves 1.2.0 with CORS `*`; schema validates.
-- node --test 19/19.
+- Live API serves 1.2.1 with CORS `*`; schema validates (incl. additive `derived.freshness`).
+- **Accuracy verifier** run live: canonical path (snapshot→verify seconds-old) = PASS; price-match FAIL
+  and aged-drift OK paths both confirmed; cross-source (Gamma vs CLOB) agrees live; source curve valid.
+- **Freshness** verified via Playwright: fresh state shows "as-of age" muted + badge hidden; stale state
+  shows red age + STALE pill; 0 console errors.
+- node --test 43/43.
 
 ## UNVERIFIED (do these — top item FIRST)
 1. **`workflow_dispatch` has NEVER been run in the Actions runner.** The cron pipeline calling
@@ -39,8 +48,18 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
    confirm it goes green + commits `docs/api/v1/**`.
 2. Email/push path (`send-emails.js`) is dormant and unrun in CI (intended; guarded to skip without secrets).
 
-## Immediate open tasks
+## Recently shipped (this session, 2026-06-08)
+- [x] **Data-accuracy verifier** (`scripts/verify-accuracy.js`) — proves the feed matches Polymarket
+  source (not eyeballed); two-horizon model (price-match ≤3h vs liveness >50h). See [[gotchas]].
+- [x] **Canonical source of record documented** — CLOB midpoint is truth; Gamma `outcomePrices` is a
+  lagging cross-check, never an input. See [[decisions]].
+- [x] **Tier-1 data freshness** (`core/freshness.js`, `derived.freshness`) — as-of age + STALE badge on
+  dashboard/note; 50h threshold, evaluated client-side. See [[decisions]].
+
+## Immediate open tasks (unchanged — none of these were touched this session)
 - [ ] **Run `update.yml` via workflow_dispatch (snapshot mode)** and confirm green — see UNVERIFIED #1.
+  (The verifier is the natural post-snapshot CI gate to add here — but user said NOT to wire it in until
+  the pipeline is proven. Wire `verify-accuracy.js --strict` only AFTER workflow_dispatch goes green.)
 - [ ] **Scenario-tier precision check:** confirm the share-price band width is driven by the
   shares-outstanding `range` (1.7B–2.1B) and reads sensibly; sanity-check the round-over-round
   `+172%` rounding (1dp) isn't implying false precision on a low-confidence input.

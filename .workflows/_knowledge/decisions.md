@@ -5,6 +5,40 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Canonical source of record — the CLOB midpoint
+**Decided:** Two public Polymarket surfaces expose a YES price and they are **different statistics**:
+the **CLOB `/midpoints`** value `(best_bid + best_ask)/2` and **Gamma**'s `outcomePrices`. The feed's
+`raw_inputs.midpoint` (hence every `raw_prob` and all derived metrics) is the **CLOB midpoint** — that
+is the input of truth. Gamma is used **only** for metadata (token ids, volume, threshold parsing); its
+`outcomePrices` is a **lagging cross-check, never an input**.
+**Why:** The CLOB midpoint is the live two-sided book (the price you could transact near), computed
+from `best_bid`/`best_ask` we already publish — self-consistent. Gamma `outcomePrices` is a
+platform-surfaced display value that can reflect last-trade or a cached number and **lags the book**
+(observed this session: a stale published 0.9845 vs Gamma 0.993, while *live* Gamma and CLOB agreed).
+Picking one source of truth and documenting it is what lets a quant trust the feed.
+**Constrains:** Never feed Gamma `outcomePrices` into `raw_inputs` or any metric. On disagreement the
+CLOB midpoint wins and the divergence is **reported, not silently reconciled** (see
+`scripts/verify-accuracy.js` cross-source check, ±1pt). Documented in `METHODOLOGY.md` ("Source of
+record") + `core/methodology.json` `metrics.source_of_record`. Keep the hash recipe over the CLOB
+midpoint frozen.
+
+## Data freshness is Tier-1, policy-baked but evaluated client-side
+**Decided:** Every record carries `derived.freshness` = `{ as_of, staleness_threshold_hours,
+stale_after, expected_cadence, policy }` — a pure function of the snapshot's own `fetched_at` plus one
+constant (`STALENESS_THRESHOLD_HOURS = 50`, in `core/freshness.js`). The published record holds
+**policy only**; the live `age`/`stale` flag is computed **client-side** (dashboard + note) as
+`now > stale_after`. **50h** because the snapshot cron (`update.yml` `0 14 * * *`) runs **daily incl.
+weekends** (~24h normal gap), and 50h absorbs one fully-missed run (~48h) without false-alarming.
+**Why:** A silently stale number is a trust failure, so the feed must disclose its own age. But age is
+inherently a **read-time** quantity — baking `stale:true/false` at build time would be a frozen lie the
+moment the file sits unchanged. Publishing an absolute `stale_after` instant lets every consumer judge
+staleness with one comparison and no duplicated threshold. (The "weekday-only / ~72h weekend" belief
+was **wrong** — only the *email* crons are weekday-gated; the snapshot is daily.)
+**Constrains:** Tier-1 (no assumption — firewall-safe). `core/freshness.js` is the **single source**
+of the threshold; the browser only supplies "now". The verifier shares this same 50h constant for its
+*liveness* horizon (see [[gotchas]] two-horizons). Schema change was additive (`derived.freshness`,
+optional → schema 1.2.1). Don't bake a live flag into the published record.
+
 ## The Tier-1 / Tier-2 firewall (most important constraint)
 **Decided:** Market-derived outputs (Tier 1) and assumption-based outputs (Tier 2) are
 **structurally** separated, not just visually labeled. Tier 1 = pure transforms of observed
