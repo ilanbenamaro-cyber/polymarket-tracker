@@ -81,11 +81,11 @@
     <div class="asof" id="asof1">…</div>
     <hr/>
     <div class="hero">
-      <div><div class="num" id="hl-median"><!--BAKE:median-->$2.15T<!--/BAKE:median--></div><div class="cap">Implied median valuation</div></div>
+      <div><div class="num" id="hl-median"><!--BAKE:median-->$2.17T<!--/BAKE:median--></div><div class="cap">Implied median valuation</div></div>
       <div><span class="badge medium" id="tier"><!--BAKE:tier-->high<!--/BAKE:tier--></span><div class="cap" style="margin-top:4px">confidence</div></div>
       <div><div class="v" id="medband" style="font-size:14px;font-weight:700"></div><div class="cap">50% spread band</div></div>
     </div>
-    <p class="read" id="read"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.15T, up $0.03T over the past month and down $0.19T this week. A monthly climb now cooling. The largest single concentration of probability (18%) sits in the $2–2.2T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></p>
+    <p class="read" id="read"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.17T, up $0.06T over the past month and down $0.14T this week. A monthly climb now cooling. The largest single concentration of probability (20%) sits in the $2–2.2T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></p>
     <div class="reasons" id="reasons"></div>
     <div class="chartwrap"><canvas id="curve" height="150"></canvas></div>
     <div class="pfoot"><span id="f1">Source: Polymarket public market data</span><span id="h1hash"></span></div>
@@ -143,9 +143,12 @@
     const hashShort=s.source.raw_sha256.slice(0,16)+'…';
     const versions='methodology v'+rec.methodology_version+' · schema v'+rec.schema_version+' · assumptions v'+rec.assumptions_version;
     const asof=s.fetched_at.slice(0,19).replace('T',' ');
+    // Read-time staleness from the embedded Tier-1 freshness policy (now > stale_after).
+    const staleSuffix=(d.freshness&&d.freshness.stale_after&&Date.now()>Date.parse(d.freshness.stale_after))
+      ? ' · ⚠ STALE (>'+d.freshness.staleness_threshold_hours+'h old)' : '';
 
     // ── PAGE 1 ──
-    document.getElementById('asof1').textContent='As of '+asof+' UTC · '+versions+' · resolves Dec 31 2027';
+    document.getElementById('asof1').textContent='As of '+asof+' UTC · '+versions+' · resolves Dec 31 2027'+staleSuffix;
     document.getElementById('hl-median').textContent=money(d.implied_median);
     const tier=document.getElementById('tier'); tier.textContent=d.confidence.tier; tier.className='badge '+d.confidence.tier;
     document.getElementById('medband').textContent=rng(d.median)||'point estimate';

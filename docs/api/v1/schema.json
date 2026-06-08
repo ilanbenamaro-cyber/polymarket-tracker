@@ -152,7 +152,19 @@
               }
             },
             "narrative": { "type": "string" },
-            "narrative_components": { "type": "object" }
+            "narrative_components": { "type": "object" },
+            "freshness": {
+              "type": "object",
+              "description": "Tier-1 data-freshness policy. Carries the as-of anchor and an absolute stale_after instant so any consumer evaluates staleness via now > stale_after. Policy only — no frozen age/flag in the published record.",
+              "required": ["as_of", "staleness_threshold_hours", "stale_after"],
+              "properties": {
+                "as_of": { "type": "string" },
+                "staleness_threshold_hours": { "type": "number" },
+                "stale_after": { "type": "string" },
+                "expected_cadence": { "type": "string" },
+                "policy": { "type": "string" }
+              }
+            }
           }
         }
       }

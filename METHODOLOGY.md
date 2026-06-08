@@ -121,17 +121,35 @@ rationale** (tick quantization + sub-minute capture skew for ±2pt; midpoint-vs-
 verdict**, so the tolerance cannot be tuned to mask an old feed. The harness **reports only**; it
 never mutates the feed or `fetch.js`. A discrepancy is a finding to investigate, not an auto-fix.
 
+## Data freshness (Tier-1) — `derived.freshness`
+A silently stale number is a trust failure, so the feed **discloses its own age**. Each record
+carries a Tier-1 `freshness` block — a pure function of the snapshot's own `fetched_at` plus one
+documented constant, no external input: `{ as_of, staleness_threshold_hours, stale_after,
+expected_cadence, policy }`. The published record holds **policy only** — it does *not* bake a live
+`age`/`stale` boolean, because age is a **read-time** quantity and a frozen flag would lie the moment
+the file sits unchanged. Instead it publishes an absolute **`stale_after`** instant (`as_of +
+threshold`), so every consumer judges staleness with one comparison — `now > stale_after` — and no
+duplicated formula. The dashboard and printable note compute the live age in-browser and show an
+explicit "as-of age" plus a **stale** badge past the threshold; `core/freshness.js` owns the policy
+(single source of truth). **Threshold = 50h.** The snapshot cron (`update.yml`, `0 14 * * *`) runs
+**daily incl. weekends**, so the normal gap is ~24h; 50h absorbs one fully-missed daily run (~48h)
+plus Actions delay, so a single skipped run doesn't cry wolf while two-plus consecutive misses (a real
+pipeline failure) do. (The weekday-only `1-5` crons are the *email* runs, not the snapshot.)
+
 ## Contract & scope
 The canonical record conforms to [`/api/v1/schema.json`](docs/api/v1/schema.json) (JSON Schema
 2020-12), validated at build. **v1 covers public Polymarket data only** — no grey-market /
 secondary-market (Forge, Caplight, EquityZen) data.
 
 ## Changelog
-- **1.2.1** (2026-06-08) — Clarification, **no formula change**. Documented the **canonical source of
-  record** (CLOB `/midpoints`; Gamma `outcomePrices` is a lagging cross-check, never an input) and
-  added an independent data-accuracy verification harness (`scripts/verify-accuracy.js`) that
-  reconciles the published feed against fresh dual-source data with documented tolerances and a
-  separate freshness verdict.
+- **1.2.1** (2026-06-08) — Clarification + additive freshness field, **no formula change**.
+  Documented the **canonical source of record** (CLOB `/midpoints`; Gamma `outcomePrices` is a
+  lagging cross-check, never an input) and added an independent data-accuracy verification harness
+  (`scripts/verify-accuracy.js`) that reconciles the published feed against fresh dual-source data
+  with documented tolerances and a separate freshness verdict. Added a **Tier-1 `derived.freshness`**
+  policy block (as-of anchor + absolute `stale_after`; 50h threshold sized to the daily cron) surfaced
+  as an as-of age + stale badge on the dashboard and note. **Schema 1.2.1** (additive:
+  `derived.freshness`).
 - **1.2.0** (2026-06-05) — Tier-1 analytics (Bowley skew, robust fat-tail ratio, entropy/Gini,
   dispersion-over-time, velocity/acceleration) + a calibration scaffold (pending resolution, not
   faked). Firewalled Tier-2 scenario tier (implied share price, round-over-round) with sourced/dated

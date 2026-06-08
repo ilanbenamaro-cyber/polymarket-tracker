@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -126,9 +126,30 @@
         "shares_outstanding and last_round_valuation are external, press-estimated, low-confidence inputs (SpaceX is private). See assumptions.json and the embedded per-scenario assumptions."
       ],
       "sensitivity_note": "Quarantined from Tier 1 and validated: no scenario number exists without a sourced+dated assumption; no assumption leaks into derived.market. The published feed uses the registry value; the dashboard lets a user explore their own without mutating the feed."
+    },
+    "source_of_record": {
+      "method": "The canonical price is the CLOB /midpoints value = (best_bid + best_ask) / 2 of the live order book. raw_inputs.midpoint (hence every raw_prob and all derived metrics) is this CLOB midpoint. Gamma outcomePrices is a platform-surfaced display price that can lag the book; it is used ONLY for metadata (token ids, volume, threshold) and as a cross-check, never as an input. On disagreement the CLOB midpoint is authoritative and the divergence is reported.",
+      "robust": true,
+      "assumptions": [
+        "None — both inputs are public, auth-free Polymarket endpoints."
+      ],
+      "sensitivity_note": "Accuracy is independently proven by scripts/verify-accuracy.js: dual-source fetch twice, cross-source agreement (±1pt), drift quantification, published-vs-live reconciliation (±2pt + drift) with a separate freshness verdict, and isotonic-validity of the live curve. Report-only; tolerances documented, not tuned to pass."
+    },
+    "freshness": {
+      "method": "TIER 1. derived.freshness is a pure function of the snapshot's own fetched_at plus one documented constant (no external input): { as_of, staleness_threshold_hours, stale_after = as_of + threshold, expected_cadence, policy }. The published record carries POLICY ONLY — no frozen age/stale flag, since age is a read-time quantity. Consumers (the dashboard and note) evaluate staleness with a single comparison, now > stale_after, and display an as-of age + stale badge. core/freshness.js is the single source of the policy.",
+      "robust": true,
+      "assumptions": [
+        "None — derived solely from the snapshot's own timestamp."
+      ],
+      "sensitivity_note": "Threshold = 50h. The snapshot cron (update.yml, '0 14 * * *') runs daily incl. weekends (~24h normal gap); 50h absorbs one fully-missed run (~48h) + Actions delay, so a single skip does not false-alarm while 2+ consecutive misses do. The weekday-only crons are the email runs, not the snapshot."
     }
   },
   "changelog": [
+    {
+      "version": "1.2.1",
+      "date": "2026-06-08",
+      "change": "Clarification + additive freshness field, NO formula change. Documented the canonical source of record (CLOB /midpoints; Gamma outcomePrices is a lagging cross-check, never an input). Added scripts/verify-accuracy.js, an independent data-accuracy harness that reconciles the published feed against fresh dual-source data with documented tolerances and a freshness verdict (report-only). Added Tier-1 derived.freshness (as-of anchor + absolute stale_after; 50h threshold sized to the daily cron) surfaced as an as-of age + stale badge on the dashboard and note. Schema 1.2.1 (additive: derived.freshness). No change to any published metric value."
+    },
     {
       "version": "1.2.0",
       "date": "2026-06-05",

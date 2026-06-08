@@ -16,9 +16,10 @@ import { scoreConfidence } from './confidence.js';
 import { buildNarrative } from './narrative.js';
 import { buildAnalytics } from './analytics.js';
 import { buildScenarios } from './scenarios.js';
+import { buildFreshness } from './freshness.js';
 import { ASSET } from './fetch.js';
 
-const SCHEMA_VERSION = '1.2.0';
+const SCHEMA_VERSION = '1.2.1';
 
 function totalVolume(markets) {
   return markets.reduce((sum, m) => sum + (m.volume ?? 0), 0);
@@ -76,6 +77,10 @@ export function buildDerived({ markets, rawInputs = null, anomalies = null }) {
  *   anomalies: { stale, closedCount, liquidityDrop } (from orchestration)
  */
 export function buildSnapshotRecord(live, methodologyVersion, anomalies = null) {
+  const derived = buildDerived({ markets: live.markets, rawInputs: live.raw_inputs, anomalies });
+  // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + the
+  // documented threshold. Policy only (no frozen age/flag — those are read-time).
+  derived.freshness = buildFreshness(live.fetched_at);
   return {
     schema_version: SCHEMA_VERSION,
     methodology_version: methodologyVersion,
@@ -89,7 +94,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null) 
         raw_sha256: live.raw_sha256,
       },
       raw_inputs: live.raw_inputs,
-      derived: buildDerived({ markets: live.markets, rawInputs: live.raw_inputs, anomalies }),
+      derived,
     },
   };
 }
