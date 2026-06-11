@@ -5,6 +5,27 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Volume = Gamma market-level all-time cumulative `volume`
+**Decided:** The per-threshold `volume` we publish is Gamma's **market-level `volume`** field — read once
+in `core/fetch.js` (`m.volume`), and summed across thresholds for `derived.total_volume`. For these
+SpaceX markets it equals `volumeClob` and `volume1yr` (the markets are **CLOB-only**, so AMM volume is
+zero and the variants coincide). It is **all-time cumulative** volume; we take the single market-level
+figure and do **not** sum the YES+NO tokens (Gamma's `volume` is already market-level). This is the
+**same statistic as Polymarket's ALL-timeframe display**. The dashboard column is labeled
+"**All-time volume**" with a tooltip tying it to the snapshot's `fetched_at`.
+**Why:** Apparent gaps vs the Polymarket UI are **temporal staleness on a cumulative metric, not a
+definition mismatch** — all-time volume only ever grows, so a UI reading taken earlier than our live
+fetch is necessarily lower, by an amount proportional to each market's subsequent trading. Verified
+**2026-06-11** via timeline reconstruction: for >$1.8T, >$2T and >$3T the screenshot's ALL figures all
+land strictly between `now − volume1wk` (~1 week ago) and `now` (live), and the gap is largest exactly
+where the last week's trading was heaviest (>$1.8T). No single window field (`volume24hr/1wk/1mo/1yr`)
+matches the UI numbers; only the cumulative-with-staleness model explains all three consistently.
+**Constrains:** Keep reading the market-level `volume` (not a window field, not a YES+NO sum). `volume`
+stays in the frozen `raw_inputs` hash recipe (see "raw_inputs + hash recipe are FROZEN") — do not swap
+the field. Relabeling/precision lives in presentation only; this is **Tier-1**, no new computation and no
+version bump. Like "Canonical source of record — the CLOB midpoint", this is a canonical-definition
+decision: do not re-litigate it as a bug when a stale UI tab disagrees.
+
 ## Concurrency-safe CI commit/push (the snapshot bot races itself + humans)
 **Decided:** `update.yml`'s "Commit API + baked dashboard" step is robust to a remote that advances
 mid-run: a **`concurrency: { group: snapshot-commit, cancel-in-progress: false }`** serializes runs

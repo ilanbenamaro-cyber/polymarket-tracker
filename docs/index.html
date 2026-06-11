@@ -120,6 +120,7 @@
   table.data th, table.data td { padding:8px 10px; font-size:12.5px; text-align:right; border-bottom:1px solid rgba(255,255,255,.05); }
   table.data th { color:var(--text-muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; }
   table.data th:first-child, table.data td:first-child { text-align:left; }
+  table.data th .vh { border-bottom:1px dotted currentColor; cursor:help; }
   tr.tracked td { color:var(--amber); font-weight:600; }
   tr.mover td { background:rgba(196,127,58,.10); }
   .up { color:var(--green); } .down { color:var(--red); } .flat { color:var(--text-muted); }
@@ -243,7 +244,7 @@
     <h2>All thresholds</h2>
     <div class="chart-box" style="padding:6px 10px;">
       <table class="data">
-        <thead><tr><th>Threshold</th><th>Current</th><th>Bucket %</th><th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th>Volume</th></tr></thead>
+        <thead><tr><th>Threshold</th><th>Current</th><th>Bucket %</th><th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th><span class="vh" id="th-volume" title="Cumulative all-time traded volume — same statistic as Polymarket's ALL timeframe. As-of the snapshot timestamp.">All-time volume</span></th></tr></thead>
         <tbody id="tableBody"><tr><td colspan="7" class="skeleton">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -337,6 +338,7 @@
     document.getElementById('conf-reasons').innerHTML='Confidence basis: '+
       d.confidence.reasons.map(r=>'<span class="chip">'+r+'</span>').join('');
     document.getElementById('pv-fetched').textContent=s.fetched_at.replace('T',' ').slice(0,19);
+    document.getElementById('th-volume').title='Cumulative all-time traded volume — same statistic as Polymarket’s ALL timeframe. As of '+s.fetched_at.replace('T',' ').slice(0,19)+' UTC.';
     document.getElementById('pv-method').textContent=LATEST.methodology_version;
     document.getElementById('pv-hash').textContent=s.source.raw_sha256.slice(0,16)+'…';
     document.getElementById('md-version').textContent=LATEST.methodology_version;
