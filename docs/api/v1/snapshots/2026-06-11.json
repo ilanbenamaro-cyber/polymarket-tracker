@@ -9,8 +9,8 @@
     "resolves": "2027-12-31"
   },
   "snapshot": {
-    "snapshot_id": "2026-06-11T17:35:30.117Z",
-    "fetched_at": "2026-06-11T17:35:30.117Z",
+    "snapshot_id": "2026-06-11T17:50:27.664Z",
+    "fetched_at": "2026-06-11T17:50:27.664Z",
     "source": {
       "provider": "Polymarket",
       "endpoints": [
@@ -18,7 +18,7 @@
         "https://clob.polymarket.com/midpoints",
         "https://clob.polymarket.com/prices"
       ],
-      "raw_sha256": "2befb52d91840cdebf835d01c0f8362ca6813fa929f69d70eb6f4d0e9bf4e156"
+      "raw_sha256": "82ff76d8f2d7bd49d9c25b2c2a9879ad8f51c54a320ca721f2d9298e5ca04ac9"
     },
     "raw_inputs": [
       {
@@ -27,7 +27,7 @@
         "midpoint": "0.9925",
         "best_bid": "0.991",
         "best_ask": "0.994",
-        "volume": 767093.4742469995
+        "volume": 767163.8967469995
       },
       {
         "token_id": "75003753002679923894537312357172113105853115281332544195556791407917452165923",
@@ -40,18 +40,18 @@
       {
         "token_id": "67641397102605806228361374843080866800323545226688452157631077923438116186153",
         "threshold": 1.4,
-        "midpoint": "0.9575",
-        "best_bid": "0.956",
-        "best_ask": "0.959",
-        "volume": 474044.80491299974
+        "midpoint": "0.9635",
+        "best_bid": "0.96",
+        "best_ask": "0.967",
+        "volume": 499326.38915999973
       },
       {
         "token_id": "2818609015308428141360442152525230687041966194776736323729988983894064824317",
         "threshold": 1.6,
-        "midpoint": "0.9275",
-        "best_bid": "0.927",
-        "best_ask": "0.928",
-        "volume": 615164.8574979994
+        "midpoint": "0.9325",
+        "best_bid": "0.93",
+        "best_ask": "0.935",
+        "volume": 615233.1674979995
       },
       {
         "token_id": "80822496881187464044904323930735374814391442763100022480297070361136099568761",
@@ -59,46 +59,46 @@
         "midpoint": "0.835",
         "best_bid": "0.83",
         "best_ask": "0.84",
-        "volume": 1072901.5325669996
+        "volume": 1078050.7102279996
       },
       {
         "token_id": "24494863133770522194823998325054645494170592486152552684138196424979801803141",
         "threshold": 2,
-        "midpoint": "0.675",
-        "best_bid": "0.67",
-        "best_ask": "0.68",
-        "volume": 1230970.5963170056
+        "midpoint": "0.685",
+        "best_bid": "0.68",
+        "best_ask": "0.69",
+        "volume": 1238825.9604110054
       },
       {
         "token_id": "24072803866223209204149583292380503594462879571215445980530727827404541949542",
         "threshold": 2.2,
-        "midpoint": "0.445",
-        "best_bid": "0.44",
-        "best_ask": "0.45",
-        "volume": 576276.3420219994
+        "midpoint": "0.455",
+        "best_bid": "0.45",
+        "best_ask": "0.46",
+        "volume": 580316.2928089993
       },
       {
         "token_id": "85294664825849314487313365791347030043756540349828467333196722835374988656717",
         "threshold": 2.4,
-        "midpoint": "0.295",
-        "best_bid": "0.29",
-        "best_ask": "0.3",
-        "volume": 954954.8623609988
+        "midpoint": "0.285",
+        "best_bid": "0.28",
+        "best_ask": "0.29",
+        "volume": 960358.6101989987
       },
       {
         "token_id": "71159046706559946614838550297854568404887218587719425214188523542407764628668",
         "threshold": 2.6,
-        "midpoint": "0.14",
-        "best_bid": "0.13",
-        "best_ask": "0.15",
+        "midpoint": "0.155",
+        "best_bid": "0.15",
+        "best_ask": "0.16",
         "volume": 714764.5799199998
       },
       {
         "token_id": "82401981844570459445359822314569677854555896567740320197589353169069933841639",
         "threshold": 2.8,
-        "midpoint": "0.095",
+        "midpoint": "0.1",
         "best_bid": "0.09",
-        "best_ask": "0.1",
+        "best_ask": "0.11",
         "volume": 501126.2630420003
       },
       {
@@ -107,22 +107,22 @@
         "midpoint": "0.065",
         "best_bid": "0.06",
         "best_ask": "0.07",
-        "volume": 1893274.305332
+        "volume": 1902716.812542
       },
       {
         "token_id": "20355017105238902441463382948256977165790622115934877551667602544354048330506",
         "threshold": 3.2,
-        "midpoint": "0.0425",
+        "midpoint": "0.0555",
         "best_bid": "0.042",
-        "best_ask": "0.043",
+        "best_ask": "0.069",
         "volume": 372588.245202
       },
       {
         "token_id": "19952439152492058516345781992393757369305199157113455033097368737586861079173",
         "threshold": 3.4,
-        "midpoint": "0.0345",
-        "best_bid": "0.033",
-        "best_ask": "0.036",
+        "midpoint": "0.036",
+        "best_bid": "0.034",
+        "best_ask": "0.038",
         "volume": 126677.90623300005
       },
       {
@@ -131,14 +131,14 @@
         "midpoint": "0.026",
         "best_bid": "0.025",
         "best_ask": "0.027",
-        "volume": 102539.80222399998
+        "volume": 102799.06148199999
       },
       {
         "token_id": "53593187055088847093851414735087112492033188134263059141870686360005973946609",
         "threshold": 3.8,
-        "midpoint": "0.025",
+        "midpoint": "0.0255",
         "best_bid": "0.024",
-        "best_ask": "0.026",
+        "best_ask": "0.027",
         "volume": 177231.76599599994
       },
       {
@@ -147,24 +147,24 @@
         "midpoint": "0.0125",
         "best_bid": "0.011",
         "best_ask": "0.014",
-        "volume": 468243.4998129996
+        "volume": 468244.5715399996
       }
     ],
     "derived": {
-      "implied_median": 2.1521739130434785,
-      "implied_mean": 2.213275,
+      "implied_median": 2.1608695652173915,
+      "implied_mean": 2.2244750000000004,
       "iqr": {
-        "p25": 1.90625,
-        "p75": 2.458064516129032
+        "p25": 1.9133333333333333,
+        "p75": 2.4538461538461536
       },
-      "total_volume": 10556729.503042001,
+      "total_volume": 10614300.898364,
       "adjustment": {
         "monotonicity_violations": 0,
-        "max_adjustment": 5.551115123125783e-17
+        "max_adjustment": 0
       },
       "confidence": {
         "tier": "high",
-        "score": 0.984,
+        "score": 0.979,
         "reasons": [
           "full threshold set, monotonic, tight spreads, deep books"
         ]
@@ -177,7 +177,7 @@
           "adjusted_prob": 0.9925,
           "prob": 0.9925,
           "bucket_prob": 0.01100000000000001,
-          "volume": 767093.4742469995,
+          "volume": 767163.8967469995,
           "volume_tier": "high"
         },
         {
@@ -186,28 +186,28 @@
           "raw_prob": 0.9815,
           "adjusted_prob": 0.9815,
           "prob": 0.9815,
-          "bucket_prob": 0.02400000000000002,
+          "bucket_prob": 0.018000000000000016,
           "volume": 508876.6653550001,
           "volume_tier": "med"
         },
         {
           "label": ">$1.4T",
           "threshold": 1.4,
-          "raw_prob": 0.9575,
-          "adjusted_prob": 0.9575,
-          "prob": 0.9575,
-          "bucket_prob": 0.030000000000000027,
-          "volume": 474044.80491299974,
+          "raw_prob": 0.9635,
+          "adjusted_prob": 0.9635,
+          "prob": 0.9635,
+          "bucket_prob": 0.031000000000000028,
+          "volume": 499326.38915999973,
           "volume_tier": "med"
         },
         {
           "label": ">$1.6T",
           "threshold": 1.6,
-          "raw_prob": 0.9275,
-          "adjusted_prob": 0.9275,
-          "prob": 0.9275,
-          "bucket_prob": 0.09250000000000003,
-          "volume": 615164.8574979994,
+          "raw_prob": 0.9325,
+          "adjusted_prob": 0.9325,
+          "prob": 0.9325,
+          "bucket_prob": 0.09750000000000003,
+          "volume": 615233.1674979995,
           "volume_tier": "high"
         },
         {
@@ -216,57 +216,57 @@
           "raw_prob": 0.835,
           "adjusted_prob": 0.835,
           "prob": 0.835,
-          "bucket_prob": 0.15999999999999992,
-          "volume": 1072901.5325669996,
+          "bucket_prob": 0.1499999999999999,
+          "volume": 1078050.7102279996,
           "volume_tier": "high"
         },
         {
           "label": ">$2T",
           "threshold": 2,
-          "raw_prob": 0.675,
-          "adjusted_prob": 0.675,
-          "prob": 0.675,
+          "raw_prob": 0.685,
+          "adjusted_prob": 0.685,
+          "prob": 0.685,
           "bucket_prob": 0.23000000000000004,
-          "volume": 1230970.5963170056,
+          "volume": 1238825.9604110054,
           "volume_tier": "high"
         },
         {
           "label": ">$2.2T",
           "threshold": 2.2,
-          "raw_prob": 0.445,
-          "adjusted_prob": 0.445,
-          "prob": 0.445,
-          "bucket_prob": 0.14999999999999997,
-          "volume": 576276.3420219994,
+          "raw_prob": 0.455,
+          "adjusted_prob": 0.455,
+          "prob": 0.455,
+          "bucket_prob": 0.17000000000000004,
+          "volume": 580316.2928089993,
           "volume_tier": "med"
         },
         {
           "label": ">$2.4T",
           "threshold": 2.4,
-          "raw_prob": 0.295,
-          "adjusted_prob": 0.29500000000000004,
-          "prob": 0.29500000000000004,
-          "bucket_prob": 0.15500000000000003,
-          "volume": 954954.8623609988,
+          "raw_prob": 0.285,
+          "adjusted_prob": 0.285,
+          "prob": 0.285,
+          "bucket_prob": 0.12999999999999998,
+          "volume": 960358.6101989987,
           "volume_tier": "high"
         },
         {
           "label": ">$2.6T",
           "threshold": 2.6,
-          "raw_prob": 0.14,
-          "adjusted_prob": 0.14,
-          "prob": 0.14,
-          "bucket_prob": 0.04500000000000001,
+          "raw_prob": 0.155,
+          "adjusted_prob": 0.155,
+          "prob": 0.155,
+          "bucket_prob": 0.05499999999999999,
           "volume": 714764.5799199998,
           "volume_tier": "high"
         },
         {
           "label": ">$2.8T",
           "threshold": 2.8,
-          "raw_prob": 0.095,
-          "adjusted_prob": 0.095,
-          "prob": 0.095,
-          "bucket_prob": 0.03,
+          "raw_prob": 0.1,
+          "adjusted_prob": 0.1,
+          "prob": 0.1,
+          "bucket_prob": 0.035,
           "volume": 501126.2630420003,
           "volume_tier": "med"
         },
@@ -276,27 +276,27 @@
           "raw_prob": 0.065,
           "adjusted_prob": 0.065,
           "prob": 0.065,
-          "bucket_prob": 0.0225,
-          "volume": 1893274.305332,
+          "bucket_prob": 0.009500000000000001,
+          "volume": 1902716.812542,
           "volume_tier": "high"
         },
         {
           "label": ">$3.2T",
           "threshold": 3.2,
-          "raw_prob": 0.0425,
-          "adjusted_prob": 0.0425,
-          "prob": 0.0425,
-          "bucket_prob": 0.008,
+          "raw_prob": 0.0555,
+          "adjusted_prob": 0.0555,
+          "prob": 0.0555,
+          "bucket_prob": 0.019500000000000003,
           "volume": 372588.245202,
           "volume_tier": "low"
         },
         {
           "label": ">$3.4T",
           "threshold": 3.4,
-          "raw_prob": 0.0345,
-          "adjusted_prob": 0.0345,
-          "prob": 0.0345,
-          "bucket_prob": 0.008500000000000004,
+          "raw_prob": 0.036,
+          "adjusted_prob": 0.036,
+          "prob": 0.036,
+          "bucket_prob": 0.009999999999999998,
           "volume": 126677.90623300005,
           "volume_tier": "low"
         },
@@ -306,17 +306,17 @@
           "raw_prob": 0.026,
           "adjusted_prob": 0.026,
           "prob": 0.026,
-          "bucket_prob": 0.0009999999999999974,
-          "volume": 102539.80222399998,
+          "bucket_prob": 0.0005000000000000004,
+          "volume": 102799.06148199999,
           "volume_tier": "low"
         },
         {
           "label": ">$3.8T",
           "threshold": 3.8,
-          "raw_prob": 0.025,
-          "adjusted_prob": 0.025,
-          "prob": 0.025,
-          "bucket_prob": 0.0125,
+          "raw_prob": 0.0255,
+          "adjusted_prob": 0.0255,
+          "prob": 0.0255,
+          "bucket_prob": 0.012999999999999998,
           "volume": 177231.76599599994,
           "volume_tier": "low"
         },
@@ -327,68 +327,68 @@
           "adjusted_prob": 0.0125,
           "prob": 0.0125,
           "bucket_prob": 0.0125,
-          "volume": 468243.4998129996,
+          "volume": 468244.5715399996,
           "volume_tier": "med"
         }
       ],
       "median": {
-        "central": 2.1521739130434785,
-        "low": 2.1478260869565218,
-        "high": 2.1565217391304348
+        "central": 2.1608695652173915,
+        "low": 2.1565217391304348,
+        "high": 2.1652173913043478
       },
       "mean": {
-        "central": 2.213275,
-        "low": 2.21165,
-        "high": 2.21615,
-        "width": 0.0044999999999997264,
+        "central": 2.2244750000000004,
+        "low": 2.22285,
+        "high": 2.2273500000000004,
+        "width": 0.0045000000000001705,
         "tail_insensitive": true
       },
       "freshness": {
-        "as_of": "2026-06-11T17:35:30.117Z",
+        "as_of": "2026-06-11T17:50:27.664Z",
         "staleness_threshold_hours": 50,
-        "stale_after": "2026-06-13T19:35:30.117Z",
+        "stale_after": "2026-06-13T19:50:27.664Z",
         "expected_cadence": "daily ~14:00 UTC (incl. weekends)",
         "policy": "Considered stale 50h after as_of (daily cadence ~24h + margin for one missed run). Live age = now − as_of; stale = now > stale_after."
       },
       "market": {
         "analytics": {
           "shape": {
-            "skew_bowley": 0.109,
-            "tail_ratio": 2.027,
-            "fat_tail": 1.067,
-            "entropy": 0.788,
-            "gini": 0.583,
+            "skew_bowley": 0.084,
+            "tail_ratio": 2.097,
+            "fat_tail": 1.104,
+            "entropy": 0.791,
+            "gini": 0.582,
             "dominant_bucket": {
               "label": "$2–2.2T",
               "prob": 0.23
             }
           },
           "dispersion": {
-            "iqr_width": 0.552,
+            "iqr_width": 0.541,
             "width_7d": 0.663,
             "width_30d": 0.808,
-            "change_7d": -0.111,
-            "change_30d": -0.256,
+            "change_7d": -0.122,
+            "change_30d": -0.267,
             "trend": "converging"
           },
           "velocity": {
             "change_24h": {
-              "abs": 0.04,
+              "abs": 0.05,
               "dir": "up",
-              "display": "+$0.04T"
+              "display": "+$0.05T"
             },
             "change_7d": {
-              "abs": -0.18,
+              "abs": -0.17,
               "dir": "down",
-              "display": "-$0.18T"
+              "display": "-$0.17T"
             },
             "change_30d": {
-              "abs": -0.1,
+              "abs": -0.09,
               "dir": "down",
-              "display": "-$0.10T"
+              "display": "-$0.09T"
             },
-            "drift_7d_annualized": -9.386,
-            "drift_30d_annualized": -1.217,
+            "drift_7d_annualized": -8.864,
+            "drift_30d_annualized": -1.095,
             "acceleration": "accelerating"
           },
           "calibration": {
@@ -397,13 +397,13 @@
             "note": "The market resolves once, at IPO close. A true calibration / Brier score is impossible before resolution; this records the standing forecast so it can be scored when the outcome is known. No score is computed now.",
             "standing_forecast": {
               "as_of": "2026-06-11",
-              "median": 2.15,
+              "median": 2.16,
               "prob_1_8t": 0.835,
-              "prob_2_0t": 0.675,
-              "prob_2_4t": 0.29500000000000004
+              "prob_2_0t": 0.685,
+              "prob_2_4t": 0.285
             }
           },
-          "descriptor": "wide dispersion; right-skewed (upside tail); mass centred on $2–2.2T; band converging."
+          "descriptor": "wide dispersion; roughly symmetric; fat-tailed; mass centred on $2–2.2T; band converging."
         }
       },
       "scenarios": {
@@ -412,9 +412,9 @@
           "unit": "USD_per_share",
           "formula": "implied_share_price = market_cap / shares_outstanding",
           "at_median": {
-            "central": 1133,
-            "low": 1025,
-            "high": 1266
+            "central": 1137,
+            "low": 1029,
+            "high": 1271
           },
           "ladder": [
             {
@@ -584,9 +584,9 @@
           "unit": "percent",
           "basis": "implied IPO-close median vs last reported valuation",
           "implied_change_pct": {
-            "central": 169,
-            "low": 169,
-            "high": 187
+            "central": 170.1,
+            "low": 170.1,
+            "high": 188.1
           },
           "assumptions": [
             {
@@ -607,15 +607,15 @@
           ]
         }
       },
-      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.15T, down $0.10T over the past month and down $0.18T this week. The largest single concentration of probability (23%) sits in the $2–2.2T range, with a longer upside tail. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.",
+      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.16T, down $0.09T over the past month and down $0.17T this week. The largest single concentration of probability (23%) sits in the $2–2.2T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.",
       "narrative_components": {
-        "median_now": 2.1521739130434785,
+        "median_now": 2.1608695652173915,
         "change_7d": {
-          "abs": -0.18,
+          "abs": -0.17,
           "dir": "down"
         },
         "change_30d": {
-          "abs": -0.1,
+          "abs": -0.09,
           "dir": "down"
         },
         "divergence": null,
@@ -624,7 +624,7 @@
           "prob": 0.23000000000000004
         },
         "dispersion_trend": "converging",
-        "skew": "a longer upside tail",
+        "skew": null,
         "confidence_tier": "high",
         "confidence_caveat": null
       }
