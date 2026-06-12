@@ -123,3 +123,31 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
+
+      # PUBLISH-THEN-ALERT accuracy gate. Runs LAST (after push + emails): a red
+      # verdict alerts but can never block publication or digests — a wedged feed
+      # is a worse failure than a published-then-flagged snapshot (freshness
+      # disclosure covers consumers). Non-strict on purpose: --strict promotes
+      # Gamma-vs-CLOB cross-source disagreement to FAIL, but Gamma is a documented
+      # LAGGING cross-check — false reds train alert blindness. Seconds after the
+      # snapshot we are deep inside the 3h price-match window, so non-strict still
+      # exits 1 on any real published-vs-live mismatch (= build corruption).
+      # Retries only TRANSPORT failures (output without a VERDICT line); a real
+      # verdict — pass or fail — is surfaced immediately, never retried.
+      - name: Verify published accuracy (red = real mismatch; never blocks publish/email)
+        run: |
+          set -o pipefail
+          for attempt in 1 2; do
+            if out=$(node scripts/verify-accuracy.js 2>&1); then
+              echo "$out"
+              exit 0
+            fi
+            code=$?
+            echo "$out"
+            if echo "$out" | grep -q "VERDICT:"; then
+              exit "$code"
+            fi
+            echo "transport failure (attempt $attempt) — retrying in 30s"
+            sleep 30
+          done
+          exit 1
