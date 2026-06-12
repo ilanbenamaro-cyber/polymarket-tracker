@@ -6,14 +6,29 @@
 // identically. Pure: a function of the snapshot's own as-of timestamp plus one
 // documented constant — no external input, so it stays Tier-1 (no assumption).
 
-// Staleness threshold. The snapshot cron (.github/workflows/update.yml, `0 14 * * *`)
-// runs DAILY including weekends, so the normal gap between snapshots is ~24h. 50h
-// absorbs one fully-missed daily run (~48h) plus the usual Actions queue delay, so a
-// single skipped cron does NOT cry wolf; two or more consecutive misses — a genuine
-// pipeline failure — do trip it. (The weekday-only `1-5` crons are the EMAIL runs,
-// not the snapshot, so weekends are still ~24h, not 72h.)
-export const STALENESS_THRESHOLD_HOURS = 50;
-export const EXPECTED_CADENCE = 'daily ~14:00 UTC (incl. weekends)';
+// The snapshot schedule, as facts. The cron (.github/workflows/update.yml,
+// `0 0,12,14,16,18,20,22 * * *`) runs every 2h from 12:00 to 22:00 UTC plus 00:00,
+// daily including weekends; the overnight pause (00:00 → 12:00 UTC) is the largest
+// *scheduled* gap. The staleness threshold is DERIVED from these facts — never a
+// free-standing literal — so it cannot silently desync from the cadence again
+// (audit P0-1: the previous 50h literal was sized for the retired daily cadence;
+// at 2h cadence it meant ~25 missed runs of silence before the STALE flag fired).
+// test/schedule-coupling.test.js re-derives these numbers from the workflow cron
+// and fails loudly if the schedule and this struct drift apart.
+export const SCHEDULE = Object.freeze({
+  CADENCE_H: 2, // gap between snapshots while active (12:00–22:00 + 00:00 UTC)
+  MAX_EXPECTED_GAP_H: 12, // the overnight pause, 00:00 → 12:00 UTC
+  JITTER_MARGIN_H: 3, // Actions queue-delay allowance
+});
+
+// Threshold = largest scheduled gap + one fully-missed run + queue jitter = 17h.
+// A normal overnight pause (~12h) never flags; missing the first post-pause run
+// (~14h gap) still doesn't cry wolf; anything beyond that is a genuine pipeline
+// failure and trips the flag.
+export const STALENESS_THRESHOLD_HOURS =
+  SCHEDULE.MAX_EXPECTED_GAP_H + SCHEDULE.CADENCE_H + SCHEDULE.JITTER_MARGIN_H;
+export const EXPECTED_CADENCE =
+  'every 2h, 12:00–00:00 UTC (overnight pause 00:00–12:00 UTC), incl. weekends';
 
 const MS_PER_HOUR = 3_600_000;
 
@@ -35,7 +50,7 @@ export function buildFreshness(asOfISO, nowISO = null, thresholdHours = STALENES
     staleness_threshold_hours: thresholdHours,
     stale_after: new Date(staleAfterMs).toISOString(),
     expected_cadence: EXPECTED_CADENCE,
-    policy: `Considered stale ${thresholdHours}h after as_of (daily cadence ~24h + margin for one missed run). Live age = now − as_of; stale = now > stale_after.`,
+    policy: `Considered stale ${thresholdHours}h after as_of (= max scheduled gap ${SCHEDULE.MAX_EXPECTED_GAP_H}h overnight pause + ${SCHEDULE.CADENCE_H}h one missed run + ${SCHEDULE.JITTER_MARGIN_H}h queue jitter). Live age = now − as_of; stale = now > stale_after.`,
   };
   if (nowISO != null) {
     const nowMs = Date.parse(nowISO);

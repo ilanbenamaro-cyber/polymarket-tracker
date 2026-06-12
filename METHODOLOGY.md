@@ -117,10 +117,11 @@ threshold (±2pt, widened by the observed drift), showing the publish-age gap; a
 published curve is a **valid isotonic transform** of fresh source (monotone CDF, buckets ≥ 0, sum 1.0)
 using the production `core/stats.js` transform. It separates **two horizons** so it never conflates
 market movement with error: the strict ±2pt price-match is a hard PASS/FAIL **only inside a ~3h
-price-match window** (young enough that a >tol delta is a real data error); between 3h and the 50h
-liveness horizon the snapshot is "aged but live" and per-threshold deltas are reported **descriptively
-as expected market drift, never a FAIL**; past 50h it is **STALE** (a pipeline-liveness signal, shared
-with the dashboard via `core/freshness.js`). The ±2pt tolerance is **not** widened to cover aging —
+price-match window** (young enough that a >tol delta is a real data error); between 3h and the
+staleness horizon (17h, imported from `core/freshness.js`) the snapshot is "aged but live" and
+per-threshold deltas are reported **descriptively as expected market drift, never a FAIL**; past the
+horizon it is **STALE** (a pipeline-liveness signal, shared with the dashboard via
+`core/freshness.js`). The ±2pt tolerance is **not** widened to cover aging —
 that would blind it to real source errors; instead the harness bounds *when* the strict check applies.
 The canonical green path is the CI pattern: **run the snapshot, then verify immediately while
 seconds-old → tight match → exit 0**. The harness **reports only**; it never mutates the feed or
@@ -136,10 +137,14 @@ the file sits unchanged. Instead it publishes an absolute **`stale_after`** inst
 threshold`), so every consumer judges staleness with one comparison — `now > stale_after` — and no
 duplicated formula. The dashboard and printable note compute the live age in-browser and show an
 explicit "as-of age" plus a **stale** badge past the threshold; `core/freshness.js` owns the policy
-(single source of truth). **Threshold = 50h.** The snapshot cron (`update.yml`, `0 14 * * *`) runs
-**daily incl. weekends**, so the normal gap is ~24h; 50h absorbs one fully-missed daily run (~48h)
-plus Actions delay, so a single skipped run doesn't cry wolf while two-plus consecutive misses (a real
-pipeline failure) do. (The weekday-only `1-5` crons are the *email* runs, not the snapshot.)
+(single source of truth). **Threshold = 17h, derived from the schedule** — never a free-standing
+literal. The snapshot cron (`update.yml`, `0 0,12,14,16,18,20,22 * * *`) runs **every 2h from 12:00
+to 22:00 UTC plus 00:00, daily incl. weekends**; the largest scheduled gap is the **12h overnight
+pause** (00:00→12:00 UTC). Threshold = 12h max gap + 2h one fully-missed run + 3h Actions queue
+jitter. A normal overnight pause never flags; anything beyond 17h is a genuine pipeline failure.
+`core/freshness.js` exports the `SCHEDULE` facts and computes the threshold from them, and a coupling
+test re-derives the gaps from the workflow cron so schedule and threshold cannot silently desync.
+(The weekday-only `1-5` crons are the *email* runs, not the snapshot.)
 
 ## Contract & scope
 The canonical record conforms to [`/api/v1/schema.json`](docs/api/v1/schema.json) (JSON Schema
@@ -147,6 +152,13 @@ The canonical record conforms to [`/api/v1/schema.json`](docs/api/v1/schema.json
 secondary-market (Forge, Caplight, EquityZen) data.
 
 ## Changelog
+- **1.3.0** (2026-06-12) — Cadence + freshness policy change, **no formula change**. Snapshot
+  cadence raised from 1/day to **every 2h, 12:00–00:00 UTC** (7/day; overnight pause 00:00–12:00
+  UTC); email crons unchanged. Staleness threshold **re-derived as a function of the schedule**
+  (12h max scheduled gap + 2h missed run + 3h queue jitter = **17h**, was a 50h literal sized for
+  the daily cadence), with a coupling test binding the workflow cron to the threshold derivation.
+  Added a **post-publish accuracy verify step** in CI (publish-then-alert: `verify-accuracy.js`
+  runs non-strict after every push; FAIL marks the run red, never blocks publication or emails).
 - **1.2.1** (2026-06-08) — Clarification + additive freshness field, **no formula change**.
   Documented the **canonical source of record** (CLOB `/midpoints`; Gamma `outcomePrices` is a
   lagging cross-check, never an input) and added an independent data-accuracy verification harness

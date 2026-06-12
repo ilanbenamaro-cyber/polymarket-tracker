@@ -2,9 +2,15 @@ name: Update market data
 
 on:
   schedule:
-    - cron: '0 14 * * *' # 9:00 AM ET (EDT) — daily snapshot only
-    - cron: '30 14 * * 1-5' # 9:30 AM ET (EDT) — market open + email
-    - cron: '0 21 * * 1-5' # 4:00 PM ET (EDT) — market close + email
+    # GitHub cron is ALWAYS UTC (ET wall-clock drifts with DST — don't pin ET here).
+    # Snapshots every 2h 12:00–22:00 UTC + 00:00, daily incl. weekends; the overnight
+    # pause 00:00→12:00 UTC (12h) is the largest scheduled gap. The staleness
+    # threshold in core/freshness.js is DERIVED from this schedule (12+2+3 = 17h)
+    # and test/schedule-coupling.test.js asserts the two stay in sync — if you
+    # change these crons, re-derive SCHEDULE there.
+    - cron: '0 0,12,14,16,18,20,22 * * *' # snapshot every 2h (overnight pause 00→12 UTC)
+    - cron: '30 14 * * 1-5' # 14:30 UTC weekdays ≈ NYSE open — market-open email
+    - cron: '0 21 * * 1-5' # 21:00 UTC weekdays ≈ NYSE close (EDT) — market-close email
   workflow_dispatch:
     inputs:
       mode:
@@ -109,7 +115,7 @@ jobs:
 
       - name: Send emails
         if: env.MODE == 'market-open' || env.MODE == 'market-close'
-        run: node scripts/send-emails.js "$MODE" docs/data.json
+        run: node scripts/send-emails.js "$MODE"
         env:
           GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
           GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
@@ -117,3 +123,31 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
+
+      # PUBLISH-THEN-ALERT accuracy gate. Runs LAST (after push + emails): a red
+      # verdict alerts but can never block publication or digests — a wedged feed
+      # is a worse failure than a published-then-flagged snapshot (freshness
+      # disclosure covers consumers). Non-strict on purpose: --strict promotes
+      # Gamma-vs-CLOB cross-source disagreement to FAIL, but Gamma is a documented
+      # LAGGING cross-check — false reds train alert blindness. Seconds after the
+      # snapshot we are deep inside the 3h price-match window, so non-strict still
+      # exits 1 on any real published-vs-live mismatch (= build corruption).
+      # Retries only TRANSPORT failures (output without a VERDICT line); a real
+      # verdict — pass or fail — is surfaced immediately, never retried.
+      - name: Verify published accuracy (red = real mismatch; never blocks publish/email)
+        run: |
+          set -o pipefail
+          for attempt in 1 2; do
+            if out=$(node scripts/verify-accuracy.js 2>&1); then
+              echo "$out"
+              exit 0
+            fi
+            code=$?
+            echo "$out"
+            if echo "$out" | grep -q "VERDICT:"; then
+              exit "$code"
+            fi
+            echo "transport failure (attempt $attempt) — retrying in 30s"
+            sleep 30
+          done
+          exit 1

@@ -30,14 +30,26 @@ function assumptionView(reg, fallbackName) {
  * Returns { central, low, high } in USD/share (rounded to whole dollars).
  */
 export function impliedSharePrice(capT, shares, sharesRange) {
-  if (capT == null || !shares) return { central: null, low: null, high: null };
+  // Audit P1-4: the registry is hand-edited, so a 0/negative/non-finite shares
+  // value or range bound is one keystroke away — and capUsd/0 = Infinity, which
+  // JSON.stringify silently publishes as null. Guard every divisor; a bad range
+  // degrades to a point estimate (low = high = central), never a fabricated band.
+  const ok = (n) => typeof n === 'number' && Number.isFinite(n) && n > 0;
+  if (capT == null || !Number.isFinite(capT) || !ok(shares)) {
+    return { central: null, low: null, high: null };
+  }
   const capUsd = capT * 1e12;
   const central = Math.round(capUsd / shares);
   let low = central, high = central;
-  if (Array.isArray(sharesRange) && sharesRange.length === 2) {
+  if (Array.isArray(sharesRange) && sharesRange.length === 2 && sharesRange.every(ok)) {
     const [sLow, sHigh] = sharesRange;
-    low = Math.round(capUsd / sHigh); // most shares → lowest price
-    high = Math.round(capUsd / sLow); // fewest shares → highest price
+    // min/max rather than trusting bound order: a transposed hand-edited range
+    // (red-team probe B) would otherwise publish a malformed band (low > high) —
+    // the round_over_round pct band already orders this way.
+    const a = Math.round(capUsd / sHigh); // most shares → lowest price
+    const b = Math.round(capUsd / sLow); // fewest shares → highest price
+    low = Math.min(a, b);
+    high = Math.max(a, b);
   }
   return { central, low, high };
 }

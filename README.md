@@ -42,7 +42,7 @@ pm2 delete polymarket-tracker && pm2 save
 ```
 GitHub Actions (cron)                 GitHub Pages
   update.yml                            docs/index.html  ← dashboard
-   ├─ scripts/update-data.js  ──────▶   docs/data.json   ← committed each run
+   ├─ scripts/snapshot.js     ──────▶   docs/api/v1/*    ← committed each run
    └─ scripts/send-emails.js
          ├─ email.js (Microsoft Graph)  ──▶ subscribers' inboxes
          └─ subscribers from private Gist
@@ -54,8 +54,9 @@ subscribe.yml  ◀── dashboard form (workflow_dispatch via public PAT)
 ### GitHub Pages
 - URL: **https://ilanbenamaro-cyber.github.io/polymarket-tracker/**
 - Source: `main` branch, `/docs` folder (Settings → Pages).
-- `docs/data.json` is regenerated and committed by Actions on every cron tick;
-  the page fetches it client-side. `docs/.nojekyll` disables Jekyll processing.
+- `docs/api/v1/` (latest.json, history*.json, history.csv, daily snapshot
+  archive) is regenerated and committed by Actions on every cron tick; the page
+  fetches it client-side. `docs/.nojekyll` disables Jekyll processing.
 
 ### GitHub Actions
 `.github/workflows/update.yml` runs on three schedules (UTC; offsets assume EDT):
@@ -66,12 +67,13 @@ subscribe.yml  ◀── dashboard form (workflow_dispatch via public PAT)
 | `30 14 * * 1-5` | 9:30 AM weekdays| market-open  | yes |
 | `0 21 * * 1-5`  | 4:00 PM weekdays| market-close | yes |
 
-Each run: `npm ci` → `update-data.js` (fetch + recompute `data.json`) →
-commit/push `data.json` → on open/close, `send-emails.js`. You can also trigger it
-manually from the Actions tab (`workflow_dispatch`) with a chosen mode.
+Each run: `npm ci` → `scripts/snapshot.js` (fetch + build + validate + write
+`docs/api/v1/` + bake HTML fallback) → commit/push → on open/close,
+`send-emails.js` (reads `docs/api/v1/`). You can also trigger it manually from
+the Actions tab (`workflow_dispatch`) with a chosen mode.
 
 Requires **Settings → Actions → General → Workflow permissions: Read and write**
-so the bot can push `data.json`.
+so the bot can push the generated API files.
 
 ---
 
@@ -146,12 +148,12 @@ See `.env.example` for the same variables when running the scripts locally
 
 ```bash
 node tracker.js                                   # local SQLite pipeline (unchanged)
-node scripts/update-data.js                       # regenerate docs/data.json from live data
-node scripts/send-emails.js market-open docs/data.json   # needs .env with Graph + Gist vars
+node scripts/snapshot.js                          # regenerate docs/api/v1 from live data
+node scripts/send-emails.js market-open           # needs .env with Graph + Gist vars
 node scripts/add-subscriber.js you@example.com           # needs .env
 ```
 
-Preview the dashboard locally (it `fetch`es `data.json`, so use a server, not
+Preview the dashboard locally (it `fetch`es the API, so use a server, not
 `file://`):
 
 ```bash
@@ -179,7 +181,7 @@ median = t[i] + (t[i+1] - t[i]) * (p[i] - 0.5) / (p[i] - p[i+1])
 ```
 
 `null` if every probability is above 50% or every one is below. Computed once in
-`digest.js` (`computeImpliedMedian`) and reused by `scripts/update-data.js`.
+`digest.js` (`computeImpliedMedian`); the cloud pipeline computes it in `core/`.
 
 ## Local notifications
 

@@ -121,6 +121,10 @@
   table.data th { color:var(--text-muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; }
   table.data th:first-child, table.data td:first-child { text-align:left; }
   table.data th .vh { border-bottom:1px dotted currentColor; cursor:help; }
+  /* Mobile (audit P2-1): the 7-col table must scroll inside its card, never push
+     the whole page wide. min-width keeps columns readable while scrolling. */
+  .scroll-x { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  @media (max-width:600px){ table.data { min-width:560px; } }
   tr.tracked td { color:var(--amber); font-weight:600; }
   tr.mover td { background:rgba(196,127,58,.10); }
   .up { color:var(--green); } .down { color:var(--red); } .flat { color:var(--text-muted); }
@@ -157,7 +161,7 @@
   </div>
 
   <!-- NARRATIVE HERO (deterministic; baked fallback for JS-off) -->
-  <div class="narrative" id="narrative"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.19T, down $0.06T over the past month and down $0.15T this week. The largest single concentration of probability (22%) sits in the $2.2–2.4T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></div>
+  <div class="narrative" id="narrative"><!--BAKE:narrative-->The market values SpaceX's IPO-closing cap at a median $2.19T, broadly flat over the past month and up $0.06T this week. The largest single concentration of probability (25%) sits in the $2–2.2T range, with a longer upside tail. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.<!--/BAKE:narrative--></div>
 
   <!-- HEADLINE (baked fallback — real numbers even with JS off) -->
   <div class="headline">
@@ -168,7 +172,7 @@
     </div>
     <div>
       <span class="lbl">Implied mean <span class="approx">(approx)</span></span>
-      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.23T<!--/BAKE:mean--></span>
+      <span class="sec" id="hl-mean"><!--BAKE:mean-->$2.26T<!--/BAKE:mean--></span>
       <div class="band" id="hl-mean-band"></div>
     </div>
     <div>
@@ -179,7 +183,7 @@
     </div>
     <div>
       <span class="lbl">As of (UTC)</span>
-      <span class="sec" style="font-weight:600;font-size:15px" id="hl-date"><!--BAKE:date-->2026-06-11<!--/BAKE:date--></span>
+      <span class="sec" style="font-weight:600;font-size:15px" id="hl-date"><!--BAKE:date-->2026-06-12<!--/BAKE:date--></span>
       <span class="age" id="hl-age"></span>
       <span class="badge stale" id="hl-stale" style="display:none" title="">stale</span>
     </div>
@@ -190,7 +194,7 @@
   <div class="prov" id="prov">
     <span>Source: <strong>Polymarket</strong></span><span class="sep">·</span>
     <span>fetched <code id="pv-fetched">…</code> UTC</span><span class="sep">·</span>
-    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.2.1<!--/BAKE:methodology--></code></span><span class="sep">·</span>
+    <span>methodology v<code id="pv-method"><!--BAKE:methodology-->1.3.0<!--/BAKE:methodology--></code></span><span class="sep">·</span>
     <span>sha256 <code id="pv-hash">…</code></span>
     <button id="verifyBtn" type="button">verify hash</button>
     <span id="verifyState"></span>
@@ -242,7 +246,7 @@
   <!-- TABLE -->
   <section>
     <h2>All thresholds</h2>
-    <div class="chart-box" style="padding:6px 10px;">
+    <div class="chart-box scroll-x" style="padding:6px 10px;">
       <table class="data">
         <thead><tr><th>Threshold</th><th>Current</th><th>Bucket %</th><th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th><span class="vh" id="th-volume" title="Cumulative all-time traded volume — same statistic as Polymarket's ALL timeframe. As-of the snapshot timestamp.">All-time volume</span></th></tr></thead>
         <tbody id="tableBody"><tr><td colspan="7" class="skeleton">Loading…</td></tr></tbody>
@@ -287,7 +291,7 @@
 
   <footer>
     <a href="https://polymarket.com/event/spacex-ipo-closing-market-cap-above" target="_blank" rel="noopener">View market on Polymarket</a>
-    · public market data only · refreshes daily via GitHub Actions · <a href="./api/v1/latest.json">JSON API</a>
+    · public market data only · refreshes every 2h (12:00–00:00 UTC) via GitHub Actions · <a href="./api/v1/latest.json">JSON API</a>
   </footer>
 
 </div>
@@ -383,10 +387,13 @@
   });
 
   // Colored delta span from a STORED velocity change object (single source — D1).
-  function velDelta(ch){ if(!ch||ch.abs==null) return '<span class="flat">—</span>';
-    if(ch.dir==='flat') return '<span class="flat">flat</span>';
-    const c=ch.dir==='up'?'up':'down', ar=ch.dir==='up'?'↑ ':'↓ ';
-    return '<span class="'+c+'">'+ar+'$'+Math.abs(ch.abs).toFixed(2)+'T</span>'; }
+  // Renders the stored `display` (set in core via fmtSignedDeltaT) VERBATIM —
+  // never re-formats from abs/dir, which is how D1 re-derivation drift happens
+  // (dir's flat-eps disagrees with display near ±$0.02T).
+  function velDelta(ch){ if(!ch||ch.display==null) return '<span class="flat">—</span>';
+    if(ch.display==='flat') return '<span class="flat">flat</span>';
+    const up=ch.display.charAt(0)==='+', c=up?'up':'down', ar=up?'↑ ':'↓ ';
+    return '<span class="'+c+'">'+ar+ch.display.slice(1)+'</span>'; }
 
   // ── CARDS ──
   function renderCards(){
@@ -613,7 +620,9 @@
   }
 
   // ── LOAD ──
-  async function load(){
+  // silent=true (background auto-refresh): a transient fetch failure must NEVER
+  // wipe a working view or raise the error banner — keep the last good render.
+  async function load(silent){
     // Step 1: canonical record + lean history drive headline/cards/charts.
     try {
       const [latest,hist]=await Promise.all([
@@ -624,6 +633,7 @@
       LATEST=latest; HIST=hist;
       document.getElementById('loadError').style.display='none';
     } catch(err){
+      if(silent&&LATEST){ console.warn('Background refresh failed (keeping current view):',err); return; }
       document.getElementById('loadError').style.display='block';
       console.error('Failed to load API:',err);
       return; // baked headline stays visible
@@ -649,8 +659,22 @@
     canvas.toBlob(b=>downloadBlob(b,'spacex-ipo-snapshot-'+(LATEST?LATEST.snapshot.fetched_at.slice(0,10):'latest')+'.png')); });
   document.getElementById('csvBtn').addEventListener('click',()=>{ window.location.href=API+'history.csv'; });
 
-  document.getElementById('refreshBtn').addEventListener('click',load);
+  // Explicit arrow: addEventListener would pass the click event as `silent`.
+  document.getElementById('refreshBtn').addEventListener('click',()=>load());
   load();
+
+  // ── AUTO-REFRESH ── keeps an open tab honest under the 2h publish cadence and
+  // the freshness age/STALE pill live (renderFreshness recomputes from Date.now()
+  // on every render). Background failures are silent (see load(silent)).
+  const REFRESH_MS=10*60*1000; let lastAutoMs=0;
+  function autoRefresh(){
+    if(document.hidden) return;
+    if(Date.now()-lastAutoMs<60000) return; // visibility-flap throttle
+    lastAutoMs=Date.now();
+    load(true);
+  }
+  setInterval(autoRefresh,REFRESH_MS);
+  document.addEventListener('visibilitychange',autoRefresh);
 </script>
 </body>
 </html>

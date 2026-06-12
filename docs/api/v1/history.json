@@ -2728,5 +2728,20 @@
     "confidence": {
       "tier": "high"
     }
+  },
+  {
+    "date": "2026-06-12",
+    "implied_median": 2.188,
+    "implied_mean": 2.263175,
+    "iqr": {
+      "p25": 1.975,
+      "p75": 2.4699999999999998
+    },
+    "prob_1_8t": 0.855,
+    "prob_2_0t": 0.735,
+    "prob_2_4t": 0.285,
+    "confidence": {
+      "tier": "high"
+    }
   }
 ]
