@@ -65,6 +65,28 @@ test('velDelta: null/missing input renders the em-dash placeholder', () => {
   assert.match(velDelta({}), /—/);
 });
 
+// ── Auto-refresh contract (cadence migration): one interval, visibility-bound,
+// silent failure path that keeps the last good view.
+
+test('auto-refresh: exactly one setInterval, bound to visibilitychange', () => {
+  const script = html.slice(html.lastIndexOf('<script>'));
+  assert.equal(
+    (script.match(/setInterval\(/g) || []).length, 1,
+    'exactly one setInterval in the dashboard script'
+  );
+  assert.match(script, /visibilitychange/, 'visibilitychange listener present');
+});
+
+test('auto-refresh: load has a silent path that preserves the working view', () => {
+  const loadSrc = extractFunction(html, 'load');
+  assert.match(loadSrc, /silent/, 'load must accept the silent flag');
+  assert.match(loadSrc, /silent\s*&&\s*LATEST/, 'silent failures bail out only when a good view exists');
+});
+
+test('auto-refresh: refresh button does not leak its click event into silent', () => {
+  assert.match(html, /addEventListener\('click',\(\)=>load\(\)\)/, 'refreshBtn must call load() with no args');
+});
+
 test('velDelta agrees with the canonical formatter across a sweep (D1 contract)', () => {
   for (let i = -50; i <= 50; i++) {
     const raw = i / 1000;
