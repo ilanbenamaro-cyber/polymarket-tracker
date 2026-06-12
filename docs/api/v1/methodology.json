@@ -1,5 +1,5 @@
 {
-  "version": "1.2.1",
+  "version": "1.3.0",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -141,10 +141,15 @@
       "assumptions": [
         "None — derived solely from the snapshot's own timestamp."
       ],
-      "sensitivity_note": "Threshold = 50h. The snapshot cron (update.yml, '0 14 * * *') runs daily incl. weekends (~24h normal gap); 50h absorbs one fully-missed run (~48h) + Actions delay, so a single skip does not false-alarm while 2+ consecutive misses do. The weekday-only crons are the email runs, not the snapshot."
+      "sensitivity_note": "Threshold = 17h, DERIVED from the snapshot schedule rather than chosen as a literal: the cron (update.yml, '0 0,12,14,16,18,20,22 * * *') runs every 2h 12:00-22:00 UTC plus 00:00, daily incl. weekends, so the largest scheduled gap is the 12h overnight pause (00:00->12:00 UTC). Threshold = 12h max gap + 2h one fully-missed run + 3h Actions queue jitter. A normal overnight pause never flags; anything past 17h is a genuine pipeline failure. core/freshness.js exports the SCHEDULE facts and computes the threshold from them; test/schedule-coupling.test.js re-derives the gaps from the workflow cron so schedule and threshold cannot silently desync. The weekday-only crons are the email runs, not the snapshot."
     }
   },
   "changelog": [
+    {
+      "version": "1.3.0",
+      "date": "2026-06-12",
+      "change": "Cadence + freshness policy change, NO formula change. Snapshot cadence raised from 1/day (14:00 UTC) to every 2h 12:00-00:00 UTC (7/day, overnight pause 00:00-12:00 UTC); email crons unchanged. Staleness threshold re-derived as a function of the schedule (12h max scheduled gap + 2h one missed run + 3h queue jitter = 17h, was a 50h literal sized for the daily cadence) — core/freshness.js now exports the SCHEDULE facts and computes the threshold from them, with a coupling test re-deriving the gaps from the workflow cron. Added a post-publish accuracy verify step in CI (publish-then-alert: scripts/verify-accuracy.js runs non-strict after every push; a FAIL marks the run red but never blocks publication or emails). Minor bump: published policy fields (staleness_threshold_hours, expected_cadence, policy) change meaning for consumers; no metric formula or schema shape changed."
+    },
     {
       "version": "1.2.1",
       "date": "2026-06-08",
