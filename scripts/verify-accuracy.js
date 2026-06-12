@@ -65,7 +65,8 @@ const LATEST_PATH = join(__dirname, '../docs/api/v1/latest.json');
 //   blind the check to genuine source errors; we bound WHEN the strict check applies.
 // STALENESS_WINDOW_H — pipeline LIVENESS, a different concern: has publishing stopped?
 //   This is the dashboard's staleness horizon, imported from core/freshness.js so the
-//   two surfaces share ONE constant (50h, sized to the daily cron). Beyond it → STALE.
+//   two surfaces share ONE constant (derived from the snapshot SCHEDULE — 17h under
+//   the 2h-cadence schedule with its 12h overnight pause). Beyond it → STALE.
 // Between the two windows the snapshot is "aged but live": per-threshold deltas are
 //   reported DESCRIPTIVELY as expected market drift — NOT a binary FAIL.
 export const TOL = Object.freeze({

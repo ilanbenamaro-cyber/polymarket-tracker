@@ -6,9 +6,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildFreshness, ageLabel, STALENESS_THRESHOLD_HOURS } from '../core/freshness.js';
+import { buildFreshness, ageLabel, STALENESS_THRESHOLD_HOURS, SCHEDULE } from '../core/freshness.js';
 
 const AS_OF = '2026-06-08T14:00:00.000Z';
+const hoursAfter = (h) => new Date(Date.parse(AS_OF) + h * 3_600_000).toISOString();
 
 test('published policy carries no frozen age/flag (read-time quantities)', () => {
   const f = buildFreshness(AS_OF);
@@ -50,6 +51,34 @@ test('threshold is overridable for what-if checks without touching the default',
 test('buildFreshness rejects an unparseable timestamp (fail loud)', () => {
   assert.throws(() => buildFreshness('not-a-date'));
   assert.throws(() => buildFreshness(AS_OF, 'not-a-date'));
+});
+
+// ── Schedule-derived threshold (audit P0-1: the previous 50h literal was sized
+// for the retired daily cadence — at 2h cadence it meant ~25 missed runs of
+// silence before the flag fired). The threshold must be the SUM of documented
+// schedule facts, and the schedule's normal gaps must never false-alarm.
+
+test('threshold is derived from the schedule facts, not a free literal', () => {
+  assert.equal(
+    STALENESS_THRESHOLD_HOURS,
+    SCHEDULE.MAX_EXPECTED_GAP_H + SCHEDULE.CADENCE_H + SCHEDULE.JITTER_MARGIN_H
+  );
+  assert.equal(STALENESS_THRESHOLD_HOURS, 17); // 12h overnight pause + 2h missed run + 3h jitter
+});
+
+test('a normal overnight pause (max scheduled gap) is NOT stale', () => {
+  const f = buildFreshness(AS_OF, hoursAfter(SCHEDULE.MAX_EXPECTED_GAP_H));
+  assert.equal(f.stale, false);
+});
+
+test('overnight pause + one fully-missed run is still NOT stale (no crying wolf)', () => {
+  const gap = SCHEDULE.MAX_EXPECTED_GAP_H + SCHEDULE.CADENCE_H;
+  assert.equal(buildFreshness(AS_OF, hoursAfter(gap)).stale, false);
+});
+
+test('a gap beyond max-expected-by-margin IS stale (genuine pipeline failure)', () => {
+  assert.equal(buildFreshness(AS_OF, hoursAfter(16.99)).stale, false);
+  assert.equal(buildFreshness(AS_OF, hoursAfter(17.01)).stale, true);
 });
 
 test('ageLabel formats hours/days/just-now', () => {

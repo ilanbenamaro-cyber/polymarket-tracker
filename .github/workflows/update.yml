@@ -2,9 +2,15 @@ name: Update market data
 
 on:
   schedule:
-    - cron: '0 14 * * *' # 9:00 AM ET (EDT) — daily snapshot only
-    - cron: '30 14 * * 1-5' # 9:30 AM ET (EDT) — market open + email
-    - cron: '0 21 * * 1-5' # 4:00 PM ET (EDT) — market close + email
+    # GitHub cron is ALWAYS UTC (ET wall-clock drifts with DST — don't pin ET here).
+    # Snapshots every 2h 12:00–22:00 UTC + 00:00, daily incl. weekends; the overnight
+    # pause 00:00→12:00 UTC (12h) is the largest scheduled gap. The staleness
+    # threshold in core/freshness.js is DERIVED from this schedule (12+2+3 = 17h)
+    # and test/schedule-coupling.test.js asserts the two stay in sync — if you
+    # change these crons, re-derive SCHEDULE there.
+    - cron: '0 0,12,14,16,18,20,22 * * *' # snapshot every 2h (overnight pause 00→12 UTC)
+    - cron: '30 14 * * 1-5' # 14:30 UTC weekdays ≈ NYSE open — market-open email
+    - cron: '0 21 * * 1-5' # 21:00 UTC weekdays ≈ NYSE close (EDT) — market-close email
   workflow_dispatch:
     inputs:
       mode:
