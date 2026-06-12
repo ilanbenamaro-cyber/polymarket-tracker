@@ -88,10 +88,13 @@ function firewallErrors(record) {
   if (sc) {
     for (const [name, scenario] of Object.entries(sc)) {
       if (name === 'assumptions_version' || !scenario || typeof scenario !== 'object') continue;
+      // Null-checks, NOT truthiness: a numeric output of exactly 0 (e.g.
+      // implied_change_pct when median == last round) is still a number that
+      // must carry sourced assumptions (audit P1-3).
       const hasNumbers =
-        scenario.at_median ||
-        scenario.implied_change_pct ||
-        (Array.isArray(scenario.ladder) && scenario.ladder.some((x) => x && x.price));
+        scenario.at_median != null ||
+        scenario.implied_change_pct != null ||
+        (Array.isArray(scenario.ladder) && scenario.ladder.some((x) => x && x.price != null));
       if (hasNumbers) {
         const a = scenario.assumptions;
         if (!Array.isArray(a) || a.length === 0) {
