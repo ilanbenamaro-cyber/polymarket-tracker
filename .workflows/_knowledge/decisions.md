@@ -5,6 +5,47 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Staleness threshold is a DERIVED function of the snapshot schedule (never a literal)
+**Decided:** With the 2h cadence (cron `0 0,12,14,16,18,20,22 * * *`, 7 runs/day, overnight pause
+00:00→12:00 UTC), `core/freshness.js` exports the schedule as facts — `SCHEDULE = {CADENCE_H:2,
+MAX_EXPECTED_GAP_H:12, JITTER_MARGIN_H:3}` — and computes `STALENESS_THRESHOLD_HOURS` as their sum
+(**17h**). `test/schedule-coupling.test.js` re-derives the gap profile from the ACTUAL update.yml cron
+(max gap == MAX_EXPECTED_GAP_H, min gap == CADENCE_H) and fails loudly on cron syntax it can't parse.
+**Why:** The previous 50h literal was sized for the retired daily cadence and carried a correct,
+well-written comment — which desynced anyway the moment the schedule changed (audit P0-1: at 2h
+cadence, 50h ≈ 25 missed runs of silence before the STALE flag fired). Comments don't couple; a test
+that re-derives the numbers from the workflow file does. Methodology bumped to **1.3.0** (minor:
+published policy fields change meaning; no formula change).
+**Constrains:** Changing the snapshot cron REQUIRES re-deriving `SCHEDULE` (the coupling test forces
+it). Never reintroduce a free-standing threshold literal, and never widen the threshold to quiet a
+STALE flag — investigate the pipeline instead. verify-accuracy.js shares the constant by import.
+
+## CI verify gate = publish-then-alert, non-strict, last step
+**Decided:** `update.yml` runs `scripts/verify-accuracy.js` (non-strict) as the LAST step, after the
+push and the email steps, in all modes. Exit ≠ 0 turns the run red (alert) but can never block
+publication or digests. Transport failures (output without a `VERDICT:` line) retry once; real
+verdicts surface immediately.
+**Why:** Seam-5 fail-mode design: a wedged feed (nothing published) is a worse failure than a
+published-then-flagged snapshot — freshness disclosure already covers consumers. Non-strict because
+`--strict` promotes Gamma-vs-CLOB cross-source disagreement to FAIL, and Gamma is a documented
+*lagging* cross-check (see "Canonical source of record") — false reds train alert blindness. Seconds
+after the snapshot the record is deep inside the 3h price-match window, so non-strict still exits 1
+on any real published-vs-live mismatch, which at that age means build corruption.
+**Constrains:** Do not move the gate before the push (that re-creates the wedge), do not add
+`--strict` without first separating cross-source disagreement from publish-mismatch in the exit
+codes, and never widen a tolerance to quiet a red run — a FAIL is a finding to investigate.
+
+## GitHub concurrency queue-drop at 2h cadence is ACCEPTED
+**Decided:** The `snapshot-commit` concurrency group keeps at most ONE pending run queued; GitHub
+cancels additional pending runs even with `cancel-in-progress:false`. Under the 2h cadence (plus
+email crons and manual dispatches) a third overlapping run gets cancelled. This is accepted, not
+worked around.
+**Why:** A cancelled queued snapshot is covered by the next scheduled run within ≤2h — well inside
+the 17h staleness threshold. The serialization itself is what prevents the `rebase -X theirs` clobber
+window (a queued run checks out only after the prior one pushed, so it always sees that commit).
+**Constrains:** Don't remove the concurrency group to "fix" cancelled runs — it's what makes the
+push path safe. If sub-2h data loss ever matters, redesign the queue, don't drop the group.
+
 ## Volume = Gamma market-level all-time cumulative `volume`
 **Decided:** The per-threshold `volume` we publish is Gamma's **market-level `volume`** field — read once
 in `core/fetch.js` (`m.volume`), and summed across thresholds for `derived.total_volume`. For these

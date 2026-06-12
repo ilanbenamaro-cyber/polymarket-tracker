@@ -5,6 +5,18 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Playwright "verified" a STALE page — browsers heuristically cache python http.server
+**Symptom:** Edited `docs/index.html`, navigated to it via Playwright, ran a behavior test — and the
+NEW code wasn't there (`load.toString()` showed the pre-edit function). The failure-semantics test
+"failed" against code that didn't contain the fix. Cost real time (2026-06-12).
+**Reality:** `python3 -m http.server` sends no cache headers, so the browser applies HEURISTIC
+caching and can serve the previously-loaded page on re-navigation. The disk file was correct the
+whole time.
+**Lesson:** After editing a served file, verify on a FRESH port (or with a cache-busting query) and
+*assert the code under test is actually present* (`/silent && LATEST/.test(load.toString())`) before
+trusting any behavioral result. Source-level node tests (test/dashboard-contract.test.js) don't have
+this problem — trust them over a possibly-cached browser when they disagree.
+
 ## "Re-run jobs" replays the workflow at the ORIGINAL commit — not your YAML fix
 **Symptom:** Fixed a bug in `.github/workflows/update.yml`, pushed it, then clicked GitHub's
 **"Re-run jobs" / "Re-run failed jobs"** on the failed run — and it failed the **same way**, as if the
@@ -24,7 +36,9 @@ because one thin mid-tail threshold (`$2.6T`) had drifted ~5pt since publish.
 live CLOB midpoint within ±2pt for anything <26h old. But markets move several points intraday — a 2pt
 match is only meaningful while a snapshot is **minutes-to-a-few-hours** old. The fix splits two
 distinct horizons: **price-match** (≤ ~3h, `PRICE_MATCH_WINDOW_H` — strict ±2pt is a hard PASS/FAIL)
-vs **liveness/stale** (> 50h, `STALENESS_WINDOW_H`, shared with the dashboard via `core/freshness.js`).
+vs **liveness/stale** (> `STALENESS_WINDOW_H`, shared with the dashboard via `core/freshness.js`;
+50h under the old daily cadence, **17h** since the 2026-06-12 2h-cadence migration — derived from
+the schedule, see [[decisions]]).
 Between them ("aged") deltas are reported **descriptively as expected market drift, never a FAIL**.
 **Lesson:** Don't conflate "is the price still accurate?" (hours) with "is the pipeline alive?" (days).
 And **never widen the ±2pt tolerance** to make aged data pass — that blinds the check to real source
@@ -65,8 +79,10 @@ trusting a pin. A spec's pinned version may predate your runtime.
 (`docs/api/v1/**`, baked `docs/index.html`/`note.html`) → take your version
 (`git checkout --theirs <file>` during rebase) → `git rebase --continue` → **re-run
 `node scripts/snapshot.js`** to regenerate a consistent state → amend → push.
-**Lesson:** Always `git fetch`/rebase before pushing. Snapshot cron is **daily 14:00 UTC** (`0 14 * * *`);
-the 14:30 + 21:00 runs are **weekday-only** email runs (`* * 1-5`) — so the snapshot itself runs every day.
+**Lesson:** Always `git fetch`/rebase before pushing. Snapshot cron is **every 2h, 12:00–00:00 UTC**
+(`0 0,12,14,16,18,20,22 * * *`, since 2026-06-12 — was daily 14:00); the 14:30 + 21:00 runs are
+**weekday-only** email runs (`* * 1-5`). At 7 bot commits/day the rebase-before-push discipline
+matters MORE, not less.
 **RESOLVED in CI (2026-06-08):** `update.yml`'s commit step now **self-heals** — it fetches +
 `git rebase -X theirs FETCH_HEAD` + pushes, retrying up to 5×, and a `concurrency: snapshot-commit`
 group serializes runs (proven green, run 27154304762). You still rebase manually for your OWN pushes.

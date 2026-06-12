@@ -5,10 +5,15 @@
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
 ## Current state
-- **v1.2.1 is live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/
-- Methodology **1.2.1**, schema **1.2.1**, assumptions **1.0.0** — all three embedded in every snapshot.
-  (1.2.1 = source-of-record clarification + accuracy verifier + Tier-1 `derived.freshness`; additive, no formula change.)
-- All work committed + pushed to `main` (repo: `ilanbenamaro-cyber/polymarket-tracker`).
+- **Live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/
+- Methodology **1.3.0**, schema **1.2.1**, assumptions **1.0.0** — all three embedded in every snapshot.
+  (1.3.0 = 2h cadence + schedule-derived 17h staleness threshold + post-publish verify gate;
+  policy change, NO formula change. 1.2.1 = source-of-record + verifier + freshness.)
+- **Cadence (2026-06-12):** snapshots every 2h, 12:00–00:00 UTC (overnight pause 00→12 UTC = max
+  12h gap → threshold 12+2+3 = **17h**, derived in `core/freshness.js` SCHEDULE; coupling test binds
+  it to the update.yml cron). Dashboard auto-refreshes (10 min + visibilitychange, silent failures).
+- Branch `feature/cadence-audit` carries the 2026-06-12 audit pass (8-seam directed audit:
+  4 P1 fixes each with regression tests + cadence migration + verify gate). Repo: `ilanbenamaro-cyber/polymarket-tracker`.
 
 ## What this is (3 sentences)
 An institutional prediction-market data product: it turns Polymarket's "SpaceX IPO closing
@@ -24,8 +29,9 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
 - `node scripts/verify-accuracy.js` — independent accuracy harness: dual-source fetch (Gamma + CLOB) ×2,
   cross-source + drift + published-vs-live reconciliation; report-only. Canonical green path: run
   snapshot then verify while seconds-old → PASS (exit 0). Flags: `--strict --json --price-window-hours --staleness-hours`.
-- `node --test` — unit tests (currently **43/43**: PAVA, band, anomalies, hash, firewall, rounding,
-  analytics, **freshness, accuracy-verifier zones**).
+- `node --test` — unit tests (currently **80/80**: PAVA, band, anomalies, hash, firewall (incl.
+  numeric-0 leaves), rounding, analytics, freshness + schedule coupling, accuracy-verifier zones,
+  dashboard contract (velDelta/auto-refresh), email digest inputs, full-history invariant sweep).
 - Output lands in **`docs/api/v1/`** (`latest.json`, `history.json` lean, `history-full.json`,
   `history.csv`, `methodology.json`, `schema.json`, `snapshots/YYYY-MM-DD.json`).
 - Local preview: `cd docs && python3 -m http.server 8000` (the page `fetch`es the API, so use HTTP not file://).
@@ -46,27 +52,34 @@ core record. **Public Polymarket data only** — no grey-market/secondary data (
   `origin/main` via fetch→rebase→push). Was UNVERIFIED #1 — now done.
 
 ## UNVERIFIED (do these — top item FIRST)
-1. Email/push path (`send-emails.js`) is dormant and unrun in CI (intended; guarded to skip without secrets).
+1. **First overnight pause under the 2h cadence** — after merge, confirm the 12:00 UTC run lands and
+   the dashboard never showed STALE overnight (the 12h-gap-not-stale policy, validated in production).
+2. Email/push path (`send-emails.js`) is dormant and unrun in CI (intended; guarded to skip without
+   secrets). Now reads `docs/api/v1/` — the deleted-data.json time bomb is fixed but the live send
+   path is still unexercised.
 
-## Recently shipped (this session, 2026-06-08)
-- [x] **Data-accuracy verifier** (`scripts/verify-accuracy.js`) — proves the feed matches Polymarket
-  source (not eyeballed); two-horizon model (price-match ≤3h vs liveness >50h). See [[gotchas]].
-- [x] **Canonical source of record documented** — CLOB midpoint is truth; Gamma `outcomePrices` is a
-  lagging cross-check, never an input. See [[decisions]].
-- [x] **Tier-1 data freshness** (`core/freshness.js`, `derived.freshness`) — as-of age + STALE badge on
-  dashboard/note; 50h threshold, evaluated client-side. See [[decisions]].
-- [x] **CI push made concurrency-safe** (`update.yml`: concurrency group + rebase `-X theirs` + retry +
-  fetch-depth:0; actions @v5) and **proven green via workflow_dispatch**. See [[decisions]], [[gotchas]].
+## Recently shipped (2026-06-12 audit pass, branch feature/cadence-audit)
+- [x] **8-seam directed audit** — severity-ranked ledger; 4 P1s fixed each with a regression test:
+  firewall numeric-0 leaf bypass (validate.js null-checks), impliedSharePrice Infinity on zero range
+  bound, velDelta D1 re-derivation (3rd occurrence — now renders stored display), send-emails read
+  the deleted docs/data.json (now reads v1 API, ascending-history prior). See [[decisions]], ledger
+  in the session report.
+- [x] **2h cadence + schedule-derived 17h staleness threshold** (was 50h literal) + coupling test +
+  methodology **1.3.0**. See [[decisions]].
+- [x] **CI verify gate, publish-then-alert** (non-strict, last step, transport-aware retry) — closes
+  the old "wire --strict gate" task with deliberately different semantics. See [[decisions]].
+- [x] **Dashboard auto-refresh** (10 min + visibilitychange; silent failures keep the view) +
+  **mobile table scroll** (375px verified, was overflowing).
+- [x] **Full-history invariant sweep test** (181 days through production validators) + CSV constraint.
 
 ## Immediate open tasks
-- [ ] **Wire `verify-accuracy.js --strict` as a post-snapshot CI gate** in `update.yml` — now UNBLOCKED
-  (the pipeline is proven green). Canonical pattern: snapshot → verify while seconds-old → exit 0.
-- [ ] **Scenario-tier precision check:** confirm the share-price band width is driven by the
-  shares-outstanding `range` (1.7B–2.1B) and reads sensibly; sanity-check the round-over-round
-  `+172%` rounding (1dp) isn't implying false precision on a low-confidence input.
 - [ ] **Document the 0.5% confidence threshold** (`MATERIAL_ADJUSTMENT` in `core/confidence.js`) in
   `core/methodology.json` — an isotonic tweak below 0.5% is treated as immaterial and keeps tier high;
   that rule should be written down in the methodology, not just the code.
+- [ ] **P2 backlog from the audit** (documented, deliberately deferred): scenarios.js pct Math.round
+  asymmetric on negatives vs roundT (changing alters published Tier-2 values — needs its own
+  methodology note); inline money() can render $-0.00T (unreachable today); quantileValuation
+  CDF-touches-0.50-at-last-node returns null (definitional).
 
 ## Pointers
 - Why things are the way they are → `.workflows/_knowledge/decisions.md`
