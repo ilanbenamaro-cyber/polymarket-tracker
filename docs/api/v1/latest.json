@@ -9,8 +9,8 @@
     "resolves": "2027-12-31"
   },
   "snapshot": {
-    "snapshot_id": "2026-06-12T13:40:42.765Z",
-    "fetched_at": "2026-06-12T13:40:42.765Z",
+    "snapshot_id": "2026-06-12T13:43:14.358Z",
+    "fetched_at": "2026-06-12T13:43:14.358Z",
     "source": {
       "provider": "Polymarket",
       "endpoints": [
@@ -18,7 +18,7 @@
         "https://clob.polymarket.com/midpoints",
         "https://clob.polymarket.com/prices"
       ],
-      "raw_sha256": "a495d294bc9fcc0ef35b03ad72375e8aa7ce50e862cc10b2e8dedb63e7e6abfa"
+      "raw_sha256": "c90b9d0655d10c2b0ebd26f292b317beecf5ff507459f9ee1e0d016894e7095f"
     },
     "raw_inputs": [
       {
@@ -40,9 +40,9 @@
       {
         "token_id": "67641397102605806228361374843080866800323545226688452157631077923438116186153",
         "threshold": 1.4,
-        "midpoint": "0.975",
-        "best_bid": "0.971",
-        "best_ask": "0.979",
+        "midpoint": "0.9735",
+        "best_bid": "0.969",
+        "best_ask": "0.978",
         "volume": 583111.8772870003
       },
       {
@@ -56,25 +56,25 @@
       {
         "token_id": "80822496881187464044904323930735374814391442763100022480297070361136099568761",
         "threshold": 1.8,
-        "midpoint": "0.855",
+        "midpoint": "0.86",
         "best_bid": "0.85",
-        "best_ask": "0.86",
+        "best_ask": "0.87",
         "volume": 1383056.4734790006
       },
       {
         "token_id": "24494863133770522194823998325054645494170592486152552684138196424979801803141",
         "threshold": 2,
-        "midpoint": "0.735",
-        "best_bid": "0.73",
-        "best_ask": "0.74",
+        "midpoint": "0.745",
+        "best_bid": "0.74",
+        "best_ask": "0.75",
         "volume": 1549165.9595300085
       },
       {
         "token_id": "24072803866223209204149583292380503594462879571215445980530727827404541949542",
         "threshold": 2.2,
         "midpoint": "0.485",
-        "best_bid": "0.47",
-        "best_ask": "0.5",
+        "best_bid": "0.48",
+        "best_ask": "0.49",
         "volume": 847437.827199001
       },
       {
@@ -96,9 +96,9 @@
       {
         "token_id": "82401981844570459445359822314569677854555896567740320197589353169069933841639",
         "threshold": 2.8,
-        "midpoint": "0.1",
+        "midpoint": "0.095",
         "best_bid": "0.09",
-        "best_ask": "0.11",
+        "best_ask": "0.1",
         "volume": 592921.9087940003
       },
       {
@@ -112,16 +112,16 @@
       {
         "token_id": "20355017105238902441463382948256977165790622115934877551667602544354048330506",
         "threshold": 3.2,
-        "midpoint": "0.0535",
-        "best_bid": "0.051",
-        "best_ask": "0.056",
+        "midpoint": "0.0545",
+        "best_bid": "0.052",
+        "best_ask": "0.057",
         "volume": 424337.23182399996
       },
       {
         "token_id": "19952439152492058516345781992393757369305199157113455033097368737586861079173",
         "threshold": 3.4,
-        "midpoint": "0.045",
-        "best_bid": "0.043",
+        "midpoint": "0.0455",
+        "best_bid": "0.044",
         "best_ask": "0.047",
         "volume": 183908.676146
       },
@@ -136,35 +136,35 @@
       {
         "token_id": "53593187055088847093851414735087112492033188134263059141870686360005973946609",
         "threshold": 3.8,
-        "midpoint": "0.018",
-        "best_bid": "0.016",
-        "best_ask": "0.02",
+        "midpoint": "0.017",
+        "best_bid": "0.015",
+        "best_ask": "0.019",
         "volume": 199724.56006499988
       },
       {
         "token_id": "25759554244493354767227852844420516405380702219740675120053478060935865126097",
         "threshold": 4,
-        "midpoint": "0.014",
-        "best_bid": "0.012",
+        "midpoint": "0.0145",
+        "best_bid": "0.013",
         "best_ask": "0.016",
         "volume": 610124.9413259954
       }
     ],
     "derived": {
-      "implied_median": 2.188,
-      "implied_mean": 2.263175,
+      "implied_median": 2.1884615384615387,
+      "implied_mean": 2.2652249999999996,
       "iqr": {
-        "p25": 1.975,
+        "p25": 1.991304347826087,
         "p75": 2.4699999999999998
       },
       "total_volume": 13161470.334390005,
       "adjustment": {
         "monotonicity_violations": 0,
-        "max_adjustment": 1.1102230246251565e-16
+        "max_adjustment": 6.938893903907228e-18
       },
       "confidence": {
         "tier": "high",
-        "score": 0.977,
+        "score": 0.98,
         "reasons": [
           "full threshold set, monotonic, tight spreads, deep books"
         ]
@@ -186,17 +186,17 @@
           "raw_prob": 0.9915,
           "adjusted_prob": 0.9915,
           "prob": 0.9915,
-          "bucket_prob": 0.01650000000000018,
+          "bucket_prob": 0.018000000000000016,
           "volume": 612401.6157630009,
           "volume_tier": "med"
         },
         {
           "label": ">$1.4T",
           "threshold": 1.4,
-          "raw_prob": 0.975,
-          "adjusted_prob": 0.9749999999999999,
-          "prob": 0.9749999999999999,
-          "bucket_prob": 0.02499999999999991,
+          "raw_prob": 0.9735,
+          "adjusted_prob": 0.9735,
+          "prob": 0.9735,
+          "bucket_prob": 0.023500000000000076,
           "volume": 583111.8772870003,
           "volume_tier": "med"
         },
@@ -206,27 +206,27 @@
           "raw_prob": 0.95,
           "adjusted_prob": 0.95,
           "prob": 0.95,
-          "bucket_prob": 0.09499999999999997,
+          "bucket_prob": 0.08999999999999997,
           "volume": 777115.8196629997,
           "volume_tier": "med"
         },
         {
           "label": ">$1.8T",
           "threshold": 1.8,
-          "raw_prob": 0.855,
-          "adjusted_prob": 0.855,
-          "prob": 0.855,
-          "bucket_prob": 0.12,
+          "raw_prob": 0.86,
+          "adjusted_prob": 0.86,
+          "prob": 0.86,
+          "bucket_prob": 0.11499999999999999,
           "volume": 1383056.4734790006,
           "volume_tier": "high"
         },
         {
           "label": ">$2T",
           "threshold": 2,
-          "raw_prob": 0.735,
-          "adjusted_prob": 0.735,
-          "prob": 0.735,
-          "bucket_prob": 0.25,
+          "raw_prob": 0.745,
+          "adjusted_prob": 0.745,
+          "prob": 0.745,
+          "bucket_prob": 0.26,
           "volume": 1549165.9595300085,
           "volume_tier": "high"
         },
@@ -256,17 +256,17 @@
           "raw_prob": 0.185,
           "adjusted_prob": 0.185,
           "prob": 0.185,
-          "bucket_prob": 0.08499999999999999,
+          "bucket_prob": 0.09,
           "volume": 860157.0898790001,
           "volume_tier": "high"
         },
         {
           "label": ">$2.8T",
           "threshold": 2.8,
-          "raw_prob": 0.1,
-          "adjusted_prob": 0.1,
-          "prob": 0.1,
-          "bucket_prob": 0.020000000000000004,
+          "raw_prob": 0.095,
+          "adjusted_prob": 0.095,
+          "prob": 0.095,
+          "bucket_prob": 0.015,
           "volume": 592921.9087940003,
           "volume_tier": "med"
         },
@@ -276,27 +276,27 @@
           "raw_prob": 0.08,
           "adjusted_prob": 0.08,
           "prob": 0.08,
-          "bucket_prob": 0.026500000000000003,
+          "bucket_prob": 0.025500000000000002,
           "volume": 2164017.646987001,
           "volume_tier": "high"
         },
         {
           "label": ">$3.2T",
           "threshold": 3.2,
-          "raw_prob": 0.0535,
-          "adjusted_prob": 0.0535,
-          "prob": 0.0535,
-          "bucket_prob": 0.0085,
+          "raw_prob": 0.0545,
+          "adjusted_prob": 0.0545,
+          "prob": 0.0545,
+          "bucket_prob": 0.009000000000000008,
           "volume": 424337.23182399996,
           "volume_tier": "low"
         },
         {
           "label": ">$3.4T",
           "threshold": 3.4,
-          "raw_prob": 0.045,
-          "adjusted_prob": 0.045,
-          "prob": 0.045,
-          "bucket_prob": 0.016499999999999997,
+          "raw_prob": 0.0455,
+          "adjusted_prob": 0.04549999999999999,
+          "prob": 0.04549999999999999,
+          "bucket_prob": 0.01699999999999999,
           "volume": 183908.676146,
           "volume_tier": "low"
         },
@@ -306,69 +306,69 @@
           "raw_prob": 0.0285,
           "adjusted_prob": 0.0285,
           "prob": 0.0285,
-          "bucket_prob": 0.010500000000000002,
+          "bucket_prob": 0.0115,
           "volume": 152230.763843,
           "volume_tier": "low"
         },
         {
           "label": ">$3.8T",
           "threshold": 3.8,
-          "raw_prob": 0.018,
-          "adjusted_prob": 0.018,
-          "prob": 0.018,
-          "bucket_prob": 0.003999999999999998,
+          "raw_prob": 0.017,
+          "adjusted_prob": 0.017,
+          "prob": 0.017,
+          "bucket_prob": 0.0025000000000000022,
           "volume": 199724.56006499988,
           "volume_tier": "low"
         },
         {
           "label": ">$4T",
           "threshold": 4,
-          "raw_prob": 0.014,
-          "adjusted_prob": 0.014,
-          "prob": 0.014,
-          "bucket_prob": 0.014,
+          "raw_prob": 0.0145,
+          "adjusted_prob": 0.014499999999999999,
+          "prob": 0.014499999999999999,
+          "bucket_prob": 0.014499999999999999,
           "volume": 610124.9413259954,
           "volume_tier": "med"
         }
       ],
       "median": {
-        "central": 2.188,
-        "low": 2.176923076923077,
-        "high": 2.2
+        "central": 2.1884615384615387,
+        "low": 2.184615384615385,
+        "high": 2.1923076923076925
       },
       "mean": {
-        "central": 2.263175,
-        "low": 2.26155,
-        "high": 2.2662,
-        "width": 0.004649999999999821,
+        "central": 2.2652249999999996,
+        "low": 2.2635499999999995,
+        "high": 2.26835,
+        "width": 0.0048000000000003595,
         "tail_insensitive": true
       },
       "freshness": {
-        "as_of": "2026-06-12T13:40:42.765Z",
+        "as_of": "2026-06-12T13:43:14.358Z",
         "staleness_threshold_hours": 17,
-        "stale_after": "2026-06-13T06:40:42.765Z",
+        "stale_after": "2026-06-13T06:43:14.358Z",
         "expected_cadence": "every 2h, 12:00–00:00 UTC (overnight pause 00:00–12:00 UTC), incl. weekends",
         "policy": "Considered stale 17h after as_of (= max scheduled gap 12h overnight pause + 2h one missed run + 3h queue jitter). Live age = now − as_of; stale = now > stale_after."
       },
       "market": {
         "analytics": {
           "shape": {
-            "skew_bowley": 0.139,
-            "tail_ratio": 2.212,
-            "fat_tail": 1.164,
-            "entropy": 0.778,
-            "gini": 0.596,
+            "skew_bowley": 0.176,
+            "tail_ratio": 2.251,
+            "fat_tail": 1.185,
+            "entropy": 0.772,
+            "gini": 0.602,
             "dominant_bucket": {
               "label": "$2–2.2T",
-              "prob": 0.25
+              "prob": 0.26
             }
           },
           "dispersion": {
-            "iqr_width": 0.495,
+            "iqr_width": 0.479,
             "width_7d": 0.553,
             "width_30d": 0.897,
-            "change_7d": -0.058,
-            "change_30d": -0.402,
+            "change_7d": -0.074,
+            "change_30d": -0.418,
             "trend": "converging"
           },
           "velocity": {
@@ -398,8 +398,8 @@
             "standing_forecast": {
               "as_of": "2026-06-12",
               "median": 2.19,
-              "prob_1_8t": 0.855,
-              "prob_2_0t": 0.735,
+              "prob_1_8t": 0.86,
+              "prob_2_0t": 0.745,
               "prob_2_4t": 0.285
             }
           },
@@ -584,9 +584,9 @@
           "unit": "percent",
           "basis": "implied IPO-close median vs last reported valuation",
           "implied_change_pct": {
-            "central": 173.5,
-            "low": 173.5,
-            "high": 191.7
+            "central": 173.6,
+            "low": 173.6,
+            "high": 191.8
           },
           "assumptions": [
             {
@@ -607,9 +607,9 @@
           ]
         }
       },
-      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.19T, broadly flat over the past month and up $0.06T this week. The largest single concentration of probability (25%) sits in the $2–2.2T range, with a longer upside tail. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.",
+      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.19T, broadly flat over the past month and up $0.06T this week. The largest single concentration of probability (26%) sits in the $2–2.2T range, with a longer upside tail. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.",
       "narrative_components": {
-        "median_now": 2.188,
+        "median_now": 2.1884615384615387,
         "change_7d": {
           "abs": 0.06,
           "dir": "up"
@@ -621,7 +621,7 @@
         "divergence": null,
         "dominant_bucket": {
           "label": "$2–2.2T",
-          "prob": 0.25
+          "prob": 0.26
         },
         "dispersion_trend": "converging",
         "skew": "a longer upside tail",
