@@ -43,8 +43,13 @@ export function impliedSharePrice(capT, shares, sharesRange) {
   let low = central, high = central;
   if (Array.isArray(sharesRange) && sharesRange.length === 2 && sharesRange.every(ok)) {
     const [sLow, sHigh] = sharesRange;
-    low = Math.round(capUsd / sHigh); // most shares → lowest price
-    high = Math.round(capUsd / sLow); // fewest shares → highest price
+    // min/max rather than trusting bound order: a transposed hand-edited range
+    // (red-team probe B) would otherwise publish a malformed band (low > high) —
+    // the round_over_round pct band already orders this way.
+    const a = Math.round(capUsd / sHigh); // most shares → lowest price
+    const b = Math.round(capUsd / sLow); // fewest shares → highest price
+    low = Math.min(a, b);
+    high = Math.max(a, b);
   }
   return { central, low, high };
 }

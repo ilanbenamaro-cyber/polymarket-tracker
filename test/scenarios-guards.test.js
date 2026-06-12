@@ -42,6 +42,12 @@ test('impliedSharePrice: bad range degrades to a point estimate, not a band', ()
   assert.equal(out.high, out.central, 'high collapses to central');
 });
 
+test('impliedSharePrice: a TRANSPOSED range still yields an ordered band (red-team probe B)', () => {
+  const out = impliedSharePrice(2.1, 1.9e9, [2.1e9, 1.7e9]); // bounds swapped in the registry
+  assert.ok(out.low <= out.central && out.central <= out.high,
+    `band must be ordered: ${JSON.stringify(out)}`);
+});
+
 test('impliedSharePrice: a valid range still inverts (more shares → lower price)', () => {
   const out = impliedSharePrice(2.1, 1.9e9, [1.7e9, 2.1e9]);
   assert.equal(out.low, Math.round(2.1e12 / 2.1e9));
