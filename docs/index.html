@@ -383,10 +383,13 @@
   });
 
   // Colored delta span from a STORED velocity change object (single source — D1).
-  function velDelta(ch){ if(!ch||ch.abs==null) return '<span class="flat">—</span>';
-    if(ch.dir==='flat') return '<span class="flat">flat</span>';
-    const c=ch.dir==='up'?'up':'down', ar=ch.dir==='up'?'↑ ':'↓ ';
-    return '<span class="'+c+'">'+ar+'$'+Math.abs(ch.abs).toFixed(2)+'T</span>'; }
+  // Renders the stored `display` (set in core via fmtSignedDeltaT) VERBATIM —
+  // never re-formats from abs/dir, which is how D1 re-derivation drift happens
+  // (dir's flat-eps disagrees with display near ±$0.02T).
+  function velDelta(ch){ if(!ch||ch.display==null) return '<span class="flat">—</span>';
+    if(ch.display==='flat') return '<span class="flat">flat</span>';
+    const up=ch.display.charAt(0)==='+', c=up?'up':'down', ar=up?'↑ ':'↓ ';
+    return '<span class="'+c+'">'+ar+ch.display.slice(1)+'</span>'; }
 
   // ── CARDS ──
   function renderCards(){
