@@ -109,7 +109,7 @@ jobs:
 
       - name: Send emails
         if: env.MODE == 'market-open' || env.MODE == 'market-close'
-        run: node scripts/send-emails.js "$MODE" docs/data.json
+        run: node scripts/send-emails.js "$MODE"
         env:
           GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
           GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}

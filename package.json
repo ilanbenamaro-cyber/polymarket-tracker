@@ -5,7 +5,7 @@
   "main": "tracker.js",
   "scripts": {
     "start": "node tracker.js",
-    "update-data": "node scripts/update-data.js",
+    "snapshot": "node scripts/snapshot.js",
     "send-emails": "node scripts/send-emails.js",
     "subscribe": "node scripts/add-subscriber.js"
   },

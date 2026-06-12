@@ -1,19 +1,24 @@
 // scripts/send-emails.js — send digest (+ alert) emails to Gist subscribers.
 //
 // Why this exists: invoked by the update workflow on market-open and
-// market-close ticks (after update-data.js has already written today's entry
-// to docs/data.json). It reads the active subscriber list from a private Gist,
-// sends every subscriber the daily digest, and — if any threshold moved ≥5%
-// day-over-day — a separate movement alert.
+// market-close ticks (after scripts/snapshot.js has published the canonical
+// API). It reads its inputs from docs/api/v1 — latest.json (current record)
+// and history-full.json (prior-day comparison) — the one source of truth;
+// the old docs/data.json + update-data.js pair was deleted in ab361c8
+// (audit P1-1: this script still read the deleted file).
 //
-// Usage: node scripts/send-emails.js <market-open|market-close> <data-json-path>
+// Usage: node scripts/send-emails.js <market-open|market-close> [api-dir]
+//   api-dir defaults to docs/api/v1.
 
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { sendEmail } from '../email.js';
 import { buildDigestEmail, buildAlertEmail } from '../templates.js';
 
 const SIGNIFICANT_DELTA = 0.05;
+const DEFAULT_API_DIR = 'docs/api/v1';
 const GIST_API = (id) => `https://api.github.com/gists/${id}`;
 
 /**
@@ -47,7 +52,7 @@ async function getSubscribers() {
 }
 
 /** Thresholds whose probability moved ≥5% absolute between prior and current. */
-function detectSignificantMoves(current, prior) {
+export function detectSignificantMoves(current, prior) {
   if (!prior) return [];
   const priorMap = new Map(prior.markets.map((m) => [m.threshold, m.prob]));
   const moves = [];
@@ -62,6 +67,37 @@ function detectSignificantMoves(current, prior) {
   return moves;
 }
 
+/**
+ * Map the canonical API record + full history into digest inputs.
+ * Pure (exported for tests).
+ *
+ * `prior` is the last history entry whose date is STRICTLY BEFORE the current
+ * record's date: history-full is ASCENDING with same-day replace, so today's
+ * own entry is the last element and must be skipped — a naive `history[1]`
+ * port of the old descending data.json convention would compare today to
+ * itself (audit P1-1).
+ */
+export function buildDigestInputs(latest, historyFull) {
+  const d = latest?.snapshot?.derived;
+  if (!d || !Array.isArray(d.markets)) {
+    throw new Error('latest.json malformed: snapshot.derived.markets missing');
+  }
+  const date = latest.snapshot.fetched_at.slice(0, 10);
+  const current = { date, markets: d.markets, implied_median: d.implied_median };
+
+  let prior = null;
+  if (Array.isArray(historyFull)) {
+    for (let i = historyFull.length - 1; i >= 0; i--) {
+      const e = historyFull[i];
+      if (e && e.date < date) {
+        prior = { date: e.date, markets: e.markets, implied_median: e.implied_median };
+        break;
+      }
+    }
+  }
+  return { current, prior };
+}
+
 async function main() {
   if (!process.env.GRAPH_TENANT_ID) {
     console.log('Email credentials not configured — skipping email send');
@@ -69,26 +105,17 @@ async function main() {
   }
 
   const mode = process.argv[2];
-  const dataPath = process.argv[3];
+  const apiDir = process.argv[3] || DEFAULT_API_DIR;
   if (mode !== 'market-open' && mode !== 'market-close') {
     console.error(`Invalid mode "${mode}" (expected market-open|market-close)`);
     process.exit(1);
   }
-  if (!dataPath) {
-    console.error('Missing data-json path argument');
-    process.exit(1);
-  }
 
-  const data = JSON.parse(readFileSync(dataPath, 'utf8'));
-  const current = data.current;
-  if (!current) {
-    console.error('data.json has no current entry — run update-data.js first');
-    process.exit(1);
-  }
-
-  // update-data.js has already placed today at history[0]; the prior trading
-  // day is therefore history[1] for both modes (day-over-day comparison).
-  const prior = data.history?.[1] ?? null;
+  const latest = JSON.parse(readFileSync(join(apiDir, 'latest.json'), 'utf8'));
+  const historyFull = JSON.parse(
+    readFileSync(join(apiDir, 'history-full.json'), 'utf8')
+  );
+  const { current, prior } = buildDigestInputs(latest, historyFull);
   const moves = detectSignificantMoves(current, prior);
 
   const subscribers = await getSubscribers();
@@ -129,7 +156,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
+// Only run when executed directly — the pure helpers above are imported by
+// tests, and main()'s credentials guard calls process.exit.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+}
