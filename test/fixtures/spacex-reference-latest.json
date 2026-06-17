@@ -1,0 +1,634 @@
+{
+  "schema_version": "1.2.1",
+  "methodology_version": "1.3.0",
+  "asset": {
+    "id": "spacex-ipo-market-cap",
+    "name": "SpaceX IPO closing market cap",
+    "platform": "polymarket",
+    "market_url": "https://polymarket.com/event/spacex-ipo-closing-market-cap-above",
+    "resolves": "2027-12-31"
+  },
+  "snapshot": {
+    "snapshot_id": "2026-06-12T20:08:39.805Z",
+    "fetched_at": "2026-06-12T20:08:39.805Z",
+    "source": {
+      "provider": "Polymarket",
+      "endpoints": [
+        "https://gamma-api.polymarket.com/events?slug=spacex-ipo-closing-market-cap-above",
+        "https://clob.polymarket.com/midpoints",
+        "https://clob.polymarket.com/prices"
+      ],
+      "raw_sha256": "c1be52e4af45aa6e6d6be6e81c9bc6a96f4274990020fefa2f834449bab89003"
+    },
+    "raw_inputs": [
+      {
+        "token_id": "86511993606190995539996371064900122466738869186406355817612580895605974257272",
+        "threshold": 1,
+        "midpoint": "0.9995",
+        "best_bid": "0.999",
+        "best_ask": "1",
+        "volume": 1116836.2204230013
+      },
+      {
+        "token_id": "75003753002679923894537312357172113105853115281332544195556791407917452165923",
+        "threshold": 1.2,
+        "midpoint": "0.9995",
+        "best_bid": "0.999",
+        "best_ask": "1",
+        "volume": 746189.2644160012
+      },
+      {
+        "token_id": "67641397102605806228361374843080866800323545226688452157631077923438116186153",
+        "threshold": 1.4,
+        "midpoint": "0.9995",
+        "best_bid": "0.999",
+        "best_ask": "1",
+        "volume": 698498.8374390004
+      },
+      {
+        "token_id": "2818609015308428141360442152525230687041966194776736323729988983894064824317",
+        "threshold": 1.6,
+        "midpoint": "0.9995",
+        "best_bid": "0.999",
+        "best_ask": "1",
+        "volume": 994844.0036889979
+      },
+      {
+        "token_id": "80822496881187464044904323930735374814391442763100022480297070361136099568761",
+        "threshold": 1.8,
+        "midpoint": "0.9995",
+        "best_bid": "0.999",
+        "best_ask": "1",
+        "volume": 2054681.5921989982
+      },
+      {
+        "token_id": "24494863133770522194823998325054645494170592486152552684138196424979801803141",
+        "threshold": 2,
+        "midpoint": "0.9975",
+        "best_bid": "0.997",
+        "best_ask": "0.998",
+        "volume": 2716467.4051560094
+      },
+      {
+        "token_id": "24072803866223209204149583292380503594462879571215445980530727827404541949542",
+        "threshold": 2.2,
+        "midpoint": "0.0025",
+        "best_bid": "0.002",
+        "best_ask": "0.003",
+        "volume": 1820914.737192001
+      },
+      {
+        "token_id": "85294664825849314487313365791347030043756540349828467333196722835374988656717",
+        "threshold": 2.4,
+        "midpoint": "0.001",
+        "best_bid": "0",
+        "best_ask": "0.002",
+        "volume": 1846589.0663979992
+      },
+      {
+        "token_id": "71159046706559946614838550297854568404887218587719425214188523542407764628668",
+        "threshold": 2.6,
+        "midpoint": "0.001",
+        "best_bid": "0",
+        "best_ask": "0.002",
+        "volume": 1230516.4059409988
+      },
+      {
+        "token_id": "82401981844570459445359822314569677854555896567740320197589353169069933841639",
+        "threshold": 2.8,
+        "midpoint": "0.001",
+        "best_bid": "0",
+        "best_ask": "0.002",
+        "volume": 761667.7644770006
+      },
+      {
+        "token_id": "55958836263606977559718392614296122222017017739103942039630390156504843811835",
+        "threshold": 3,
+        "midpoint": "0.001",
+        "best_bid": "0",
+        "best_ask": "0.002",
+        "volume": 2514234.067500998
+      },
+      {
+        "token_id": "20355017105238902441463382948256977165790622115934877551667602544354048330506",
+        "threshold": 3.2,
+        "midpoint": "0.0005",
+        "best_bid": "0",
+        "best_ask": "0.001",
+        "volume": 553244.450751
+      },
+      {
+        "token_id": "19952439152492058516345781992393757369305199157113455033097368737586861079173",
+        "threshold": 3.4,
+        "midpoint": "0.0005",
+        "best_bid": "0",
+        "best_ask": "0.001",
+        "volume": 285581.6791990016
+      },
+      {
+        "token_id": "13239224692851584317493411015500621538218114755684151078659969827060653888092",
+        "threshold": 3.6,
+        "midpoint": "0.0005",
+        "best_bid": "0",
+        "best_ask": "0.001",
+        "volume": 212370.98607699992
+      },
+      {
+        "token_id": "53593187055088847093851414735087112492033188134263059141870686360005973946609",
+        "threshold": 3.8,
+        "midpoint": "0.0005",
+        "best_bid": "0",
+        "best_ask": "0.001",
+        "volume": 287311.8553379995
+      },
+      {
+        "token_id": "25759554244493354767227852844420516405380702219740675120053478060935865126097",
+        "threshold": 4,
+        "midpoint": "0.0005",
+        "best_bid": "0",
+        "best_ask": "0.001",
+        "volume": 940185.0685539955
+      }
+    ],
+    "derived": {
+      "implied_median": 2.1,
+      "implied_mean": 2.1009250000000006,
+      "iqr": {
+        "p25": 2.049748743718593,
+        "p75": 2.150251256281407
+      },
+      "total_volume": 18780133.40475,
+      "adjustment": {
+        "monotonicity_violations": 0,
+        "max_adjustment": 1.1102230246251565e-16
+      },
+      "confidence": {
+        "tier": "high",
+        "score": 0.997,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads, deep books"
+        ]
+      },
+      "markets": [
+        {
+          "label": ">$1T",
+          "threshold": 1,
+          "raw_prob": 0.9995,
+          "adjusted_prob": 0.9995,
+          "prob": 0.9995,
+          "bucket_prob": 0,
+          "volume": 1116836.2204230013,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$1.2T",
+          "threshold": 1.2,
+          "raw_prob": 0.9995,
+          "adjusted_prob": 0.9995,
+          "prob": 0.9995,
+          "bucket_prob": 0,
+          "volume": 746189.2644160012,
+          "volume_tier": "med"
+        },
+        {
+          "label": ">$1.4T",
+          "threshold": 1.4,
+          "raw_prob": 0.9995,
+          "adjusted_prob": 0.9995,
+          "prob": 0.9995,
+          "bucket_prob": 0,
+          "volume": 698498.8374390004,
+          "volume_tier": "med"
+        },
+        {
+          "label": ">$1.6T",
+          "threshold": 1.6,
+          "raw_prob": 0.9995,
+          "adjusted_prob": 0.9995,
+          "prob": 0.9995,
+          "bucket_prob": 0,
+          "volume": 994844.0036889979,
+          "volume_tier": "med"
+        },
+        {
+          "label": ">$1.8T",
+          "threshold": 1.8,
+          "raw_prob": 0.9995,
+          "adjusted_prob": 0.9995,
+          "prob": 0.9995,
+          "bucket_prob": 0.0019999999999998908,
+          "volume": 2054681.5921989982,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$2T",
+          "threshold": 2,
+          "raw_prob": 0.9975,
+          "adjusted_prob": 0.9975000000000002,
+          "prob": 0.9975000000000002,
+          "bucket_prob": 0.9950000000000002,
+          "volume": 2716467.4051560094,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$2.2T",
+          "threshold": 2.2,
+          "raw_prob": 0.0025,
+          "adjusted_prob": 0.0025,
+          "prob": 0.0025,
+          "bucket_prob": 0.0015,
+          "volume": 1820914.737192001,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$2.4T",
+          "threshold": 2.4,
+          "raw_prob": 0.001,
+          "adjusted_prob": 0.001,
+          "prob": 0.001,
+          "bucket_prob": 0,
+          "volume": 1846589.0663979992,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$2.6T",
+          "threshold": 2.6,
+          "raw_prob": 0.001,
+          "adjusted_prob": 0.001,
+          "prob": 0.001,
+          "bucket_prob": 0,
+          "volume": 1230516.4059409988,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$2.8T",
+          "threshold": 2.8,
+          "raw_prob": 0.001,
+          "adjusted_prob": 0.001,
+          "prob": 0.001,
+          "bucket_prob": 0,
+          "volume": 761667.7644770006,
+          "volume_tier": "med"
+        },
+        {
+          "label": ">$3T",
+          "threshold": 3,
+          "raw_prob": 0.001,
+          "adjusted_prob": 0.001,
+          "prob": 0.001,
+          "bucket_prob": 0.0005,
+          "volume": 2514234.067500998,
+          "volume_tier": "high"
+        },
+        {
+          "label": ">$3.2T",
+          "threshold": 3.2,
+          "raw_prob": 0.0005,
+          "adjusted_prob": 0.0005,
+          "prob": 0.0005,
+          "bucket_prob": 0,
+          "volume": 553244.450751,
+          "volume_tier": "low"
+        },
+        {
+          "label": ">$3.4T",
+          "threshold": 3.4,
+          "raw_prob": 0.0005,
+          "adjusted_prob": 0.0005,
+          "prob": 0.0005,
+          "bucket_prob": 0,
+          "volume": 285581.6791990016,
+          "volume_tier": "low"
+        },
+        {
+          "label": ">$3.6T",
+          "threshold": 3.6,
+          "raw_prob": 0.0005,
+          "adjusted_prob": 0.0005,
+          "prob": 0.0005,
+          "bucket_prob": 0,
+          "volume": 212370.98607699992,
+          "volume_tier": "low"
+        },
+        {
+          "label": ">$3.8T",
+          "threshold": 3.8,
+          "raw_prob": 0.0005,
+          "adjusted_prob": 0.0005,
+          "prob": 0.0005,
+          "bucket_prob": 0,
+          "volume": 287311.8553379995,
+          "volume_tier": "low"
+        },
+        {
+          "label": ">$4T",
+          "threshold": 4,
+          "raw_prob": 0.0005,
+          "adjusted_prob": 0.0005,
+          "prob": 0.0005,
+          "bucket_prob": 0.0005,
+          "volume": 940185.0685539955,
+          "volume_tier": "med"
+        }
+      ],
+      "median": {
+        "central": 2.1,
+        "low": 2.099899497487437,
+        "high": 2.100100502512563
+      },
+      "mean": {
+        "central": 2.1009250000000006,
+        "low": 2.10085,
+        "high": 2.1010500000000003,
+        "width": 0.00020000000000042206,
+        "tail_insensitive": true
+      },
+      "freshness": {
+        "as_of": "2026-06-12T20:08:39.805Z",
+        "staleness_threshold_hours": 17,
+        "stale_after": "2026-06-13T13:08:39.805Z",
+        "expected_cadence": "every 2h, 12:00–00:00 UTC (overnight pause 00:00–12:00 UTC), incl. weekends",
+        "policy": "Considered stale 17h after as_of (= max scheduled gap 12h overnight pause + 2h one missed run + 3h queue jitter). Live age = now − as_of; stale = now > stale_after."
+      },
+      "market": {
+        "analytics": {
+          "shape": {
+            "skew_bowley": 0,
+            "tail_ratio": 1.6,
+            "fat_tail": 0.842,
+            "entropy": 0.014,
+            "gini": 0.94,
+            "dominant_bucket": {
+              "label": "$2–2.2T",
+              "prob": 0.995
+            }
+          },
+          "dispersion": {
+            "iqr_width": 0.101,
+            "width_7d": 0.553,
+            "width_30d": 0.897,
+            "change_7d": -0.453,
+            "change_30d": -0.796,
+            "trend": "converging"
+          },
+          "velocity": {
+            "change_24h": {
+              "abs": -0.08,
+              "dir": "down",
+              "display": "-$0.08T"
+            },
+            "change_7d": {
+              "abs": -0.03,
+              "dir": "down",
+              "display": "-$0.03T"
+            },
+            "change_30d": {
+              "abs": -0.07,
+              "dir": "down",
+              "display": "-$0.07T"
+            },
+            "drift_7d_annualized": -1.564,
+            "drift_30d_annualized": -0.852,
+            "acceleration": "steady"
+          },
+          "calibration": {
+            "status": "pending_resolution",
+            "resolves": "2027-12-31",
+            "note": "The market resolves once, at IPO close. A true calibration / Brier score is impossible before resolution; this records the standing forecast so it can be scored when the outcome is known. No score is computed now.",
+            "standing_forecast": {
+              "as_of": "2026-06-12",
+              "median": 2.1,
+              "prob_1_8t": 0.9995,
+              "prob_2_0t": 0.9975000000000002,
+              "prob_2_4t": 0.001
+            }
+          },
+          "descriptor": "tight consensus; roughly symmetric; mass centred on $2–2.2T; band converging."
+        }
+      },
+      "scenarios": {
+        "assumptions_version": "1.0.0",
+        "share_price": {
+          "unit": "USD_per_share",
+          "formula": "implied_share_price = market_cap / shares_outstanding",
+          "at_median": {
+            "central": 1105,
+            "low": 1000,
+            "high": 1235
+          },
+          "ladder": [
+            {
+              "threshold": 1,
+              "cap_t": 1,
+              "price": {
+                "central": 526,
+                "low": 476,
+                "high": 588
+              }
+            },
+            {
+              "threshold": 1.2,
+              "cap_t": 1.2,
+              "price": {
+                "central": 632,
+                "low": 571,
+                "high": 706
+              }
+            },
+            {
+              "threshold": 1.4,
+              "cap_t": 1.4,
+              "price": {
+                "central": 737,
+                "low": 667,
+                "high": 824
+              }
+            },
+            {
+              "threshold": 1.6,
+              "cap_t": 1.6,
+              "price": {
+                "central": 842,
+                "low": 762,
+                "high": 941
+              }
+            },
+            {
+              "threshold": 1.8,
+              "cap_t": 1.8,
+              "price": {
+                "central": 947,
+                "low": 857,
+                "high": 1059
+              }
+            },
+            {
+              "threshold": 2,
+              "cap_t": 2,
+              "price": {
+                "central": 1053,
+                "low": 952,
+                "high": 1176
+              }
+            },
+            {
+              "threshold": 2.2,
+              "cap_t": 2.2,
+              "price": {
+                "central": 1158,
+                "low": 1048,
+                "high": 1294
+              }
+            },
+            {
+              "threshold": 2.4,
+              "cap_t": 2.4,
+              "price": {
+                "central": 1263,
+                "low": 1143,
+                "high": 1412
+              }
+            },
+            {
+              "threshold": 2.6,
+              "cap_t": 2.6,
+              "price": {
+                "central": 1368,
+                "low": 1238,
+                "high": 1529
+              }
+            },
+            {
+              "threshold": 2.8,
+              "cap_t": 2.8,
+              "price": {
+                "central": 1474,
+                "low": 1333,
+                "high": 1647
+              }
+            },
+            {
+              "threshold": 3,
+              "cap_t": 3,
+              "price": {
+                "central": 1579,
+                "low": 1429,
+                "high": 1765
+              }
+            },
+            {
+              "threshold": 3.2,
+              "cap_t": 3.2,
+              "price": {
+                "central": 1684,
+                "low": 1524,
+                "high": 1882
+              }
+            },
+            {
+              "threshold": 3.4,
+              "cap_t": 3.4,
+              "price": {
+                "central": 1789,
+                "low": 1619,
+                "high": 2000
+              }
+            },
+            {
+              "threshold": 3.6,
+              "cap_t": 3.6,
+              "price": {
+                "central": 1895,
+                "low": 1714,
+                "high": 2118
+              }
+            },
+            {
+              "threshold": 3.8,
+              "cap_t": 3.8,
+              "price": {
+                "central": 2000,
+                "low": 1810,
+                "high": 2235
+              }
+            },
+            {
+              "threshold": 4,
+              "cap_t": 4,
+              "price": {
+                "central": 2105,
+                "low": 1905,
+                "high": 2353
+              }
+            }
+          ],
+          "assumptions": [
+            {
+              "name": "SpaceX shares outstanding (implied, ~fully diluted)",
+              "value": 1900000000,
+              "unit": "shares",
+              "source": "Reuters, 'SpaceX insider share sale sets $800 billion valuation' (Dec 13, 2025): implied from a reported ~$800B valuation at $421/share (800e9 / 421 ≈ 1.90B).",
+              "source_url": "https://www.reuters.com/business/spacex-sets-800-billion-valuation-bloomberg-news-reports-2025-12-13/",
+              "as_of": "2025-12-13",
+              "confidence": "low",
+              "adjustable": true,
+              "range": [
+                1700000000,
+                2100000000
+              ],
+              "note": "Private company — share count not officially disclosed. Implied from a reported insider tender, not a filing. Basic vs fully-diluted differ materially; treat as a rough public anchor, not precision. A tender is secondary liquidity, included here only as a press-reported estimate."
+            }
+          ]
+        },
+        "round_over_round": {
+          "unit": "percent",
+          "basis": "implied IPO-close median vs last reported valuation",
+          "implied_change_pct": {
+            "central": 162.5,
+            "low": 162.5,
+            "high": 180
+          },
+          "assumptions": [
+            {
+              "name": "SpaceX last reported valuation (Dec 2025 insider tender)",
+              "value": 0.8,
+              "unit": "USD_trillions",
+              "source": "Reuters, 'SpaceX insider share sale sets $800 billion valuation' (Dec 13, 2025).",
+              "source_url": "https://www.reuters.com/business/spacex-sets-800-billion-valuation-bloomberg-news-reports-2025-12-13/",
+              "as_of": "2025-12-13",
+              "confidence": "low",
+              "adjustable": true,
+              "range": [
+                0.75,
+                0.8
+              ],
+              "note": "Reported insider/secondary tender valuation, not a primary raise. A rough public anchor for round-over-round context only."
+            }
+          ]
+        }
+      },
+      "narrative": "The market values SpaceX's IPO-closing cap at a median $2.10T, down $0.07T over the past month and down $0.03T this week. The largest single concentration of probability (100%) sits in the $2–2.2T range. The 25–75% band is narrowing — the market is converging on a view. Confidence is high.",
+      "narrative_components": {
+        "median_now": 2.1,
+        "change_7d": {
+          "abs": -0.03,
+          "dir": "down"
+        },
+        "change_30d": {
+          "abs": -0.07,
+          "dir": "down"
+        },
+        "divergence": null,
+        "dominant_bucket": {
+          "label": "$2–2.2T",
+          "prob": 0.9950000000000002
+        },
+        "dispersion_trend": "converging",
+        "skew": null,
+        "confidence_tier": "high",
+        "confidence_caveat": null
+      }
+    }
+  },
+  "assumptions_version": "1.0.0"
+}
