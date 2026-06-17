@@ -4,6 +4,19 @@
 > The "why" behind decisions lives in `.workflows/_knowledge/decisions.md`;
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
+## ⮕ DIRECTION (2026-06-17): pivot to multi-market hosted product
+- **The product is generalizing** from the single SpaceX market into a **hosted multi-market** product
+  on **Vercel (frontend + serverless `core/`) + Supabase (DB/auth/realtime)**; Polymarket unchanged.
+  First pass scopes to **threshold-ladder events** (SpaceX = one instance); binary markets deferred.
+- **Design is approved & committed:** `docs/ARCHITECTURE.md` (10 sections + phased build plan). Read
+  it before any rebuild work. The governing principle: **the verified pipeline runs on the backend,
+  on demand + cached** — every served number is still `core/`-computed, firewall-checked, validated,
+  hashed. See [[decisions]] "PIVOT".
+- **Next pass = Phase 1**: `core/` generalization (parameterize the SpaceX-hardcoded bits — see
+  ARCHITECTURE §1.2) + the two-stage resolution guard (`closed_pending` vs confirmed `resolved`),
+  with a **blocking byte-identical-hash gate** (the generalized pipeline must reproduce the SpaceX
+  `raw_sha256` exactly). The v1 GitHub-Actions/Pages app below remains the live reference until then.
+
 ## Current state
 - **Live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/
 - Methodology **1.3.0**, schema **1.2.1**, assumptions **1.0.0** — all three embedded in every snapshot.
