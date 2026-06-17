@@ -82,20 +82,30 @@ export function withBucketProbs(markets) {
   }));
 }
 
+// Default bucket-label builders reproduce the historical "$…T" forms. A market
+// config supplies its own builders (core/market-config.js) for other units; the
+// defaults keep every existing caller (and SpaceX) byte-identical.
+const DEFAULT_LABELS = {
+  lt: (t) => `<$${t}T`,
+  between: (a, b) => `$${a}–${b}T`,
+  gt: (t) => `>$${t}T`,
+};
+
 /**
  * Full probability density including the "< lowest" bucket, as
  * Array<{ label, lo, hi, prob }>. Used for the density chart and for the
- * sum-to-1.0 validation. lo/hi are bucket bounds in $T (hi = Infinity for top).
+ * sum-to-1.0 validation. lo/hi are bucket bounds (hi = Infinity for top).
+ * `labels` overrides the bucket-label unit (defaults to the legacy "$…T").
  */
-export function computeDensity(snapshot) {
+export function computeDensity(snapshot, labels = DEFAULT_LABELS) {
   const s = normalize(snapshot);
   if (s.length === 0) return [];
-  const out = [{ label: `<$${s[0].threshold}T`, lo: 0, hi: s[0].threshold, prob: 1 - s[0].prob }];
+  const out = [{ label: labels.lt(s[0].threshold), lo: 0, hi: s[0].threshold, prob: 1 - s[0].prob }];
   for (let i = 0; i < s.length; i++) {
     const next = s[i + 1];
     const prob = next ? s[i].prob - next.prob : s[i].prob;
     out.push({
-      label: next ? `$${s[i].threshold}–${next.threshold}T` : `>$${s[i].threshold}T`,
+      label: next ? labels.between(s[i].threshold, next.threshold) : labels.gt(s[i].threshold),
       lo: s[i].threshold,
       hi: next ? next.threshold : Infinity,
       prob,

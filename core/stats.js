@@ -66,6 +66,20 @@ function isotonicProbs(markets) {
 }
 
 /**
+ * Resolve the thin-book volume floor. A pinned market supplies an absolute USD
+ * floor (SpaceX: 50_000). A generic market (floor == null) scales it to its own
+ * book — 10% of the median non-zero rung volume — so a small market is not judged
+ * entirely "thin" against a large-market absolute. Falls back to the legacy floor
+ * when there is no volume to scale against.
+ */
+function resolveFloor(markets, floor) {
+  if (floor != null) return floor;
+  const vols = markets.map((m) => m.volume ?? 0).filter((v) => v > 0).sort((a, b) => a - b);
+  if (vols.length === 0) return LIQUIDITY_FLOOR;
+  return 0.1 * vols[Math.floor(vols.length / 2)];
+}
+
+/**
  * Adjust a live/raw snapshot into an arbitrage-consistent one.
  *   input markets: [{ label, threshold, prob (raw midpoint), volume }]
  * Returns {
@@ -75,12 +89,12 @@ function isotonicProbs(markets) {
  *   max_adjustment            // max |raw - adjusted|
  * }
  */
-export function adjustSnapshot(markets) {
+export function adjustSnapshot(markets, { liquidityFloor = LIQUIDITY_FLOOR } = {}) {
   if (!markets || markets.length === 0) {
     return { markets: [], monotonicity_violations: 0, max_adjustment: 0 };
   }
   const { sorted, adjusted } = isotonicProbs(markets);
-  const tiers = volumeTiers(sorted);
+  const tiers = volumeTiers(sorted, liquidityFloor);
   // Price-only days have no volume → liquidity is UNKNOWN, never "thin".
   const liquidity = tiers.hasVolume
     ? { thinCount: tiers.thinCount, total: tiers.total, thinShare: tiers.thinShare }
@@ -160,15 +174,18 @@ export function medianBand(rawInputs, centralMedian) {
  * midpoints; we evaluate the base case plus a 3×3 grid and report the span.
  * Operates on the ADJUSTED markets. Returns { central, low, high }.
  */
-export function meanSensitivity(adjustedMarkets) {
+export function meanSensitivity(
+  adjustedMarkets,
+  { below = 0.15, above = 0.4, gridBelow = MEAN_GRID.below, gridAbove = MEAN_GRID.above } = {}
+) {
   const central = computeImpliedMean(adjustedMarkets, {
-    belowOffset: 0.15,
-    aboveOffset: 0.4,
+    belowOffset: below,
+    aboveOffset: above,
   });
   if (central == null) return { central: null, low: null, high: null, width: null, tail_insensitive: null };
   const vals = [];
-  for (const b of MEAN_GRID.below) {
-    for (const a of MEAN_GRID.above) {
+  for (const b of gridBelow) {
+    for (const a of gridAbove) {
       vals.push(computeImpliedMean(adjustedMarkets, { belowOffset: b, aboveOffset: a }));
     }
   }
@@ -184,7 +201,7 @@ export function meanSensitivity(adjustedMarkets) {
  * Per-market liquidity tier by volume tertile, plus a thin-book count against an
  * absolute floor. Returns { byThreshold: Map, thinCount, total, thinShare }.
  */
-export function volumeTiers(markets) {
+export function volumeTiers(markets, floor = LIQUIDITY_FLOOR) {
   const n = markets.length;
   const hasVolume = markets.some((m) => m.volume != null && m.volume > 0);
   const byThreshold = new Map();
@@ -193,6 +210,7 @@ export function volumeTiers(markets) {
     for (const m of markets) byThreshold.set(m.threshold, null);
     return { byThreshold, thinCount: 0, total: n, thinShare: 0, hasVolume: false };
   }
+  const thinFloor = resolveFloor(markets, floor);
   const sorted = markets.map((m) => m.volume ?? 0).sort((a, b) => a - b);
   const p33 = sorted[Math.floor(0.33 * (n - 1))];
   const p66 = sorted[Math.floor(0.66 * (n - 1))];
@@ -200,7 +218,7 @@ export function volumeTiers(markets) {
   for (const m of markets) {
     const v = m.volume ?? 0;
     byThreshold.set(m.threshold, v >= p66 ? 'high' : v >= p33 ? 'med' : 'low');
-    if (v < LIQUIDITY_FLOOR) thinCount++;
+    if (v < thinFloor) thinCount++;
   }
   return { byThreshold, thinCount, total: n, thinShare: n ? thinCount / n : 0, hasVolume: true };
 }

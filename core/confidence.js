@@ -43,16 +43,23 @@ export function scoreConfidence({
   maxAdjustment = 0,
   liquidity = null,
   anomalies = null,
+  countHigh = MIN_THRESHOLDS_HIGH,
+  countMedium = MIN_THRESHOLDS_MEDIUM,
+  ladderSize = 16,
+  lifecycle = null,
 }) {
   const reasons = [];
   const tiers = [];
   const count = markets.length;
   const spread = meanSpread(rawInputs);
   const priceOnly = spread == null;
+  // A non-OPEN market's "closed" rungs are its expected terminal condition, not a
+  // data-quality anomaly — don't let them drag the tier (SpaceX is OPEN → no effect).
+  const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
 
   // 1) Threshold count — resolution of the CDF.
-  if (count >= MIN_THRESHOLDS_HIGH) tiers.push('high');
-  else if (count >= MIN_THRESHOLDS_MEDIUM) {
+  if (count >= countHigh) tiers.push('high');
+  else if (count >= countMedium) {
     tiers.push('medium');
     reasons.push(`${count} active thresholds (coarser CDF)`);
   } else {
@@ -109,7 +116,7 @@ export function scoreConfidence({
       tiers.push('medium');
       reasons.push('inputs identical to prior snapshot (possible stale feed)');
     }
-    if (anomalies.closedCount > 0) {
+    if (anomalies.closedCount > 0 && !settled) {
       tiers.push(anomalies.closedCount > 2 ? 'low' : 'medium');
       reasons.push(`${anomalies.closedCount} market(s) closed / not accepting orders`);
     }
@@ -124,14 +131,14 @@ export function scoreConfidence({
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
 
   // Smooth 0..1 score for sorting / the badge.
-  const countScore = Math.min(1, count / 16);
+  const countScore = Math.min(1, count / ladderSize);
   const monoScore = Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
   const spreadScore = priceOnly ? 0.6 : Math.max(0, Math.min(1, 1 - spread / 0.1));
   const liqScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
   let score = (countScore + monoScore + spreadScore + liqScore) / 4;
   if (anomalies) {
     if (anomalies.stale) score -= 0.15;
-    if (anomalies.closedCount > 0) score -= 0.1 * Math.min(3, anomalies.closedCount);
+    if (anomalies.closedCount > 0 && !settled) score -= 0.1 * Math.min(3, anomalies.closedCount);
     if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) score -= 0.1;
   }
   score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
