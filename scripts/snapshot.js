@@ -10,12 +10,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { fetchLiveSnapshot, countClosed } from '../core/fetch.js';
+import { fetchLiveSnapshot, fetchEventStatus, countClosed } from '../core/fetch.js';
 import {
   buildSnapshotRecord, buildHistoryEntry,
-  attachAnalytics, attachScenarios, attachNarrative,
+  attachAnalytics, attachScenarios, attachNarrative, SCHEMA_VERSION,
 } from '../core/snapshot.js';
+import { buildFreshness } from '../core/freshness.js';
 import { validateRecord, validateHistoryEntry } from '../core/validate.js';
+import { loadMarketConfig } from '../core/market-config.js';
+import { classifyLifecycle, LIFECYCLE } from '../core/lifecycle.js';
 import {
   writeLatest, writeMethodology, archiveSnapshot, writeHistory, readHistoryFull,
 } from '../renderers/api.js';
@@ -25,6 +28,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const API_DIR = join(__dirname, '../docs/api/v1');
 const METHODOLOGY = JSON.parse(readFileSync(join(__dirname, '../core/methodology.json'), 'utf8'));
 const ASSUMPTIONS = JSON.parse(readFileSync(join(__dirname, '../core/assumptions.json'), 'utf8'));
+const CONFIG = loadMarketConfig('spacex'); // the market this entrypoint publishes
 const HISTORY_CAP = 730;
 const LIQUIDITY_DROP_FRACTION = 0.4; // >40% below 7-day median total volume
 const MIN_LIVE_DAYS_FOR_DROP = 3;
@@ -41,11 +45,11 @@ const entryOnOrBefore = (h, target) => {
 };
 const entryTotalVolume = (e) => e.markets.reduce((s, m) => s + (m.volume ?? 0), 0);
 
-/** raw_sha256 of the previously published latest.json, or null. */
-function priorHash() {
+/** The previously published latest.json, or null. */
+function priorRecord() {
   const p = join(API_DIR, 'latest.json');
   if (!existsSync(p)) return null;
-  try { return JSON.parse(readFileSync(p, 'utf8')).snapshot.source.raw_sha256; } catch { return null; }
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; }
 }
 
 /** liquidity_drop vs the trailing-7d median total volume (guarded until enough live days). */
@@ -62,13 +66,58 @@ function liquidityDrop(history, today, currentTotal) {
   return { triggered: pct > LIQUIDITY_DROP_FRACTION, pct: Math.max(0, pct) };
 }
 
+/**
+ * Freeze the prior published record under a non-OPEN lifecycle (ARCHITECTURE §5):
+ * a closed/resolved market has no live prices to pull, so we preserve the last
+ * OPEN valuation as the final state and stamp it with the lifecycle (+ outcome
+ * when RESOLVED) and a final (not-stale) freshness. No metric is recomputed.
+ */
+function freezeRecord(prior, lifecycle) {
+  const frozen = structuredClone(prior);
+  frozen.schema_version = SCHEMA_VERSION;
+  frozen.methodology_version = METHODOLOGY.version;
+  frozen.snapshot.lifecycle = lifecycle;
+  frozen.snapshot.derived.freshness = buildFreshness(frozen.snapshot.fetched_at, null, undefined, lifecycle);
+  validateRecord(frozen); // schema + invariants + firewall + lifecycle assertions
+  writeLatest(frozen);
+  archiveSnapshot(frozen);
+  bakeFallback(frozen);
+  return frozen;
+}
+
 async function main() {
-  const live = await fetchLiveSnapshot();
+  const prior = priorRecord();
+  // ── resolution guard (ARCHITECTURE §5): a RESOLVED market is frozen — never
+  // re-pulled or overwritten once frozen. Skip before touching the network.
+  if (prior?.snapshot?.lifecycle?.state === LIFECYCLE.RESOLVED) {
+    console.log(`✓ ${CONFIG.id} is RESOLVED — frozen final record, skipping fetch.`);
+    return;
+  }
+
+  // Classify lifecycle from gamma meta BEFORE any CLOB call — a resolved market
+  // returns no midpoints, so price-fetching it would (wrongly) hard-fail.
+  const status = await fetchEventStatus(CONFIG);
+  const liveLifecycle = classifyLifecycle(status, new Date().toISOString());
+  if (liveLifecycle.state !== LIFECYCLE.OPEN) {
+    if (!prior) {
+      console.error(`${CONFIG.id} is ${liveLifecycle.state} but there is no prior record to freeze.`);
+      process.exit(1);
+    }
+    freezeRecord(prior, liveLifecycle);
+    console.log(`✓ ${CONFIG.id} ${liveLifecycle.state} — froze the final record (no live pull).`);
+    return;
+  }
+
+  const live = await fetchLiveSnapshot(CONFIG);
   const today = live.fetched_at.slice(0, 10);
   const history = readHistoryFull();
 
+  // OPEN: classify again off the snapshot's own status (same result; carries the
+  // snapshot's as_of) for the record's lifecycle stamp.
+  const lifecycle = classifyLifecycle(live.status, live.fetched_at);
+
   // ── anomalies ──
-  const prevHash = priorHash();
+  const prevHash = prior?.snapshot?.source?.raw_sha256 ?? null;
   const currentTotal = live.markets.reduce((s, m) => s + (m.volume ?? 0), 0);
   const anomalies = {
     stale: prevHash != null && prevHash === live.raw_sha256,
@@ -77,7 +126,7 @@ async function main() {
   };
 
   // ── canonical record ──
-  const record = buildSnapshotRecord(live, METHODOLOGY.version, anomalies);
+  const record = buildSnapshotRecord(live, METHODOLOGY.version, anomalies, CONFIG, lifecycle);
 
   // History priors for analytics (velocity + dispersion-over-time) and narrative.
   const p1d = entryOnOrBefore(history, dateMinus(today, 1));
@@ -93,11 +142,17 @@ async function main() {
   };
 
   // Order matters: analytics first (narrative reads stored velocity/shape).
-  attachAnalytics(record, { priors });
-  attachScenarios(record, ASSUMPTIONS);
+  attachAnalytics(record, { priors, config: CONFIG });
+  // Tier-2 scenarios are opt-in: attached only when the market config registers
+  // an assumptions file (SpaceX does; a generic market does not — Part B). A
+  // market with no scenarios carries assumptions_version: null and the firewall
+  // simply has nothing to check.
+  if (CONFIG.scenarios) attachScenarios(record, ASSUMPTIONS);
+  else record.assumptions_version = null;
   attachNarrative(record, {
     prior7d: priors.median_7d,
     prior30d: priors.median_30d,
+    config: CONFIG,
   });
 
   validateRecord(record); // schema + invariants + firewall; throws on any violation
@@ -108,7 +163,7 @@ async function main() {
   archiveSnapshot(record);
 
   // ── append today to history (live raw_inputs → real spread in confidence) ──
-  const entry = buildHistoryEntry(today, live.markets, live.raw_inputs);
+  const entry = buildHistoryEntry(today, live.markets, live.raw_inputs, CONFIG);
   validateHistoryEntry(entry);
   if (history.length > 0 && history[history.length - 1].date === today) {
     history[history.length - 1] = entry;

@@ -7,7 +7,7 @@
   "properties": {
     "schema_version": { "type": "string" },
     "methodology_version": { "type": "string" },
-    "assumptions_version": { "type": "string" },
+    "assumptions_version": { "type": ["string", "null"] },
     "asset": {
       "type": "object",
       "required": ["id", "platform", "resolves"],
@@ -15,8 +15,8 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "platform": { "type": "string" },
-        "market_url": { "type": "string" },
-        "resolves": { "type": "string" }
+        "market_url": { "type": ["string", "null"] },
+        "resolves": { "type": ["string", "null"] }
       }
     },
     "snapshot": {
@@ -25,6 +25,16 @@
       "properties": {
         "snapshot_id": { "type": "string" },
         "fetched_at": { "type": "string" },
+        "lifecycle": {
+          "type": "object",
+          "description": "Market-resolution state (ARCHITECTURE §5). Additive; absent on pre-1.3.0 records. RESOLVED carries the final outcome and is frozen.",
+          "required": ["state"],
+          "properties": {
+            "state": { "type": "string", "enum": ["OPEN", "CLOSED_PENDING", "RESOLVED"] },
+            "resolved_outcome": { "type": ["array", "null"] },
+            "as_of": { "type": ["string", "null"] }
+          }
+        },
         "source": {
           "type": "object",
           "required": ["provider", "raw_sha256"],
@@ -55,7 +65,7 @@
           "required": [
             "implied_median", "implied_mean", "mean", "iqr",
             "total_volume", "adjustment", "confidence", "markets",
-            "market", "scenarios"
+            "market"
           ],
           "properties": {
             "market": {

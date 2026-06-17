@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "id": "kraken-ipo-market-cap",
+    "name": "Kraken IPO closing market cap",
+    "platform": "polymarket",
+    "market_url": "https://polymarket.com/event/kraken-ipo-closing-market-cap-above",
+    "event_slug": "kraken-ipo-closing-market-cap-above",
+    "resolves": null,
+    "unit_prefix": "$",
+    "unit_suffix": "B"
+  },
+  "fetched_at": "2026-06-17T20:23:29.535Z",
+  "endpoints": [
+    "https://gamma-api.polymarket.com/events?slug=kraken-ipo-closing-market-cap-above",
+    "https://clob.polymarket.com/midpoints",
+    "https://clob.polymarket.com/prices"
+  ],
+  "raw_inputs": [
+    {
+      "token_id": "11294919492177693956868625986737965084690211705849586128412492516830905392085",
+      "threshold": 16,
+      "midpoint": "0.24",
+      "best_bid": "0.19",
+      "best_ask": "0.29",
+      "volume": 22524.561581999988
+    },
+    {
+      "token_id": "100793661437270662345296113710745924474488921164312784980795887585850375214905",
+      "threshold": 18,
+      "midpoint": "0.215",
+      "best_bid": "0.15",
+      "best_ask": "0.28",
+      "volume": 26250.058423
+    },
+    {
+      "token_id": "115105975393855984469276010917321434871302297218759589191448418779462105411998",
+      "threshold": 20,
+      "midpoint": "0.23",
+      "best_bid": "0.2",
+      "best_ask": "0.26",
+      "volume": 16103.95923600001
+    },
+    {
+      "token_id": "72668334839025478329648046428816370143229036867080324138588091934443253366906",
+      "threshold": 22,
+      "midpoint": "0.225",
+      "best_bid": "0.21",
+      "best_ask": "0.24",
+      "volume": 9725.621348999995
+    },
+    {
+      "token_id": "91027683713979671045745336397477298188194077466070308948719723741690140262890",
+      "threshold": 24,
+      "midpoint": "0.175",
+      "best_bid": "0.15",
+      "best_ask": "0.2",
+      "volume": 17368.294917999996
+    },
+    {
+      "token_id": "92764803406599233737212525171851383164450836198775775873527523839222802477471",
+      "threshold": 26,
+      "midpoint": "0.13",
+      "best_bid": "0.09",
+      "best_ask": "0.17",
+      "volume": 11516.985282
+    },
+    {
+      "token_id": "24493642852616005833747685040083820575708398364099011183039829026956567793445",
+      "threshold": 28,
+      "midpoint": "0.07",
+      "best_bid": "0.05",
+      "best_ask": "0.09",
+      "volume": 19309.309268999998
+    }
+  ],
+  "markets": [
+    {
+      "label": ">$16B",
+      "threshold": 16,
+      "prob": 0.24,
+      "volume": 22524.561581999988
+    },
+    {
+      "label": ">$18B",
+      "threshold": 18,
+      "prob": 0.215,
+      "volume": 26250.058423
+    },
+    {
+      "label": ">$20B",
+      "threshold": 20,
+      "prob": 0.23,
+      "volume": 16103.95923600001
+    },
+    {
+      "label": ">$22B",
+      "threshold": 22,
+      "prob": 0.225,
+      "volume": 9725.621348999995
+    },
+    {
+      "label": ">$24B",
+      "threshold": 24,
+      "prob": 0.175,
+      "volume": 17368.294917999996
+    },
+    {
+      "label": ">$26B",
+      "threshold": 26,
+      "prob": 0.13,
+      "volume": 11516.985282
+    },
+    {
+      "label": ">$28B",
+      "threshold": 28,
+      "prob": 0.07,
+      "volume": 19309.309268999998
+    }
+  ],
+  "status": [
+    {
+      "threshold": 16,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.255\", \"0.745\"]"
+    },
+    {
+      "threshold": 18,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.21\", \"0.79\"]"
+    },
+    {
+      "threshold": 20,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.235\", \"0.765\"]"
+    },
+    {
+      "threshold": 22,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.225\", \"0.775\"]"
+    },
+    {
+      "threshold": 24,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.18\", \"0.82\"]"
+    },
+    {
+      "threshold": 26,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.13\", \"0.87\"]"
+    },
+    {
+      "threshold": 28,
+      "closed": false,
+      "active": true,
+      "accepting_orders": true,
+      "umaResolutionStatus": null,
+      "outcomes": "[\"Yes\", \"No\"]",
+      "outcomePrices": "[\"0.07\", \"0.93\"]"
+    }
+  ],
+  "raw_sha256": "2817280d7d5ae94ea5d5ffdc33edb41736fa7ecb97a51b0172af6523e1f217ba"
+}

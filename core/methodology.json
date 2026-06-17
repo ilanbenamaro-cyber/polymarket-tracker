@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -111,6 +111,11 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.4.0",
+      "date": "2026-06-17",
+      "change": "Multi-market generalization (Phase 1), NO formula change. Every market-specific value (tail offsets, mean-sensitivity grid, liquidity floor, confidence count thresholds, dispersion/accel eps, density label unit, tracked thresholds, narrative wording, calibration date, asset metadata) moved into a per-market MarketConfig (core/markets/*.json); the pipeline now processes any threshold-ladder event, not just SpaceX. SpaceX's config pins the exact prior constants, so its output is byte-identical (proven by a blocking parity gate: raw_sha256 + full derived block + 183-day history). Added a two-stage market-resolution lifecycle (snapshot.lifecycle: OPEN / CLOSED_PENDING / RESOLVED) — a resolved market is frozen and never re-pulled, a closed-but-unconfirmed market claims no final outcome, and a non-OPEN market is final (not flagged stale). Tier-2 scenarios are now optional (attached only when a market registers an assumptions file); the firewall is unchanged. Schema 1.3.0 (additive: snapshot.lifecycle; derived.scenarios optional; assumptions_version nullable)."
+    },
     {
       "version": "1.3.0",
       "date": "2026-06-12",
