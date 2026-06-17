@@ -10,6 +10,7 @@
 // that also pulls best bid/ask for the liquidity/confidence signal.)
 
 import { createHash } from 'node:crypto';
+import { thresholdRegExp, labelGt } from './market-config.js';
 
 const EVENT_SLUG = 'spacex-ipo-closing-market-cap-above';
 export const ENDPOINTS = {
@@ -57,9 +58,20 @@ async function fetchJson(url, init) {
   return res.json();
 }
 
-/** Gamma event → [{ threshold, label, token_id, volume }] ascending. */
-async function fetchMarketMeta() {
-  const events = await fetchJson(ENDPOINTS.gamma);
+const gammaUrl = (slug) => `https://gamma-api.polymarket.com/events?slug=${slug}`;
+
+/**
+ * Gamma event → ascending rung metadata. `config` (a MarketConfig) supplies the
+ * event slug + threshold parser + label; omitted ⇒ legacy SpaceX behavior.
+ * Captures resolution signals (closed / umaResolutionStatus / outcomes /
+ * outcomePrices) in the side channel for the lifecycle classifier — NEVER in
+ * raw_inputs, so the frozen hash recipe is untouched.
+ */
+async function fetchMarketMeta(config = null) {
+  const url = config ? gammaUrl(config.event_slug) : ENDPOINTS.gamma;
+  const re = config ? thresholdRegExp(config) : THRESHOLD_RE;
+  const labelOf = config ? (t) => labelGt(config, t) : (t) => `>$${t}T`;
+  const events = await fetchJson(url);
   if (!Array.isArray(events) || events.length === 0) {
     throw new Error('Gamma API returned no events');
   }
@@ -69,21 +81,25 @@ async function fetchMarketMeta() {
   }
   return markets
     .map((m) => {
-      const match = m.question.match(THRESHOLD_RE);
+      const match = m.question.match(re);
       if (!match) throw new Error(`Cannot parse threshold: ${m.question}`);
+      const threshold = parseFloat(match[1]);
       const ids =
         typeof m.clobTokenIds === 'string'
           ? JSON.parse(m.clobTokenIds)
           : m.clobTokenIds;
       return {
-        threshold: parseFloat(match[1]),
-        label: `>$${parseFloat(match[1])}T`,
+        threshold,
+        label: labelOf(threshold),
         token_id: ids[0], // YES
         volume: m.volume != null ? Number(m.volume) : null,
-        // Status flags for anomaly detection — NOT part of raw_inputs / the hash.
+        // Status + resolution signals — NOT part of raw_inputs / the hash.
         closed: m.closed === true,
         active: m.active !== false,
         accepting_orders: m.acceptingOrders !== false,
+        uma_resolution_status: m.umaResolutionStatus ?? null,
+        outcomes: m.outcomes ?? null,
+        outcome_prices: m.outcomePrices ?? null,
       };
     })
     .sort((a, b) => a.threshold - b.threshold);
@@ -95,9 +111,9 @@ async function fetchMarketMeta() {
  * where markets = [{ label, threshold, prob, volume }] (prob = midpoint) and
  * raw_inputs keeps the API's literal string values for midpoint/bid/ask.
  */
-export async function fetchLiveSnapshot() {
+export async function fetchLiveSnapshot(config = null) {
   const fetchedAt = new Date().toISOString();
-  const meta = await fetchMarketMeta();
+  const meta = await fetchMarketMeta(config);
   const tokenIds = meta.map((m) => m.token_id);
 
   // Batch midpoints (POST [{token_id}] → { id: "0.x" }).
@@ -143,23 +159,46 @@ export async function fetchLiveSnapshot() {
     };
   });
 
-  // Side channel for anomaly detection (closed / inactive / not accepting orders).
+  // Side channel for anomaly detection + lifecycle classification (closed /
+  // inactive / not accepting orders / UMA resolution / settled outcome).
   // Deliberately excluded from raw_inputs so the provenance hash recipe is stable.
   const status = meta.map((m) => ({
     threshold: m.threshold,
     closed: m.closed,
     active: m.active,
     accepting_orders: m.accepting_orders,
+    umaResolutionStatus: m.uma_resolution_status,
+    outcomes: m.outcomes,
+    outcomePrices: m.outcome_prices,
   }));
 
   return {
     fetched_at: fetchedAt,
-    endpoints: [ENDPOINTS.gamma, ENDPOINTS.midpoints, ENDPOINTS.prices],
+    endpoints: [config ? gammaUrl(config.event_slug) : ENDPOINTS.gamma, ENDPOINTS.midpoints, ENDPOINTS.prices],
     raw_inputs,
     raw_sha256: hashRawInputs(raw_inputs),
     markets,
     status,
   };
+}
+
+/**
+ * Gamma-only per-rung lifecycle signals (no CLOB). Safe to call on a RESOLVED
+ * market, which returns no midpoints — so classification must happen from THIS,
+ * before any price fetch (ARCHITECTURE §5). Returns the camelCase shape the
+ * lifecycle classifier consumes.
+ */
+export async function fetchEventStatus(config = null) {
+  const meta = await fetchMarketMeta(config);
+  return meta.map((m) => ({
+    threshold: m.threshold,
+    closed: m.closed,
+    active: m.active,
+    accepting_orders: m.accepting_orders,
+    umaResolutionStatus: m.uma_resolution_status,
+    outcomes: m.outcomes,
+    outcomePrices: m.outcome_prices,
+  }));
 }
 
 /** Count markets that are closed, inactive, or not accepting orders. */

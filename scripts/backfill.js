@@ -13,13 +13,13 @@
 
 import { buildHistoryEntry } from '../core/snapshot.js';
 import { validateHistoryEntry } from '../core/validate.js';
+import { loadMarketConfig, parseThreshold, labelGt } from '../core/market-config.js';
 import { writeHistory } from '../renderers/api.js';
 
-const EVENT_SLUG = 'spacex-ipo-closing-market-cap-above';
-const GAMMA_URL = `https://gamma-api.polymarket.com/events?slug=${EVENT_SLUG}`;
+const CONFIG = loadMarketConfig('spacex'); // the market this entrypoint backfills
+const GAMMA_URL = `https://gamma-api.polymarket.com/events?slug=${CONFIG.event_slug}`;
 const HISTORY_URL = (token) =>
   `https://clob.polymarket.com/prices-history?market=${token}&interval=max&fidelity=1440`;
-const THRESHOLD_RE = /\$(\d+\.?\d*)/;
 const REQUEST_DELAY_MS = 250;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -31,10 +31,10 @@ async function fetchMarketMeta() {
   const events = await res.json();
   return events[0].markets
     .map((m) => {
-      const threshold = parseFloat(m.question.match(THRESHOLD_RE)[1]);
+      const threshold = parseThreshold(CONFIG, m.question);
       const ids =
         typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds;
-      return { threshold, label: `>$${threshold}T`, token_id: ids[0] };
+      return { threshold, label: labelGt(CONFIG, threshold), token_id: ids[0] };
     })
     .sort((a, b) => a.threshold - b.threshold);
 }
@@ -100,7 +100,7 @@ async function main() {
     if (markets.length === 0) continue;
 
     // rawInputs = null → confidence flagged price-only and capped at medium.
-    const entry = buildHistoryEntry(date, markets, null);
+    const entry = buildHistoryEntry(date, markets, null, CONFIG);
     validateHistoryEntry(entry);
     history.push(entry);
   }

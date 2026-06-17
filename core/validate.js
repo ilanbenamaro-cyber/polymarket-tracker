@@ -79,13 +79,17 @@ function bucketErrors(markets, label) {
  */
 function firewallErrors(record) {
   const errors = [];
-  if (record.assumptions_version == null) errors.push('missing assumptions_version');
 
   const d = record?.snapshot?.derived;
   if (!d) return errors;
 
   const sc = d.scenarios;
   if (sc) {
+    // assumptions_version is required WHENEVER Tier-2 scenarios are published
+    // (it versions the assumptions registry behind them). A generic market that
+    // carries no scenarios needs no assumptions_version — this is a refinement,
+    // not a relaxation: where scenarios exist the full firewall still applies.
+    if (record.assumptions_version == null) errors.push('missing assumptions_version');
     for (const [name, scenario] of Object.entries(sc)) {
       if (name === 'assumptions_version' || !scenario || typeof scenario !== 'object') continue;
       // Null-checks, NOT truthiness: a numeric output of exactly 0 (e.g.
@@ -122,6 +126,30 @@ function firewallErrors(record) {
   return errors;
 }
 
+/**
+ * Lifecycle invariants (ARCHITECTURE §5). A RESOLVED record must carry a final
+ * outcome (it is frozen); a CLOSED_PENDING/OPEN record must NOT claim one (UMA
+ * may still move). Additive: absent on records without a lifecycle block.
+ */
+function lifecycleErrors(record) {
+  const errors = [];
+  const lc = record?.snapshot?.lifecycle;
+  if (!lc) return errors;
+  const STATES = ['OPEN', 'CLOSED_PENDING', 'RESOLVED'];
+  if (!STATES.includes(lc.state)) {
+    errors.push(`lifecycle: invalid state "${lc.state}"`);
+    return errors;
+  }
+  if (lc.state === 'RESOLVED') {
+    if (!Array.isArray(lc.resolved_outcome) || lc.resolved_outcome.length === 0) {
+      errors.push('lifecycle: RESOLVED record must carry a resolved_outcome');
+    }
+  } else if (lc.resolved_outcome != null) {
+    errors.push(`lifecycle: ${lc.state} record must not claim a resolved_outcome`);
+  }
+  return errors;
+}
+
 /** Throw with all problems joined, or return true. Validates schema + invariants + firewall. */
 export function validateRecord(record) {
   const errors = [];
@@ -134,6 +162,7 @@ export function validateRecord(record) {
   const d = record?.snapshot?.derived;
   if (d) errors.push(...bucketErrors(d.markets, 'derived'));
   errors.push(...firewallErrors(record));
+  errors.push(...lifecycleErrors(record));
 
   if (errors.length > 0) {
     throw new Error('Record invalid:\n  - ' + errors.join('\n  - '));

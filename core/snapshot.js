@@ -18,8 +18,45 @@ import { buildAnalytics } from './analytics.js';
 import { buildScenarios } from './scenarios.js';
 import { buildFreshness } from './freshness.js';
 import { ASSET } from './fetch.js';
+import { labelLt, labelBetween, labelGt } from './market-config.js';
 
-const SCHEMA_VERSION = '1.2.1';
+export const SCHEMA_VERSION = '1.3.0';
+
+// Config → derived-metric option slices. A null config means "legacy SpaceX
+// defaults" (the function-level defaults), keeping existing callers and the
+// SpaceX record byte-identical; a real config supplies the per-market values.
+function floorOpts(config) {
+  return config ? { liquidityFloor: config.liquidity_floor } : undefined;
+}
+function meanOpts(config) {
+  return config
+    ? { belowOffset: config.mean.below_offset, aboveOffset: config.mean.above_offset }
+    : undefined;
+}
+function sensitivityOpts(config) {
+  return config
+    ? {
+        below: config.mean.below_offset,
+        above: config.mean.above_offset,
+        gridBelow: config.mean.grid_below,
+        gridAbove: config.mean.grid_above,
+      }
+    : undefined;
+}
+function confidenceOpts(config) {
+  return config
+    ? {
+        countHigh: config.confidence.count_high,
+        countMedium: config.confidence.count_medium,
+        ladderSize: config.confidence.ladder_size,
+      }
+    : {};
+}
+function densityLabels(config) {
+  return config
+    ? { lt: (t) => labelLt(config, t), between: (a, b) => labelBetween(config, a, b), gt: (t) => labelGt(config, t) }
+    : undefined;
+}
 
 function totalVolume(markets) {
   return markets.reduce((sum, m) => sum + (m.volume ?? 0), 0);
@@ -34,11 +71,11 @@ function probAt(markets, threshold) {
  * all metrics from the adjusted curve + confidence. `context` carries optional
  * anomaly inputs for confidence.
  */
-function buildDerivedCore({ markets, rawInputs = null, anomalies = null }) {
-  const adj = adjustSnapshot(markets); // markets carry raw_prob + adjusted_prob + bucket_prob>=0
+function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null }) {
+  const adj = adjustSnapshot(markets, floorOpts(config)); // markets carry raw_prob + adjusted_prob + bucket_prob>=0
   const adjusted = adj.markets;
   const impliedMedian = computeImpliedMedian(adjusted);
-  const impliedMean = computeImpliedMean(adjusted); // central / base case
+  const impliedMean = computeImpliedMean(adjusted, meanOpts(config)); // central / base case
   const confidence = scoreConfidence({
     markets: adjusted,
     rawInputs,
@@ -46,6 +83,8 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null }) {
     maxAdjustment: adj.max_adjustment,
     liquidity: adj.liquidity,
     anomalies,
+    lifecycle,
+    ...confidenceOpts(config),
   });
   return {
     implied_median: impliedMedian,
@@ -63,10 +102,10 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null }) {
 }
 
 /** Full "current" derived block: core + spread-implied median band + mean sensitivity. */
-export function buildDerived({ markets, rawInputs = null, anomalies = null }) {
-  const core = buildDerivedCore({ markets, rawInputs, anomalies });
+export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null }) {
+  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle });
   const median = medianBand(rawInputs, core.implied_median);
-  const mean = meanSensitivity(core.markets);
+  const mean = meanSensitivity(core.markets, sensitivityOpts(config));
   const { _adj, ...clean } = core;
   return { ...clean, median, mean };
 }
@@ -76,26 +115,41 @@ export function buildDerived({ markets, rawInputs = null, anomalies = null }) {
  *   live: { fetched_at, endpoints, raw_inputs, raw_sha256, markets }
  *   anomalies: { stale, closedCount, liquidityDrop } (from orchestration)
  */
-export function buildSnapshotRecord(live, methodologyVersion, anomalies = null) {
-  const derived = buildDerived({ markets: live.markets, rawInputs: live.raw_inputs, anomalies });
+export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, config = null, lifecycle = null) {
+  const derived = buildDerived({
+    markets: live.markets,
+    rawInputs: live.raw_inputs,
+    anomalies,
+    config,
+    lifecycle,
+  });
   // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + the
   // documented threshold. Policy only (no frozen age/flag — those are read-time).
-  derived.freshness = buildFreshness(live.fetched_at);
+  // A non-OPEN market is FINAL, not stale — freshness records that so consumers
+  // don't show a STALE pill on a resolved/closed market.
+  derived.freshness = buildFreshness(live.fetched_at, null, undefined, lifecycle);
+  const asset = config
+    ? { id: config.id, name: config.name, platform: config.platform, market_url: config.market_url, resolves: config.resolves }
+    : { ...ASSET };
+  const snapshot = {
+    snapshot_id: live.fetched_at,
+    fetched_at: live.fetched_at,
+    source: {
+      provider: 'Polymarket',
+      endpoints: live.endpoints,
+      raw_sha256: live.raw_sha256,
+    },
+    raw_inputs: live.raw_inputs,
+    derived,
+  };
+  // lifecycle lives OUTSIDE derived (additive) so the derived block stays
+  // byte-identical for an OPEN market like SpaceX.
+  if (lifecycle) snapshot.lifecycle = lifecycle;
   return {
     schema_version: SCHEMA_VERSION,
     methodology_version: methodologyVersion,
-    asset: { ...ASSET },
-    snapshot: {
-      snapshot_id: live.fetched_at,
-      fetched_at: live.fetched_at,
-      source: {
-        provider: 'Polymarket',
-        endpoints: live.endpoints,
-        raw_sha256: live.raw_sha256,
-      },
-      raw_inputs: live.raw_inputs,
-      derived,
-    },
+    asset,
+    snapshot,
   };
 }
 
@@ -104,7 +158,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null) 
  * runs in orchestration like the narrative. priors = { median_1d, median_7d,
  * median_30d, iqr_width_7d, iqr_width_30d }.
  */
-export function attachAnalytics(record, { priors = {} } = {}) {
+export function attachAnalytics(record, { priors = {}, config = null } = {}) {
   const d = record.snapshot.derived;
   const analytics = buildAnalytics({
     markets: d.markets,
@@ -112,6 +166,7 @@ export function attachAnalytics(record, { priors = {} } = {}) {
     median: d.implied_median,
     priors,
     asOf: record.snapshot.fetched_at.slice(0, 10),
+    config,
   });
   d.market = { ...(d.market || {}), analytics };
   return record;
@@ -133,15 +188,16 @@ export function attachScenarios(record, registry) {
  * Attach the deterministic narrative. Uses the already-attached analytics (velocity
  * deltas + shape descriptor), so call AFTER attachAnalytics. Mutates and returns.
  */
-export function attachNarrative(record, { prior7d = null, prior30d = null } = {}) {
+export function attachNarrative(record, { prior7d = null, prior30d = null, config = null } = {}) {
   const d = record.snapshot.derived;
-  const density = computeDensity(d.markets).map((b) => ({ label: b.label, prob: b.prob }));
+  const density = computeDensity(d.markets, densityLabels(config)).map((b) => ({ label: b.label, prob: b.prob }));
   const { narrative, narrative_components } = buildNarrative({
     derived: d,
     analytics: d.market?.analytics ?? null,
     prior7d,
     prior30d,
     density,
+    config,
   });
   d.narrative = narrative;
   d.narrative_components = narrative_components;
@@ -153,18 +209,24 @@ export function attachNarrative(record, { prior7d = null, prior30d = null } = {}
  * current record: scalars + adjusted markets + adjustment + confidence, no band /
  * sensitivity / narrative (those are "current" features).
  */
-export function buildHistoryEntry(date, markets, rawInputs = null) {
-  const core = buildDerivedCore({ markets, rawInputs });
-  return {
+export function buildHistoryEntry(date, markets, rawInputs = null, config = null) {
+  const core = buildDerivedCore({ markets, rawInputs, config });
+  const entry = {
     date,
     implied_median: core.implied_median,
     implied_mean: core.implied_mean,
     iqr: core.iqr,
-    prob_1_8t: probAt(core.markets, 1.8),
-    prob_2_0t: probAt(core.markets, 2.0),
-    prob_2_4t: probAt(core.markets, 2.4),
-    adjustment: core.adjustment,
-    confidence: core.confidence,
-    markets: core.markets,
   };
+  // Tracked-threshold probabilities, keyed per the market config (default = the
+  // legacy SpaceX rungs prob_1_8t/2_0t/2_4t so existing history is byte-identical).
+  const tracked = config?.tracked_thresholds ?? [
+    { key: 'prob_1_8t', threshold: 1.8 },
+    { key: 'prob_2_0t', threshold: 2.0 },
+    { key: 'prob_2_4t', threshold: 2.4 },
+  ];
+  for (const { key, threshold } of tracked) entry[key] = probAt(core.markets, threshold);
+  entry.adjustment = core.adjustment;
+  entry.confidence = core.confidence;
+  entry.markets = core.markets;
+  return entry;
 }

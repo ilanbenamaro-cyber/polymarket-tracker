@@ -41,7 +41,7 @@ const MS_PER_HOUR = 3_600_000;
  * that goes wrong the moment the file sits unchanged). Pass `nowISO` (the live
  * clock, e.g. from the browser) to additionally evaluate `age_hours` + `stale`.
  */
-export function buildFreshness(asOfISO, nowISO = null, thresholdHours = STALENESS_THRESHOLD_HOURS) {
+export function buildFreshness(asOfISO, nowISO = null, thresholdHours = STALENESS_THRESHOLD_HOURS, lifecycle = null) {
   const asOfMs = Date.parse(asOfISO);
   if (Number.isNaN(asOfMs)) throw new Error(`buildFreshness: invalid as_of "${asOfISO}"`);
   const staleAfterMs = asOfMs + thresholdHours * MS_PER_HOUR;
@@ -52,6 +52,13 @@ export function buildFreshness(asOfISO, nowISO = null, thresholdHours = STALENES
     expected_cadence: EXPECTED_CADENCE,
     policy: `Considered stale ${thresholdHours}h after as_of (= max scheduled gap ${SCHEDULE.MAX_EXPECTED_GAP_H}h overnight pause + ${SCHEDULE.CADENCE_H}h one missed run + ${SCHEDULE.JITTER_MARGIN_H}h queue jitter). Live age = now − as_of; stale = now > stale_after.`,
   };
+  // A non-OPEN market (closed/resolved) is FINAL: it has stopped updating by
+  // design, so consumers must NOT flag it stale. Additive — absent for OPEN
+  // markets (and when no lifecycle is supplied), so OPEN records are unchanged.
+  if (lifecycle && lifecycle.state != null && lifecycle.state !== 'OPEN') {
+    out.final = true;
+    out.lifecycle_state = lifecycle.state;
+  }
   if (nowISO != null) {
     const nowMs = Date.parse(nowISO);
     if (Number.isNaN(nowMs)) throw new Error(`buildFreshness: invalid now "${nowISO}"`);

@@ -5,6 +5,20 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A RESOLVED Polymarket market returns NO CLOB midpoints — classify before fetching prices
+**Symptom:** `scripts/snapshot.js` crashed live with `No midpoint for token …`; the old v1 cron had
+been failing on every run. (2026-06-17, when SpaceX actually resolved.)
+**Reality:** Once a market resolves, trading ends and `POST /midpoints` returns `{}` — `fetch.js`
+threw on the first missing midpoint. Gamma still serves the event with `closed:true` +
+`umaResolutionStatus:"resolved"` + settled `outcomePrices` (["1","0"]/["0","1"]); only CLOB is empty.
+Note `active` stays `true` and `endDate` can be far-future even after resolution — they are NOT
+resolution signals.
+**Lesson:** Classify lifecycle from **gamma meta BEFORE any CLOB call** (`fetchEventStatus` →
+`classifyLifecycle`); if the market is not OPEN, **freeze** the prior record instead of price-fetching
+it. Use `closed` + `umaResolutionStatus` (not `active`/`endDate`). The realized outcome is the rung
+where `outcomePrices` settled to "1" (SpaceX: >$2T Yes, >$2.2T No → cap in $2.0–2.2T). See
+[[decisions]] two-stage resolution.
+
 ## Playwright "verified" a STALE page — browsers heuristically cache python http.server
 **Symptom:** Edited `docs/index.html`, navigated to it via Playwright, ran a behavior test — and the
 NEW code wasn't there (`load.toString()` showed the pre-edit function). The failure-semantics test

@@ -1,0 +1,45 @@
+{
+  "id": "spacex-ipo-market-cap",
+  "name": "SpaceX IPO closing market cap",
+  "platform": "polymarket",
+  "market_url": "https://polymarket.com/event/spacex-ipo-closing-market-cap-above",
+  "resolves": "2027-12-31",
+  "event_slug": "spacex-ipo-closing-market-cap-above",
+  "threshold": {
+    "parse_pattern": "\\$(\\d+\\.?\\d*)",
+    "unit_prefix": "$",
+    "unit_suffix": "T"
+  },
+  "mean": {
+    "below_offset": 0.15,
+    "above_offset": 0.4,
+    "grid_below": [0.1, 0.15, 0.2],
+    "grid_above": [0.3, 0.4, 0.6]
+  },
+  "liquidity_floor": 50000,
+  "confidence": {
+    "count_high": 12,
+    "count_medium": 8,
+    "ladder_size": 16
+  },
+  "analytics": {
+    "dispersion_eps": 0.03,
+    "accel_eps": 0.002
+  },
+  "tracked_thresholds": [
+    { "key": "prob_1_8t", "threshold": 1.8 },
+    { "key": "prob_2_0t", "threshold": 2.0 },
+    { "key": "prob_2_4t", "threshold": 2.4 }
+  ],
+  "narrative": {
+    "subject": "SpaceX's IPO-closing cap",
+    "unit_prefix": "$",
+    "unit_suffix": "T"
+  },
+  "calibration": {
+    "resolves": "2027-12-31"
+  },
+  "scenarios": {
+    "assumptions_file": "assumptions.json"
+  }
+}

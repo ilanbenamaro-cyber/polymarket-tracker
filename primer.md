@@ -4,18 +4,25 @@
 > The "why" behind decisions lives in `.workflows/_knowledge/decisions.md`;
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
-## ⮕ DIRECTION (2026-06-17): pivot to multi-market hosted product
-- **The product is generalizing** from the single SpaceX market into a **hosted multi-market** product
-  on **Vercel (frontend + serverless `core/`) + Supabase (DB/auth/realtime)**; Polymarket unchanged.
-  First pass scopes to **threshold-ladder events** (SpaceX = one instance); binary markets deferred.
-- **Design is approved & committed:** `docs/ARCHITECTURE.md` (10 sections + phased build plan). Read
-  it before any rebuild work. The governing principle: **the verified pipeline runs on the backend,
-  on demand + cached** — every served number is still `core/`-computed, firewall-checked, validated,
-  hashed. See [[decisions]] "PIVOT".
-- **Next pass = Phase 1**: `core/` generalization (parameterize the SpaceX-hardcoded bits — see
-  ARCHITECTURE §1.2) + the two-stage resolution guard (`closed_pending` vs confirmed `resolved`),
-  with a **blocking byte-identical-hash gate** (the generalized pipeline must reproduce the SpaceX
-  `raw_sha256` exactly). The v1 GitHub-Actions/Pages app below remains the live reference until then.
+## ⮕ DIRECTION (2026-06-17): multi-market hosted product — Phase 1 SHIPPED
+- **Pivot:** generalizing from the single SpaceX market into a **hosted multi-market** product on
+  **Vercel + Supabase** (Polymarket unchanged). Design: `docs/ARCHITECTURE.md` (read before rebuild
+  work). Governing principle: the verified pipeline runs on the backend, on demand + cached. See
+  [[decisions]] "PIVOT".
+- **Phase 1 DONE (core/ generalization + resolution guard, no infra):** `core/` now processes ANY
+  threshold-ladder event via a per-market **MarketConfig** (`core/markets/*.json` + `core/market-config.js`
+  `defaultConfigForLadder`) — no `if spacex` anywhere. SpaceX is one pinned instance whose output is
+  **byte-identical** to pre-generalization (blocking gate `test/phase1-spacex-parity.test.js`: frozen
+  `raw_sha256` `c1be52e4…b89003` + full derived deep-equal + 183-day history). Proven on a 2nd real
+  ladder (Kraken IPO $16–28B) via the generic defaults. Two-stage lifecycle (`core/lifecycle.js` +
+  `snapshot.lifecycle`: OPEN / CLOSED_PENDING / RESOLVED) classified from gamma meta; Tier-2 scenarios
+  optional. methodology **1.4.0**, schema **1.3.0**. 99/99 tests.
+- **⚠ SpaceX RESOLVED (2026-06-17):** the market settled — realized cap in **$2.0–2.2T** (>$2T Yes,
+  >$2.2T No), matching the last live median ~$2.1T. The feed is **frozen** (lifecycle RESOLVED,
+  `freshness.final`, no live pull; re-runs skip). This also fixed a live breakage: the OLD v1 cron was
+  crashing every run with "No midpoint" because a resolved market returns no CLOB midpoints (see [[gotchas]]).
+- **Next:** Phase 2 (serverless compute + Supabase cache) per ARCHITECTURE §9. The v1 GitHub-Actions/
+  Pages app below now serves the frozen resolved SpaceX record.
 
 ## Current state
 - **Live:** https://ilanbenamaro-cyber.github.io/polymarket-tracker/

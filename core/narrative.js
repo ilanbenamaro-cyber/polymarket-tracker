@@ -7,14 +7,20 @@
 // and it softens trend claims on low-confidence days.
 
 /** Word form of a stored velocity change object {abs, dir}: "up $0.05T" / "down $0.20T" / "flat". */
-function changeWords(c) {
+function changeWords(c, fmtV) {
   if (!c || c.abs == null) return null;
-  if (c.dir === 'up') return `up $${Math.abs(c.abs).toFixed(2)}T`;
-  if (c.dir === 'down') return `down $${Math.abs(c.abs).toFixed(2)}T`;
+  if (c.dir === 'up') return `up ${fmtV(Math.abs(c.abs))}`;
+  if (c.dir === 'down') return `down ${fmtV(Math.abs(c.abs))}`;
   return 'flat';
 }
 
-export function buildNarrative({ derived, analytics = null, prior7d = null, prior30d = null, density = [] }) {
+export function buildNarrative({ derived, analytics = null, prior7d = null, prior30d = null, density = [], config = null }) {
+  // Subject + unit from the market config (defaults reproduce the legacy SpaceX
+  // wording exactly, keeping existing records byte-identical).
+  const subject = config?.narrative?.subject ?? "SpaceX's IPO-closing cap";
+  const up = config?.narrative?.unit_prefix ?? '$';
+  const us = config?.narrative?.unit_suffix ?? 'T';
+  const fmtV = (x) => `${up}${x.toFixed(2)}${us}`;
   const median = derived.implied_median;
   const tier = derived.confidence.tier;
   const velocity = analytics?.velocity ?? null;
@@ -57,10 +63,10 @@ export function buildNarrative({ derived, analytics = null, prior7d = null, prio
   if (median == null) {
     parts.push('The market does not cross a 50% threshold within the quoted range, so no implied median is available.');
   } else {
-    let lead = `The market values SpaceX's IPO-closing cap at a median $${median.toFixed(2)}T`;
+    let lead = `The market values ${subject} at a median ${fmtV(median)}`;
     const tail = [];
-    if (change30d) tail.push(change30d.dir === 'flat' ? 'broadly flat over the past month' : `${changeWords(change30d)} over the past month`);
-    if (change7d) tail.push(change7d.dir === 'flat' ? 'flat this week' : `${changeWords(change7d)} this week`);
+    if (change30d) tail.push(change30d.dir === 'flat' ? 'broadly flat over the past month' : `${changeWords(change30d, fmtV)} over the past month`);
+    if (change7d) tail.push(change7d.dir === 'flat' ? 'flat this week' : `${changeWords(change7d, fmtV)} this week`);
     if (tail.length) lead += ', ' + tail.join(' and ');
     lead += '.';
     if (divergence) lead += ` A ${divergence}.`;

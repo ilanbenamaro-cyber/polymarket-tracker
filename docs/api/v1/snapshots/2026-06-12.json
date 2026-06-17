@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.2.1",
-  "methodology_version": "1.3.0",
+  "schema_version": "1.3.0",
+  "methodology_version": "1.4.0",
   "asset": {
     "id": "spacex-ipo-market-cap",
     "name": "SpaceX IPO closing market cap",
@@ -348,7 +348,9 @@
         "staleness_threshold_hours": 17,
         "stale_after": "2026-06-13T13:08:39.805Z",
         "expected_cadence": "every 2h, 12:00–00:00 UTC (overnight pause 00:00–12:00 UTC), incl. weekends",
-        "policy": "Considered stale 17h after as_of (= max scheduled gap 12h overnight pause + 2h one missed run + 3h queue jitter). Live age = now − as_of; stale = now > stale_after."
+        "policy": "Considered stale 17h after as_of (= max scheduled gap 12h overnight pause + 2h one missed run + 3h queue jitter). Live age = now − as_of; stale = now > stale_after.",
+        "final": true,
+        "lifecycle_state": "RESOLVED"
       },
       "market": {
         "analytics": {
@@ -628,6 +630,76 @@
         "confidence_tier": "high",
         "confidence_caveat": null
       }
+    },
+    "lifecycle": {
+      "state": "RESOLVED",
+      "resolved_outcome": [
+        {
+          "threshold": 1,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 1.2,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 1.4,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 1.6,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 1.8,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 2,
+          "outcome": "Yes"
+        },
+        {
+          "threshold": 2.2,
+          "outcome": "No"
+        },
+        {
+          "threshold": 2.4,
+          "outcome": "No"
+        },
+        {
+          "threshold": 2.6,
+          "outcome": "No"
+        },
+        {
+          "threshold": 2.8,
+          "outcome": "No"
+        },
+        {
+          "threshold": 3,
+          "outcome": "No"
+        },
+        {
+          "threshold": 3.2,
+          "outcome": "No"
+        },
+        {
+          "threshold": 3.4,
+          "outcome": "No"
+        },
+        {
+          "threshold": 3.6,
+          "outcome": "No"
+        },
+        {
+          "threshold": 3.8,
+          "outcome": "No"
+        },
+        {
+          "threshold": 4,
+          "outcome": "No"
+        }
+      ],
+      "as_of": "2026-06-17T20:28:15.292Z"
     }
   },
   "assumptions_version": "1.0.0"

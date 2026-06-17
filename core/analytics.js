@@ -8,13 +8,33 @@
 
 import { quantileValuation, computeDensity } from './metrics.js';
 import { roundT, fmtSignedDeltaT, deltaDir } from './format.js';
+import { labelLt, labelBetween, labelGt } from './market-config.js';
+
+/** Bucket-label builders bound to a market config (undefined ⇒ legacy "$…T"). */
+function labelsFor(config) {
+  if (!config) return undefined;
+  return {
+    lt: (t) => labelLt(config, t),
+    between: (a, b) => labelBetween(config, a, b),
+    gt: (t) => labelGt(config, t),
+  };
+}
 
 const NORMAL_TAIL_RATIO = 1.9; // (P90-P10)/(P75-P25) for a normal distribution
 const DISPERSION_EPS = 0.03; // $T change in IQR width that counts as a real move
 const ACCEL_EPS = 0.002; // $T/day difference that counts as accel/decel
 
+// Legacy tracked thresholds (SpaceX) — the default standing-forecast rungs when
+// no market config is supplied (keeps existing callers byte-identical).
+const DEFAULT_TRACKED = [
+  { key: 'prob_1_8t', threshold: 1.8 },
+  { key: 'prob_2_0t', threshold: 2.0 },
+  { key: 'prob_2_4t', threshold: 2.4 },
+];
+const DEFAULT_RESOLVES = '2027-12-31';
+
 // ── shape ────────────────────────────────────────────────────────────────────
-function computeShape(markets, iqr, median) {
+function computeShape(markets, iqr, median, labels) {
   const width = iqr.p25 != null && iqr.p75 != null ? iqr.p75 - iqr.p25 : null;
   const skew_bowley =
     median != null && width && width > 1e-9
@@ -31,7 +51,7 @@ function computeShape(markets, iqr, median) {
   const fat_tail = tail_ratio != null ? roundT3(tail_ratio / NORMAL_TAIL_RATIO) : null;
 
   // Normalized Shannon entropy + Gini over the density buckets (consensus vs spread).
-  const dens = computeDensity(markets).map((b) => b.prob);
+  const dens = computeDensity(markets, labels).map((b) => b.prob);
   const n = dens.length;
   let entropy = null;
   if (n > 1) {
@@ -46,7 +66,7 @@ function computeShape(markets, iqr, median) {
     for (let i = 0; i < n; i++) g += (2 * (i + 1) - n - 1) * sorted[i];
     gini = roundT3(g / (n * sum));
   }
-  const buckets = computeDensity(markets);
+  const buckets = computeDensity(markets, labels);
   const dominant = buckets.length
     ? buckets.reduce((a, b) => (b.prob > a.prob ? b : a))
     : null;
@@ -62,7 +82,7 @@ function computeShape(markets, iqr, median) {
 }
 
 // ── dispersion over time ──────────────────────────────────────────────────────
-function computeDispersion(iqr, priors) {
+function computeDispersion(iqr, priors, eps = DISPERSION_EPS) {
   const width = iqr.p25 != null && iqr.p75 != null ? iqr.p75 - iqr.p25 : null;
   const w7 = priors.iqr_width_7d ?? null;
   const w30 = priors.iqr_width_30d ?? null;
@@ -71,7 +91,7 @@ function computeDispersion(iqr, priors) {
   // Trend keyed on the 30d change (falls back to 7d) of the 25-75 band width.
   let trend = null;
   const ref = change_30d ?? change_7d;
-  if (ref != null) trend = ref < -DISPERSION_EPS ? 'converging' : ref > DISPERSION_EPS ? 'diverging' : 'stable';
+  if (ref != null) trend = ref < -eps ? 'converging' : ref > eps ? 'diverging' : 'stable';
   return { iqr_width: roundT3(width), width_7d: roundT3(w7), width_30d: roundT3(w30), change_7d, change_30d, trend };
 }
 
@@ -81,7 +101,7 @@ function changeObj(now, then) {
   const abs = now - then;
   return { abs: roundT(abs), dir: deltaDir(abs), display: fmtSignedDeltaT(abs) };
 }
-function computeVelocity(median, priors) {
+function computeVelocity(median, priors, accelEps = ACCEL_EPS) {
   const change_24h = changeObj(median, priors.median_1d);
   const change_7d = changeObj(median, priors.median_7d);
   const change_30d = changeObj(median, priors.median_30d);
@@ -92,9 +112,9 @@ function computeVelocity(median, priors) {
     const rate7 = change_7d.abs / 7;
     const rate30 = change_30d.abs / 30;
     acceleration =
-      Math.abs(rate7) > Math.abs(rate30) + ACCEL_EPS
+      Math.abs(rate7) > Math.abs(rate30) + accelEps
         ? 'accelerating'
-        : Math.abs(rate7) < Math.abs(rate30) - ACCEL_EPS
+        : Math.abs(rate7) < Math.abs(rate30) - accelEps
           ? 'decelerating'
           : 'steady';
   }
@@ -102,13 +122,15 @@ function computeVelocity(median, priors) {
 }
 
 // ── calibration scaffold (HONEST: pending resolution, never a faked score) ────
-function computeCalibration(markets, median, asOf) {
+function computeCalibration(markets, median, asOf, resolves = DEFAULT_RESOLVES, tracked = DEFAULT_TRACKED) {
   const probAt = (t) => { const r = markets.find((m) => m.threshold === t); return r ? r.prob : null; };
+  const standing_forecast = { as_of: asOf, median: roundT(median) };
+  for (const { key, threshold } of tracked) standing_forecast[key] = probAt(threshold);
   return {
     status: 'pending_resolution',
-    resolves: '2027-12-31',
+    resolves,
     note: 'The market resolves once, at IPO close. A true calibration / Brier score is impossible before resolution; this records the standing forecast so it can be scored when the outcome is known. No score is computed now.',
-    standing_forecast: { as_of: asOf, median: roundT(median), prob_1_8t: probAt(1.8), prob_2_0t: probAt(2.0), prob_2_4t: probAt(2.4) },
+    standing_forecast,
   };
 }
 
@@ -130,11 +152,16 @@ function buildDescriptor(shape, dispersion) {
  *   priors  : { median_1d, median_7d, median_30d, iqr_width_7d, iqr_width_30d }
  *   asOf    : snapshot date (for the standing forecast)
  */
-export function buildAnalytics({ markets, iqr, median, priors = {}, asOf = null }) {
-  const shape = computeShape(markets, iqr, median);
-  const dispersion = computeDispersion(iqr, priors);
-  const velocity = computeVelocity(median, priors);
-  const calibration = computeCalibration(markets, median, asOf);
+export function buildAnalytics({ markets, iqr, median, priors = {}, asOf = null, config = null }) {
+  const labels = labelsFor(config);
+  const eps = config?.analytics?.dispersion_eps ?? DISPERSION_EPS;
+  const accelEps = config?.analytics?.accel_eps ?? ACCEL_EPS;
+  const tracked = config?.tracked_thresholds ?? DEFAULT_TRACKED;
+  const resolves = config?.calibration?.resolves ?? DEFAULT_RESOLVES;
+  const shape = computeShape(markets, iqr, median, labels);
+  const dispersion = computeDispersion(iqr, priors, eps);
+  const velocity = computeVelocity(median, priors, accelEps);
+  const calibration = computeCalibration(markets, median, asOf, resolves, tracked);
   const descriptor = buildDescriptor(shape, dispersion);
   return { shape, dispersion, velocity, calibration, descriptor };
 }
