@@ -8,7 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { buildAnalytics } from '../core/analytics.js';
+import { loadMarketConfig } from '../core/market-config.js';
 import { impliedSharePrice, buildScenarios } from '../core/scenarios.js';
+
+const SPACEX_CFG = loadMarketConfig('spacex');
 import { buildNarrative } from '../core/narrative.js';
 import { validateRecord } from '../core/validate.js';
 import { roundT, fmtSignedDeltaT } from '../core/format.js';
@@ -66,7 +69,7 @@ test('analytics: shape/dispersion/velocity computed and sane', () => {
   const a = buildAnalytics({
     markets: SNAP, iqr: { p25: 1.9, p75: 2.45 }, median: 2.1,
     priors: { median_1d: 2.12, median_7d: 2.2, median_30d: 2.0, iqr_width_7d: 0.7, iqr_width_30d: 0.9 },
-    asOf: '2026-06-05',
+    asOf: '2026-06-05', config: SPACEX_CFG,
   });
   assert.ok(Math.abs(a.shape.skew_bowley) <= 1);
   assert.ok(a.shape.entropy >= 0 && a.shape.entropy <= 1);

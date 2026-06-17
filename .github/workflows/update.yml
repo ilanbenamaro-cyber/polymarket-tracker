@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  issues: write # R1: open/update a failure-tracking issue
 
 # Serialize runs that commit to main so two snapshots never race on the push.
 # cancel-in-progress:false → a queued run waits for the in-flight one to finish
@@ -151,3 +152,23 @@ jobs:
             sleep 30
           done
           exit 1
+
+      # R1 — pipeline-health alert. The v1 cron crashed silently for days after
+      # SpaceX resolved with no visible alert. On ANY job failure, open or update a
+      # single deduped GitHub issue (persistent, visible, no new secret — uses the
+      # built-in token). Belt-and-braces with GitHub's native failure email.
+      - name: Alert on failure (open/update a tracking issue)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TITLE="⚠ snapshot pipeline failed"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="Pipeline run failed — mode \`${MODE:-unknown}\`, $(date -u +%Y-%m-%dT%H:%M:%SZ).\n\n$RUN_URL"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty' || echo "")
+          if [ -n "$EXISTING" ]; then
+            printf '%b' "$BODY" | gh issue comment "$EXISTING" --body-file -
+          else
+            printf '%b' "$BODY" | gh issue create --title "$TITLE" --body-file -
+          fi
