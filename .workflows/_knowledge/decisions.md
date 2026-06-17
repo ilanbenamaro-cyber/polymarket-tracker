@@ -5,6 +5,29 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## PIVOT: single-market tool → multi-market hosted product (Vercel + Supabase)
+**Decided (2026-06-17):** After v1 (single SpaceX market, GitHub Actions + Pages) validated with a
+hedge fund, the product generalizes into a **hosted multi-market** product. Locked stack: **Vercel**
+(frontend + serverless functions running `core/`), **Supabase** (DB + auth + realtime), **Polymarket**
+unchanged as source of truth. First pass scopes to **threshold-ladder events** (SpaceX is one
+instance); single binary markets are a deferred record type. Refresh: **on-demand + cache, cron for
+followed markets only**. Full design in `docs/ARCHITECTURE.md`; built phase-by-phase (Phase 1 =
+`core/` generalization + resolution guard).
+**Why:** v1's trust machinery (verified pipeline, firewall, hash, validation) is the differentiator a
+fund pays for; the goal is to scale it to many markets without manual per-market eyeballing, on
+managed/serverless infra a solo operator can run. The fund is not using the site during the rebuild,
+so we migrate cleanly (no parallel-fallback constraint).
+**Constrains — THE GOVERNING PRINCIPLE: the verified pipeline runs ON THE BACKEND, on demand.** Every
+served number is still isotonic-adjusted, firewall-checked, validated, and hashed by `core/` — the
+client never fetches Polymarket and bypasses `core/`. The cache **stores** the frozen hash, never
+recomputes it. `derived.scenarios` (Tier-2/SpaceX) becomes **optional**, attached only when a
+per-market assumptions config exists — the firewall rule stays un-relaxed. Resolution state is
+**authoritative over the cache** (a resolved market is never served as live data); resolution
+notifications fire only on **confirmed** UMA resolution, never first sight of `closed:true`. Phase 1
+has a **blocking byte-identical-hash gate**: the generalized pipeline must reproduce the SpaceX
+record's `raw_sha256` exactly, proving generalization didn't chip the pipeline. See
+[[spacex-multi-market-pivot]] in MEMORY if present, and `docs/ARCHITECTURE.md`.
+
 ## Staleness threshold is a DERIVED function of the snapshot schedule (never a literal)
 **Decided:** With the 2h cadence (cron `0 0,12,14,16,18,20,22 * * *`, 7 runs/day, overnight pause
 00:00→12:00 UTC), `core/freshness.js` exports the schedule as facts — `SCHEDULE = {CADENCE_H:2,
