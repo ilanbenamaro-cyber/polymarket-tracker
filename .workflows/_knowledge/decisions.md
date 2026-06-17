@@ -5,6 +5,43 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Market generalization is config-driven; SpaceX is one pinned instance (Phase 1)
+**Decided (2026-06-17):** Every market-specific value lives in a per-market **MarketConfig** DATA
+object (`core/markets/<id>.json`), never a code branch — `grep -ri "if.*spacex" core/` must stay
+empty. `core/market-config.js` `defaultConfigForLadder(thresholds, meta)` derives scale-free defaults
+(tail offsets as a fraction of the median inter-threshold gap, relative confidence count thresholds,
+etc.) for any ladder; SpaceX's pinned config equals the historical constants exactly. Every `core/`
+function takes the relevant config slice with a **legacy default**, so existing callers and SpaceX are
+byte-identical and only generic markets take new branches.
+**Why:** Generalizing to many markets without per-market eyeballing requires the tuned constants to be
+data, not scattered literals — but the verified SpaceX output must not move. The dual guarantee is
+enforced by a **blocking parity gate** (`test/phase1-spacex-parity.test.js`): frozen `raw_sha256`
+(`c1be52e4…b89003`) + full `derived` deep-equal + 183-day history re-derive, all against an immutable
+pre-generalization fixture. Proven on a second real ladder (Kraken IPO $16–28B) via the generic path.
+**Constrains:** Never reintroduce a market literal into `core/` math — add a config field. Never edit
+the parity fixture to make a test pass (a diff is a real regression). The frozen hash recipe stays
+untouched (generalization is all downstream of `raw_inputs`). methodology 1.4.0 / schema 1.3.0
+(additive). See [[gotchas]] resolved-market trap; `docs/ARCHITECTURE.md` §1.2.
+
+## Two-stage market resolution; classify from gamma meta BEFORE any CLOB call
+**Decided (2026-06-17):** A market's lifecycle (`core/lifecycle.js`, `snapshot.lifecycle`) is
+**OPEN → CLOSED_PENDING → RESOLVED**, classified from gamma signals (`closed` + `umaResolutionStatus`
++ `outcomePrices`) — never `active`/`endDate` (unreliable). RESOLVED only when EVERY rung is
+UMA-confirmed (a settled outcome per rung); CLOSED_PENDING when trading ended but UMA is unconfirmed —
+**never claims a final outcome** (UMA can lag/dispute); else OPEN. A non-OPEN market is **frozen** (the
+orchestrator preserves the last OPEN record + stamps the outcome + `freshness.final`; no live pull; a
+frozen RESOLVED record is never re-pulled). Classification happens from **gamma meta before any CLOB
+fetch**, because a resolved market returns no midpoints.
+**Why:** v1 pulled forever — a resolved market would show a live, drifting estimate of a settled fact;
+and the moment SpaceX resolved (2026-06-17) the old cron crashed on missing midpoints. `closed` alone
+is not "confirmed" (disputes happen), so we split "stop showing drift" from "declare the result" — a
+fund must not be told a final outcome for a still-disputed market. `validate.js` asserts RESOLVED
+carries an outcome and OPEN/CLOSED_PENDING do not.
+**Constrains:** Resolution notifications (a later phase) must fire ONLY on RESOLVED, never
+CLOSED_PENDING. Keep classification before the price fetch. `snapshot.lifecycle` stays OUTSIDE
+`derived` so an OPEN market's derived block is byte-identical. Don't use `active`/`endDate` as
+resolution signals. See `docs/ARCHITECTURE.md` §5.
+
 ## PIVOT: single-market tool → multi-market hosted product (Vercel + Supabase)
 **Decided (2026-06-17):** After v1 (single SpaceX market, GitHub Actions + Pages) validated with a
 hedge fund, the product generalizes into a **hosted multi-market** product. Locked stack: **Vercel**
