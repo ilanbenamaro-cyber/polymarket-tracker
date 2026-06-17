@@ -299,6 +299,27 @@ async function main() {
 
   // Published artifact under audit.
   const published = JSON.parse(readFileSync(LATEST_PATH, 'utf8'));
+
+  // A RESOLVED market is intentionally FROZEN (ARCHITECTURE §5): there is nothing
+  // live to verify — CLOB returns no midpoints once it settles — and age is no
+  // longer a liveness signal. Report FINAL and exit 0; never flag a settled
+  // market STALE. (CLOSED_PENDING still verifies normally: trading may resume or
+  // it may still be drifting toward resolution.)
+  if (published.snapshot.lifecycle?.state === 'RESOLVED') {
+    const sep = '─'.repeat(94);
+    if (args.json) {
+      console.log(JSON.stringify({
+        asset: ASSET.id, published_at: published.snapshot.fetched_at, verdict: 'FINAL',
+        lifecycle_state: 'RESOLVED', resolved_outcome: published.snapshot.lifecycle.resolved_outcome,
+        reason: 'market resolved — feed frozen at final state; no live verification applicable',
+      }));
+    } else {
+      console.log(`\n${sep}\nVERDICT: FINAL`);
+      console.log(`  ${ASSET.id} is RESOLVED — feed frozen at its final state; nothing live to verify (a settled market is not stale).\n${sep}\n`);
+    }
+    process.exit(0);
+  }
+
   const pubByToken = new Map(published.snapshot.raw_inputs.map((r) => [r.token_id, r]));
   const pubAdjByThreshold = new Map(published.snapshot.derived.markets.map((m) => [m.threshold, m]));
   const publishedAt = published.snapshot.fetched_at;
