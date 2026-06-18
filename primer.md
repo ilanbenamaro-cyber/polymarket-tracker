@@ -3,6 +3,10 @@
 > First file to read on a new session. Present-tense, thin, kept current.
 > The "why" behind decisions lives in `.workflows/_knowledge/decisions.md`;
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
+> **Knowledge layout (this repo):** `primer.md` is the resume-here file (it plays the
+> SESSION-CONTINUITY role); the only `_knowledge/` files are `decisions.md` + `gotchas.md`.
+> There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
+> skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
 ## ⮕ DIRECTION (2026-06-18): multi-market hosted product — Phase 2a DONE & LIVE-VERIFIED
 - **Phase 2a (backend foundation) — SHIPPED on Vercel + Supabase.** A Vercel serverless function
@@ -27,6 +31,14 @@
 - **Proven locally: 119 tests** (decision logic + orchestration incl. the cached-then-resolved trap);
   parity gate still green (SpaceX byte-identical).
 - **Next: Phase 2b** — Supabase Auth + watchlists (FK-ready schema; no table rewrite needed).
+  Plan fresh next session. Backlog to fold in:
+  - [ ] **Deployment-protection posture** — Vercel deployment protection is currently **OFF** (was
+    turned off for 2a live testing). Production access should be gated by **our own Supabase auth**
+    (2b), **not Vercel's wall** — decide/lock this when 2b auth lands, and don't leave the preview
+    open indefinitely. (Resolution correctness is already enforced server-side; this is access control.)
+  - [ ] **Document the 0.5% `MATERIAL_ADJUSTMENT` threshold** (`core/confidence.js`) in
+    `core/methodology.json` — an isotonic tweak below 0.5% is treated as immaterial and keeps the
+    confidence tier high; that rule should be written into the methodology, not only the code.
 
 ## ⮕ DIRECTION (2026-06-17): multi-market hosted product — Phase 1 SHIPPED
 - **Pivot:** generalizing from the single SpaceX market into a **hosted multi-market** product on
