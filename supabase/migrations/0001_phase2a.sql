@@ -46,7 +46,14 @@ create index if not exists market_snapshots_latest_idx
   on public.market_snapshots (market_id, cached_at desc);
 
 -- O(1) latest snapshot per market.
-create or replace view public.market_latest as
+-- security_invoker = on: a view runs as its OWNER by default (security-definer
+-- style), which would BYPASS the base table's RLS and let the anon key read every
+-- row via PostgREST ("Unrestricted"). security_invoker makes it run as the QUERYING
+-- role, so it inherits market_snapshots' RLS — anon gets 0 rows, the service role
+-- gets all, and a 2b public-SELECT policy on the table flows through automatically.
+-- (Requires Postgres 15+.)
+create or replace view public.market_latest
+  with (security_invoker = on) as
   select distinct on (market_id) *
   from public.market_snapshots
   order by market_id, cached_at desc;

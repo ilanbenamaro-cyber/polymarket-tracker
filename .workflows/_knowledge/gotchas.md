@@ -5,6 +5,20 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A Postgres VIEW bypasses table RLS unless security_invoker=on (Supabase "Unrestricted")
+**Symptom:** `markets`/`market_snapshots` show RLS-locked, but Supabase flags the `market_latest`
+VIEW as "Unrestricted" — and `anon` can read every underlying row through it via PostgREST.
+**Reality:** A view runs with its OWNER's privileges by default (security-definer style). Created in the
+SQL editor → owned by `postgres`, which owns the base tables, and **RLS is not enforced for a table's
+owner** → the view sees all rows. Combined with Supabase's default `anon` SELECT grant on new `public`
+objects, anon reads the whole table through the view. RLS on the base table only protects DIRECT
+access by non-owner roles (anon), not access via an owner-run view.
+**Lesson:** Add `with (security_invoker = on)` to every view over an RLS table (PG 15+) so it runs as
+the QUERYING role and inherits the table's RLS. Then anon→0 rows, service-role→all rows, and a later
+public-SELECT policy flows through automatically. Fix in the migration; patch a live view with
+`alter view public.<v> set (security_invoker = on);`. (Fallback on PG<15: revoke anon/authenticated
+SELECT on the view.)
+
 ## Vercel functions need core/ JSON files bundled (readFileSync at runtime)
 **Symptom (anticipated):** a deployed `api/market.mjs` could 500 with ENOENT — `core/validate.js`
 (`docs/api/v1/schema.json`) and `core/market-config.js` (`core/markets/*.json`,
