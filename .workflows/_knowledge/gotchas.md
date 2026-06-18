@@ -5,6 +5,16 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Vercel functions need core/ JSON files bundled (readFileSync at runtime)
+**Symptom (anticipated):** a deployed `api/market.mjs` could 500 with ENOENT — `core/validate.js`
+(`docs/api/v1/schema.json`) and `core/market-config.js` (`core/markets/*.json`,
+`core/methodology.json`, `core/assumptions.json`) read those files via `readFileSync` at runtime, and
+Vercel's bundler won't trace a dynamic `readdirSync`/templated path.
+**Fix:** `vercel.json` `functions["api/market.mjs"].includeFiles = "{core/**,docs/api/v1/schema.json}"`
+bundles them. If you add a function that imports `core/`, add the same includeFiles. Confirm on the
+first deploy (call the function; an ENOENT means the glob missed a file). `pinnedConfigFor` wraps its
+`readdirSync` in try/catch → falls back to the generic default rather than crashing.
+
 ## A RESOLVED Polymarket market returns NO CLOB midpoints — classify before fetching prices
 **Symptom:** `scripts/snapshot.js` crashed live with `No midpoint for token …`; the old v1 cron had
 been failing on every run. (2026-06-17, when SpaceX actually resolved.)

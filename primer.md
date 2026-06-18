@@ -4,6 +4,28 @@
 > The "why" behind decisions lives in `.workflows/_knowledge/decisions.md`;
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
+## ⮕ DIRECTION (2026-06-17): multi-market hosted product — Phase 2a code-complete (deploy pending)
+- **Phase 2a (backend foundation):** a Vercel serverless function (`api/market.mjs`) serves ONE
+  verified market on demand, backed by a Supabase cache. The verified pipeline runs on the backend
+  (`lib/compute.mjs` → `core/`); the client never fetches Polymarket / bypasses `core/`; the cache only
+  ever stores a `core/`-validated record (`lib/cache.mjs` `writeRecord` is the sole write path) and
+  stores the frozen hash, never recomputes it. Cache×resolution precedence in `lib/decide-cache-action.mjs`
+  (RESOLVED served forever; within-TTL OPEN is gamma-probed before serving so a since-resolved market is
+  never served stale; TTL=15min). Auth/watchlists/notifications/news = **deferred** (2b/2c); schema is
+  FK-ready. Also shipped: **R1** (CI failure → GitHub issue) + **R2** (fail-loud if a builder gets no
+  MarketConfig).
+- **Proven locally: 119 tests** (decision logic + orchestration incl. the cached-then-resolved trap);
+  `computeMarketRecord` run live on Kraken (untuned, $16–28B) → monotone, buckets=1, no scenarios, TTL
+  freshness, hashed, validated; static secrets/red-team clean (no hardcoded keys; single validated
+  write path). **Parity gate still green** (SpaceX byte-identical).
+- **PENDING (needs human browser steps — can't be done without the cloud accounts):** create Supabase
+  project + run `supabase/migrations/0001_phase2a.sql`; create Vercel project + set `SUPABASE_URL` +
+  `SUPABASE_SERVICE_ROLE_KEY` (server env, NOT NEXT_PUBLIC) + deploy; run `scripts/seed-spacex.mjs` to
+  seed the frozen RESOLVED SpaceX record. Then the live verification (function returns a verified record
+  · cache-hit · SpaceX-frozen · cached-then-resolved · rollback) + dynamic red-team. See [[decisions]]
+  "Phase 2a cache + secrets". Rollback: `supabase/migrations/0001_phase2a_down.sql` / Vercel instant-rollback.
+- **Next:** finish 2a live verification on deploy, then **Phase 2b** (Supabase Auth + watchlists).
+
 ## ⮕ DIRECTION (2026-06-17): multi-market hosted product — Phase 1 SHIPPED
 - **Pivot:** generalizing from the single SpaceX market into a **hosted multi-market** product on
   **Vercel + Supabase** (Polymarket unchanged). Design: `docs/ARCHITECTURE.md` (read before rebuild

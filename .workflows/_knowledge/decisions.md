@@ -5,6 +5,36 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Phase 2a cache + secrets boundary (serverless verified-snapshot cache)
+**Decided (2026-06-17):** The Vercel function (`api/market.mjs` → `lib/serve-market.mjs`) serves a
+verified record from a Supabase cache, computing on demand via `lib/compute.mjs` → `core/` when needed.
+Design rules:
+- **Cache×resolution precedence (the correctness trap):** resolution state is authoritative over the
+  cache. `lib/decide-cache-action.mjs` (pure, fully unit-tested): a RESOLVED cached record is served
+  forever (monotonic, no probe, 0 Polymarket calls); a within-TTL OPEN/CLOSED_PENDING record is
+  **gamma-meta-probed before serving** (deduped by PROBE_TTL≈60s) so a market that resolved *after*
+  caching is recomputed/frozen, never served stale-live; past-TTL recomputes (which re-classifies).
+  TTL = 15min (OPEN); cost is bounded by TTL, not request volume.
+- **Per-market freshness:** on-demand records carry **TTL-based** `stale_after` (`buildSnapshotRecord`
+  gained an optional `freshnessThresholdHours`); the cron path passes nothing → 17h, so SpaceX stays
+  byte-identical. RESOLVED = `freshness.final`, never stale.
+- **Secrets boundary:** the `service_role` (write) key lives ONLY in the function's server-side env
+  (`SUPABASE_SERVICE_ROLE_KEY`, never `NEXT_PUBLIC_`); `lib/cache.mjs` is server-only. RLS is enabled
+  with NO anon policies (anon can touch nothing) so the boundary is safe before 2b adds a browser
+  client. Generalizes the PAT-exposure lesson: no write-capable credential in client-reachable code.
+- **Single write path:** the ONLY writer to `market_snapshots` is `lib/cache.mjs writeRecord`, fed a
+  `validateRecord`-passed record by `computeMarketRecord`/the seed — no path caches unvalidated data.
+  The cache STORES `raw_sha256`, never recomputes it.
+- **Schema:** `markets` (id = event slug = FK target) + `market_snapshots` (immutable archive, unique
+  on (market_id, fetched_at)) + `market_latest` view. FK-ready for 2b watchlists/notifications with no
+  table rewrite. Migration is reversible (`_down.sql`); cache is regenerable (no source data).
+**Why:** scale the verified pipeline to many markets on managed/serverless infra without per-market
+eyeballing, while the cache never reintroduces the Phase-1 resolution bug and never leaks a write key.
+**Constrains:** never add an `anon`-readable write policy; never write to the cache outside
+`writeRecord`; never serve a record that didn't pass `validateRecord`; keep resolution authoritative
+over TTL. Deploy mechanics (Supabase/Vercel projects) are human-provisioned in browser consoles;
+live-deploy verification gates "2a done". See `docs/ARCHITECTURE.md` §3/§4/§6.
+
 ## Market generalization is config-driven; SpaceX is one pinned instance (Phase 1)
 **Decided (2026-06-17):** Every market-specific value lives in a per-market **MarketConfig** DATA
 object (`core/markets/<id>.json`), never a code branch — `grep -ri "if.*spacex" core/` must stay
