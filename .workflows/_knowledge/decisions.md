@@ -5,6 +5,29 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## `/api/market` is NEVER HTTP-cached (`Cache-Control: no-store`) — the probe is the correctness layer
+**Decided (2026-06-18):** The serverless function (`api/market.mjs`) sets `Cache-Control: no-store` on
+**every** response (was `public, max-age=30` on 200s). No edge/CDN/proxy/browser caching of
+`/api/market` — every request must execute the function.
+**Why:** Resolution authority is a **per-request** check. `lib/serve-market.mjs` runs the gamma-meta
+resolution **probe** (`decideBeforeProbe → PROBE → probeLifecycle`) before serving a within-TTL OPEN
+record, so a market that resolved *after* caching is caught and refrozen — this is the C4 guarantee. An
+HTTP response cache **bypasses the function entirely** (confirmed live: `x-vercel-cache: HIT`, the
+function never ran), and with it the probe — so a `public, max-age=30` response let Vercel's Edge replay
+a stale **OPEN** record for up to 30s after a market resolved (the exact stale-live gap C4 exists to
+prevent). It also made live-verify C2 read `cached:false` on a genuine OPEN hit (the Edge replayed
+call #1's miss response). The cost savings HTTP caching would add are **already captured by the Supabase
+cache** (a hit serves `cached:true` with zero Polymarket calls on every real invocation); edge-caching
+only saves a warm function invocation while trading away resolution correctness — a bad trade for a
+fund-facing feed. `no-store` (not `private, no-cache`) so a browser/back-button can't replay a stale
+`OPEN`/`age_seconds`/`freshness` either (those are computed at function time and embedded in the body).
+**Constrains:** Never reintroduce `public`/`max-age`/`s-maxage` on `/api/market` (or any endpoint whose
+correctness depends on the per-call probe) to "save cost" — the Supabase cache is the cost layer, the
+probe is the correctness layer, HTTP caching skips both. If a future endpoint is genuinely static
+(no resolution semantics), cache *that* one explicitly, never the market-serving path. Verify the
+`cache-control: no-store` response header after any deploy (it fingerprints the live build). Proven by
+`scripts/verify-phase2a.mjs` 12/12 live (2026-06-18). See [[gotchas]] "Vercel edge-caches …".
+
 ## Phase 2a cache + secrets boundary (serverless verified-snapshot cache)
 **Decided (2026-06-17):** The Vercel function (`api/market.mjs` → `lib/serve-market.mjs`) serves a
 verified record from a Supabase cache, computing on demand via `lib/compute.mjs` → `core/` when needed.
