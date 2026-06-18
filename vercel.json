@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/market.mjs": {
+      "includeFiles": "{core/**,docs/api/v1/schema.json}"
+    }
+  }
+}

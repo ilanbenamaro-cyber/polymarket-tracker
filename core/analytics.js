@@ -153,6 +153,7 @@ function buildDescriptor(shape, dispersion) {
  *   asOf    : snapshot date (for the standing forecast)
  */
 export function buildAnalytics({ markets, iqr, median, priors = {}, asOf = null, config = null }) {
+  if (!config) throw new Error('buildAnalytics: a MarketConfig is required (no silent SpaceX defaults)');
   const labels = labelsFor(config);
   const eps = config?.analytics?.dispersion_eps ?? DISPERSION_EPS;
   const accelEps = config?.analytics?.accel_eps ?? ACCEL_EPS;

@@ -4,6 +4,30 @@
 > The "why" behind decisions lives in `.workflows/_knowledge/decisions.md`;
 > traps that already bit us live in `.workflows/_knowledge/gotchas.md`.
 
+## ⮕ DIRECTION (2026-06-18): multi-market hosted product — Phase 2a DONE & LIVE-VERIFIED
+- **Phase 2a (backend foundation) — SHIPPED on Vercel + Supabase.** A Vercel serverless function
+  (`api/market.mjs`) serves ONE verified market on demand, backed by a Supabase cache. The verified
+  pipeline runs on the backend (`lib/compute.mjs` → `core/`); the client never fetches Polymarket /
+  bypasses `core/`; the cache only ever stores a `core/`-validated record (`lib/cache.mjs` `writeRecord`
+  is the sole write path) and stores the frozen hash, never recomputes it. Cache×resolution precedence
+  in `lib/decide-cache-action.mjs` (RESOLVED served forever; within-TTL OPEN is gamma-probed before
+  serving so a since-resolved market is never served stale; TTL=15min). Auth/watchlists/notifications/
+  news = **deferred** (2b/2c); schema is FK-ready. Also shipped: **R1** (CI failure → GitHub issue) +
+  **R2** (fail-loud if a builder gets no MarketConfig).
+- **LIVE-VERIFIED 2026-06-18: `scripts/verify-phase2a.mjs` 12/12 green against the deployed stack** —
+  C1 OPEN market returns a re-hash-verified record; C2 repeat call is a TRUE Supabase cache hit
+  (`cached:true`, function runs + reads cache, no Polymarket re-fetch); C3 SpaceX served frozen RESOLVED
+  from the seed; C4 cache×resolution trap holds (a since-resolved market is never served stale-live).
+  Supabase schema applied (`markets` + `market_snapshots`, RLS locked, `market_latest` view
+  `security_invoker=on`); SpaceX seeded via `scripts/seed-spacex.mjs`.
+- **⚠ LOAD-BEARING: `/api/market` sets `Cache-Control: no-store` — DO NOT add HTTP/edge caching.** The
+  per-call resolution probe is the correctness layer; an edge-cached response (`x-vercel-cache: HIT`)
+  skips the function and could replay a since-resolved market as OPEN (the C4 gap). Supabase is the cost
+  layer. See [[gotchas]] "Vercel edge-caches …" and [[decisions]] "/api/market is never HTTP-cached".
+- **Proven locally: 119 tests** (decision logic + orchestration incl. the cached-then-resolved trap);
+  parity gate still green (SpaceX byte-identical).
+- **Next: Phase 2b** — Supabase Auth + watchlists (FK-ready schema; no table rewrite needed).
+
 ## ⮕ DIRECTION (2026-06-17): multi-market hosted product — Phase 1 SHIPPED
 - **Pivot:** generalizing from the single SpaceX market into a **hosted multi-market** product on
   **Vercel + Supabase** (Polymarket unchanged). Design: `docs/ARCHITECTURE.md` (read before rebuild

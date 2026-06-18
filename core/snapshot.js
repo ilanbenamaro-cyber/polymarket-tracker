@@ -115,7 +115,8 @@ export function buildDerived({ markets, rawInputs = null, anomalies = null, conf
  *   live: { fetched_at, endpoints, raw_inputs, raw_sha256, markets }
  *   anomalies: { stale, closedCount, liquidityDrop } (from orchestration)
  */
-export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, config = null, lifecycle = null) {
+export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, config = null, lifecycle = null, freshnessThresholdHours = undefined) {
+  if (!config) throw new Error('buildSnapshotRecord: a MarketConfig is required (no silent SpaceX defaults)');
   const derived = buildDerived({
     markets: live.markets,
     rawInputs: live.raw_inputs,
@@ -123,11 +124,12 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, 
     config,
     lifecycle,
   });
-  // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + the
-  // documented threshold. Policy only (no frozen age/flag — those are read-time).
-  // A non-OPEN market is FINAL, not stale — freshness records that so consumers
-  // don't show a STALE pill on a resolved/closed market.
-  derived.freshness = buildFreshness(live.fetched_at, null, undefined, lifecycle);
+  // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + a
+  // threshold. The cron path passes nothing → the schedule-derived 17h (SpaceX
+  // byte-identical); the on-demand serverless path passes CACHE_TTL_HOURS so the
+  // record's stale_after is TTL-based (ARCHITECTURE §3.2). A non-OPEN market is
+  // FINAL, not stale — freshness records that so consumers don't show STALE.
+  derived.freshness = buildFreshness(live.fetched_at, null, freshnessThresholdHours, lifecycle);
   const asset = config
     ? { id: config.id, name: config.name, platform: config.platform, market_url: config.market_url, resolves: config.resolves }
     : { ...ASSET };
@@ -159,6 +161,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, 
  * median_30d, iqr_width_7d, iqr_width_30d }.
  */
 export function attachAnalytics(record, { priors = {}, config = null } = {}) {
+  if (!config) throw new Error('attachAnalytics: a MarketConfig is required (no silent SpaceX defaults)');
   const d = record.snapshot.derived;
   const analytics = buildAnalytics({
     markets: d.markets,
@@ -189,6 +192,7 @@ export function attachScenarios(record, registry) {
  * deltas + shape descriptor), so call AFTER attachAnalytics. Mutates and returns.
  */
 export function attachNarrative(record, { prior7d = null, prior30d = null, config = null } = {}) {
+  if (!config) throw new Error('attachNarrative: a MarketConfig is required (no silent SpaceX defaults)');
   const d = record.snapshot.derived;
   const density = computeDensity(d.markets, densityLabels(config)).map((b) => ({ label: b.label, prob: b.prob }));
   const { narrative, narrative_components } = buildNarrative({
@@ -210,6 +214,7 @@ export function attachNarrative(record, { prior7d = null, prior30d = null, confi
  * sensitivity / narrative (those are "current" features).
  */
 export function buildHistoryEntry(date, markets, rawInputs = null, config = null) {
+  if (!config) throw new Error('buildHistoryEntry: a MarketConfig is required (no silent SpaceX defaults)');
   const core = buildDerivedCore({ markets, rawInputs, config });
   const entry = {
     date,

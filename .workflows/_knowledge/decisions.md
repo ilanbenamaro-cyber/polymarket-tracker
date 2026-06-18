@@ -5,6 +5,59 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## `/api/market` is NEVER HTTP-cached (`Cache-Control: no-store`) — the probe is the correctness layer
+**Decided (2026-06-18):** The serverless function (`api/market.mjs`) sets `Cache-Control: no-store` on
+**every** response (was `public, max-age=30` on 200s). No edge/CDN/proxy/browser caching of
+`/api/market` — every request must execute the function.
+**Why:** Resolution authority is a **per-request** check. `lib/serve-market.mjs` runs the gamma-meta
+resolution **probe** (`decideBeforeProbe → PROBE → probeLifecycle`) before serving a within-TTL OPEN
+record, so a market that resolved *after* caching is caught and refrozen — this is the C4 guarantee. An
+HTTP response cache **bypasses the function entirely** (confirmed live: `x-vercel-cache: HIT`, the
+function never ran), and with it the probe — so a `public, max-age=30` response let Vercel's Edge replay
+a stale **OPEN** record for up to 30s after a market resolved (the exact stale-live gap C4 exists to
+prevent). It also made live-verify C2 read `cached:false` on a genuine OPEN hit (the Edge replayed
+call #1's miss response). The cost savings HTTP caching would add are **already captured by the Supabase
+cache** (a hit serves `cached:true` with zero Polymarket calls on every real invocation); edge-caching
+only saves a warm function invocation while trading away resolution correctness — a bad trade for a
+fund-facing feed. `no-store` (not `private, no-cache`) so a browser/back-button can't replay a stale
+`OPEN`/`age_seconds`/`freshness` either (those are computed at function time and embedded in the body).
+**Constrains:** Never reintroduce `public`/`max-age`/`s-maxage` on `/api/market` (or any endpoint whose
+correctness depends on the per-call probe) to "save cost" — the Supabase cache is the cost layer, the
+probe is the correctness layer, HTTP caching skips both. If a future endpoint is genuinely static
+(no resolution semantics), cache *that* one explicitly, never the market-serving path. Verify the
+`cache-control: no-store` response header after any deploy (it fingerprints the live build). Proven by
+`scripts/verify-phase2a.mjs` 12/12 live (2026-06-18). See [[gotchas]] "Vercel edge-caches …".
+
+## Phase 2a cache + secrets boundary (serverless verified-snapshot cache)
+**Decided (2026-06-17):** The Vercel function (`api/market.mjs` → `lib/serve-market.mjs`) serves a
+verified record from a Supabase cache, computing on demand via `lib/compute.mjs` → `core/` when needed.
+Design rules:
+- **Cache×resolution precedence (the correctness trap):** resolution state is authoritative over the
+  cache. `lib/decide-cache-action.mjs` (pure, fully unit-tested): a RESOLVED cached record is served
+  forever (monotonic, no probe, 0 Polymarket calls); a within-TTL OPEN/CLOSED_PENDING record is
+  **gamma-meta-probed before serving** (deduped by PROBE_TTL≈60s) so a market that resolved *after*
+  caching is recomputed/frozen, never served stale-live; past-TTL recomputes (which re-classifies).
+  TTL = 15min (OPEN); cost is bounded by TTL, not request volume.
+- **Per-market freshness:** on-demand records carry **TTL-based** `stale_after` (`buildSnapshotRecord`
+  gained an optional `freshnessThresholdHours`); the cron path passes nothing → 17h, so SpaceX stays
+  byte-identical. RESOLVED = `freshness.final`, never stale.
+- **Secrets boundary:** the `service_role` (write) key lives ONLY in the function's server-side env
+  (`SUPABASE_SERVICE_ROLE_KEY`, never `NEXT_PUBLIC_`); `lib/cache.mjs` is server-only. RLS is enabled
+  with NO anon policies (anon can touch nothing) so the boundary is safe before 2b adds a browser
+  client. Generalizes the PAT-exposure lesson: no write-capable credential in client-reachable code.
+- **Single write path:** the ONLY writer to `market_snapshots` is `lib/cache.mjs writeRecord`, fed a
+  `validateRecord`-passed record by `computeMarketRecord`/the seed — no path caches unvalidated data.
+  The cache STORES `raw_sha256`, never recomputes it.
+- **Schema:** `markets` (id = event slug = FK target) + `market_snapshots` (immutable archive, unique
+  on (market_id, fetched_at)) + `market_latest` view. FK-ready for 2b watchlists/notifications with no
+  table rewrite. Migration is reversible (`_down.sql`); cache is regenerable (no source data).
+**Why:** scale the verified pipeline to many markets on managed/serverless infra without per-market
+eyeballing, while the cache never reintroduces the Phase-1 resolution bug and never leaks a write key.
+**Constrains:** never add an `anon`-readable write policy; never write to the cache outside
+`writeRecord`; never serve a record that didn't pass `validateRecord`; keep resolution authoritative
+over TTL. Deploy mechanics (Supabase/Vercel projects) are human-provisioned in browser consoles;
+live-deploy verification gates "2a done". See `docs/ARCHITECTURE.md` §3/§4/§6.
+
 ## Market generalization is config-driven; SpaceX is one pinned instance (Phase 1)
 **Decided (2026-06-17):** Every market-specific value lives in a per-market **MarketConfig** DATA
 object (`core/markets/<id>.json`), never a code branch — `grep -ri "if.*spacex" core/` must stay

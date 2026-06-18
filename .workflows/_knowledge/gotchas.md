@@ -5,6 +5,50 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Vercel edge-caches `public, max-age` responses and replays them — the function never runs
+**Symptom:** Phase 2a live verify C2 failed: a 2nd `/api/market` call within TTL returned
+`cached:false` on a market that was genuinely OPEN — but with the SAME `fetched_at` as call #1 and
+NO new snapshot row. By elimination from the committed code, NO serve path can emit
+`OPEN + cached:false + same-fetched_at + no-new-row` — the function did **not run** on call #2.
+**Reality:** `api/market.mjs` set `Cache-Control: public, max-age=30` on 200s. **Vercel's Edge Network
+caches a `public, max-age` response and replays it** (confirmed by `x-vercel-cache: HIT` on call #2,
+`MISS` on call #1). Call #1 was a miss → ran the function → returned `cached:false` → the edge cached
+THAT response for 30s → every repeat within the window got the replayed body, function skipped. The
+Supabase cache, serve path, and `cached` flag were all CORRECT — only the CDN layer lied.
+**The real danger isn't the flag — it's resolution correctness:** edge-replaying a response **bypasses
+the per-call resolution probe** (`decideBeforeProbe → PROBE → probeLifecycle`), so a market that
+resolved after caching could be served as **OPEN** for the whole cache window — the exact stale-live
+gap C4 exists to prevent. Unacceptable for a fund-facing feed even at 30s.
+**Lesson:** `/api/market` must **NOT** be HTTP-cached — set `Cache-Control: no-store`. The Supabase
+cache (server-side, consulted on every real invocation) is the cost layer; the per-call probe is the
+correctness layer; HTTP caching skips both. When a REPEAT call behaves suspiciously, **check
+`x-vercel-cache`** before suspecting your logic. **Third instance** of caching-masquerading-as-logic-bug
+(see "Playwright verified a STALE page" and "Deploy timing masquerades as a data bug").
+
+## A Postgres VIEW bypasses table RLS unless security_invoker=on (Supabase "Unrestricted")
+**Symptom:** `markets`/`market_snapshots` show RLS-locked, but Supabase flags the `market_latest`
+VIEW as "Unrestricted" — and `anon` can read every underlying row through it via PostgREST.
+**Reality:** A view runs with its OWNER's privileges by default (security-definer style). Created in the
+SQL editor → owned by `postgres`, which owns the base tables, and **RLS is not enforced for a table's
+owner** → the view sees all rows. Combined with Supabase's default `anon` SELECT grant on new `public`
+objects, anon reads the whole table through the view. RLS on the base table only protects DIRECT
+access by non-owner roles (anon), not access via an owner-run view.
+**Lesson:** Add `with (security_invoker = on)` to every view over an RLS table (PG 15+) so it runs as
+the QUERYING role and inherits the table's RLS. Then anon→0 rows, service-role→all rows, and a later
+public-SELECT policy flows through automatically. Fix in the migration; patch a live view with
+`alter view public.<v> set (security_invoker = on);`. (Fallback on PG<15: revoke anon/authenticated
+SELECT on the view.)
+
+## Vercel functions need core/ JSON files bundled (readFileSync at runtime)
+**Symptom (anticipated):** a deployed `api/market.mjs` could 500 with ENOENT — `core/validate.js`
+(`docs/api/v1/schema.json`) and `core/market-config.js` (`core/markets/*.json`,
+`core/methodology.json`, `core/assumptions.json`) read those files via `readFileSync` at runtime, and
+Vercel's bundler won't trace a dynamic `readdirSync`/templated path.
+**Fix:** `vercel.json` `functions["api/market.mjs"].includeFiles = "{core/**,docs/api/v1/schema.json}"`
+bundles them. If you add a function that imports `core/`, add the same includeFiles. Confirm on the
+first deploy (call the function; an ENOENT means the glob missed a file). `pinnedConfigFor` wraps its
+`readdirSync` in try/catch → falls back to the generic default rather than crashing.
+
 ## A RESOLVED Polymarket market returns NO CLOB midpoints — classify before fetching prices
 **Symptom:** `scripts/snapshot.js` crashed live with `No midpoint for token …`; the old v1 cron had
 been failing on every run. (2026-06-17, when SpaceX actually resolved.)
