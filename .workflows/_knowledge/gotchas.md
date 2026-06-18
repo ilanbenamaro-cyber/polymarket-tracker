@@ -5,6 +5,26 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Vercel edge-caches `public, max-age` responses and replays them — the function never runs
+**Symptom:** Phase 2a live verify C2 failed: a 2nd `/api/market` call within TTL returned
+`cached:false` on a market that was genuinely OPEN — but with the SAME `fetched_at` as call #1 and
+NO new snapshot row. By elimination from the committed code, NO serve path can emit
+`OPEN + cached:false + same-fetched_at + no-new-row` — the function did **not run** on call #2.
+**Reality:** `api/market.mjs` set `Cache-Control: public, max-age=30` on 200s. **Vercel's Edge Network
+caches a `public, max-age` response and replays it** (confirmed by `x-vercel-cache: HIT` on call #2,
+`MISS` on call #1). Call #1 was a miss → ran the function → returned `cached:false` → the edge cached
+THAT response for 30s → every repeat within the window got the replayed body, function skipped. The
+Supabase cache, serve path, and `cached` flag were all CORRECT — only the CDN layer lied.
+**The real danger isn't the flag — it's resolution correctness:** edge-replaying a response **bypasses
+the per-call resolution probe** (`decideBeforeProbe → PROBE → probeLifecycle`), so a market that
+resolved after caching could be served as **OPEN** for the whole cache window — the exact stale-live
+gap C4 exists to prevent. Unacceptable for a fund-facing feed even at 30s.
+**Lesson:** `/api/market` must **NOT** be HTTP-cached — set `Cache-Control: no-store`. The Supabase
+cache (server-side, consulted on every real invocation) is the cost layer; the per-call probe is the
+correctness layer; HTTP caching skips both. When a REPEAT call behaves suspiciously, **check
+`x-vercel-cache`** before suspecting your logic. **Third instance** of caching-masquerading-as-logic-bug
+(see "Playwright verified a STALE page" and "Deploy timing masquerades as a data bug").
+
 ## A Postgres VIEW bypasses table RLS unless security_invoker=on (Supabase "Unrestricted")
 **Symptom:** `markets`/`market_snapshots` show RLS-locked, but Supabase flags the `market_latest`
 VIEW as "Unrestricted" — and `anon` can read every underlying row through it via PostgREST.

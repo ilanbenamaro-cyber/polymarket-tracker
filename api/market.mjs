@@ -22,6 +22,13 @@ export default async function handler(req, res) {
 
   res.statusCode = status;
   res.setHeader('content-type', 'application/json');
-  if (status === 200) res.setHeader('cache-control', 'public, max-age=30'); // CDN may hold a served record briefly
+  // NEVER cache this response (edge, proxy, or browser). Every request MUST reach
+  // the function so the per-call resolution probe runs (decideBeforeProbe → PROBE):
+  // a `public, max-age` response is replayed by Vercel's Edge (x-vercel-cache: HIT)
+  // WITHOUT executing the function, so a market that resolved after caching could be
+  // served as OPEN for the cache window — the exact stale-live gap C4 prevents.
+  // The Supabase cache (not HTTP caching) is the cost layer: a hit serves cached:true
+  // with zero Polymarket calls. See _knowledge/gotchas.md "Vercel edge-caches …".
+  res.setHeader('cache-control', 'no-store');
   res.end(JSON.stringify(body));
 }
