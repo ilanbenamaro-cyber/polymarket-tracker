@@ -8,6 +8,31 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-19): Phase 2b (accounts + watchlists) — 2b.1 DONE (gate PASSED), 2b.2 NOT STARTED
+- **Where:** branch `feature/phase2b-accounts` (commit `cf029c4`) — **NOT merged to main, NOT pushed.**
+  Held for operator go-ahead before 2b.2.
+- **Design (approved):** invite-only accounts. `organizations` + `profiles` (1:1 `auth.users`) +
+  `org_membership` (M:N) + `allowed_emails` (operator allowlist) + **two** watchlist tables —
+  `personal_watchlist` (private) and `org_watchlist` (shared, **any-member** curate with `added_by`) —
+  plus a `security_invoker` union view `my_visible_watchlist` (= personal ∪ org). Watchlist FK →
+  `markets.id` (the 2a table). Watchlist CRUD is **client-direct** via supabase-js (RLS is the guard);
+  **`/api/market` stays public + `no-store` + untouched** (don't entangle the verified-data path w/ auth).
+- **2b.1 SHIPPED (schema + RLS + blocking gate):** `supabase/migrations/0002_phase2b.sql` (+ `_down`;
+  additive, touches no 2a table). RLS on every new table; `SECURITY DEFINER` helpers `is_org_member`/
+  `shares_org` avoid policy recursion; membership/allowlist are client-deny (operator/trigger only).
+  **GATE PASSED through real JWTs** (`scripts/verify-phase2b-isolation.mjs`, dev project, run mqlazwzi):
+  cross-tenant read/insert/delete all denied (42501; no phantom row; targets survive), union view
+  scoped, B-symmetry, A curates own org. **This gate is the 2b RLS regression proof — re-run it after
+  ANY 2b.2 auth change; auth must not loosen it.** Migration applied to the **dev** project only.
+- **2b.2 NEXT (auth wiring + allowlist signup gate) — two LOCKED requirements from review:**
+  1. **Verify the CURRENT Supabase signup-gate mechanism against live docs BEFORE writing it** — it's
+     the least-proven piece (Auth Hooks vs a `before insert on auth.users` trigger; the API changed).
+  2. **The 2b.2 test must prove the NEGATIVE:** a non-allowlisted email is **rejected AND no
+     `auth.users` row is created**. Invite-only *failing open* is the 2b.2 P0 (peer of the 2b.1 leak).
+  Then `handle_new_user` (SECURITY DEFINER) auto-provisions profile + membership from `allowed_emails`.
+- **Deferred (do NOT scaffold):** dashboard UI (2c), notifications/email (2d), news, "market relates to
+  other aspects" analysis (pending a concrete fund definition).
+
 ## ⮕ DIRECTION (2026-06-18): multi-market hosted product — Phase 2a DONE & LIVE-VERIFIED
 - **Phase 2a (backend foundation) — SHIPPED on Vercel + Supabase.** A Vercel serverless function
   (`api/market.mjs`) serves ONE verified market on demand, backed by a Supabase cache. The verified
