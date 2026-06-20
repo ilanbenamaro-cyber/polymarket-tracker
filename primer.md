@@ -8,9 +8,17 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — 2b.1 + 2b.2 DONE & GATE-PROVEN on dev
-- **Where:** **MERGED to `main`** (2026-06-20, `--no-ff` merge `d9f1e3e`; 2a was already in main). 119/119
-  tests green on merged main. `feature/phase2b-accounts` retained as the dev/preview branch.
+## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — COMPLETE (2b.1+2b.2+2b.3), GATE-PROVEN on dev
+- **Where:** **MERGED to `main`** — 2b.1+2b.2 via `--no-ff` `d9f1e3e`, **2b.3 via `--no-ff` `3fd4761`**
+  (2a was already in main). 119/119 tests green on merged main.
+- **2b.3 DONE — watchlist CRUD:** `lib/watchlist.mjs` (CLIENT-SAFE: client-direct, user-session,
+  `authenticated` role, **no service-role**) — `addPersonal`/`removePersonal`, `addOrg`/`removeOrg`
+  (added_by=self), `listVisible` (the `my_visible_watchlist` union). Idempotent adds; access control is
+  the 2b.1 RLS firewall, surfaced as typed errors (`MarketNotInCatalogError` 23503, `NotPermittedError`
+  42501) — no app-side permission checks, no schema change. Proven by `scripts/verify-phase2b-watchlist.mjs`
+  (GREEN on dev); isolation gate re-run GREEN. ⚠ **`market_id` must already exist in `markets`** (FK) →
+  `addPersonal/addOrg` throw `MarketNotInCatalogError`; **compute-then-add is 2c's job** (GET `/api/market?id=`
+  populates `markets`, then retry). **The full accounts+watchlist BACKEND is now complete & gate-proven.**
 - **⚠ CODE-ON-MAIN ≠ LIVE-IN-PROD.** `main` now carries `0002`/`0003`, but those migrations are applied
   **only on the DEV Supabase**. Production is **NOT ready**: do **not** point production Vercel at this
   stack until a **PROD Supabase exists with `0001`+`0002`+`0003` applied**, the **Before-User-Created hook
