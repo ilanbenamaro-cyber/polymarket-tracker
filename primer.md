@@ -8,28 +8,41 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-19): Phase 2b (accounts + watchlists) — 2b.1 DONE (gate PASSED), 2b.2 NOT STARTED
-- **Where:** branch `feature/phase2b-accounts` (commit `cf029c4`) — **NOT merged to main, NOT pushed.**
-  Held for operator go-ahead before 2b.2.
-- **Design (approved):** invite-only accounts. `organizations` + `profiles` (1:1 `auth.users`) +
+## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — 2b.1 + 2b.2 DONE & GATE-PROVEN on dev
+- **Where:** branch `feature/phase2b-accounts` — **NOT merged to main.** (origin backup at `0b1189c`;
+  the 2b.2 commit + this doc update are local until pushed.) Held for operator go-ahead before merge / 2c.
+- **Design (approved + built):** invite-only accounts. `organizations` + `profiles` (1:1 `auth.users`) +
   `org_membership` (M:N) + `allowed_emails` (operator allowlist) + **two** watchlist tables —
   `personal_watchlist` (private) and `org_watchlist` (shared, **any-member** curate with `added_by`) —
   plus a `security_invoker` union view `my_visible_watchlist` (= personal ∪ org). Watchlist FK →
   `markets.id` (the 2a table). Watchlist CRUD is **client-direct** via supabase-js (RLS is the guard);
   **`/api/market` stays public + `no-store` + untouched** (don't entangle the verified-data path w/ auth).
-- **2b.1 SHIPPED (schema + RLS + blocking gate):** `supabase/migrations/0002_phase2b.sql` (+ `_down`;
-  additive, touches no 2a table). RLS on every new table; `SECURITY DEFINER` helpers `is_org_member`/
-  `shares_org` avoid policy recursion; membership/allowlist are client-deny (operator/trigger only).
-  **GATE PASSED through real JWTs** (`scripts/verify-phase2b-isolation.mjs`, dev project, run mqlazwzi):
-  cross-tenant read/insert/delete all denied (42501; no phantom row; targets survive), union view
-  scoped, B-symmetry, A curates own org. **This gate is the 2b RLS regression proof — re-run it after
-  ANY 2b.2 auth change; auth must not loosen it.** Migration applied to the **dev** project only.
-- **2b.2 NEXT (auth wiring + allowlist signup gate) — two LOCKED requirements from review:**
-  1. **Verify the CURRENT Supabase signup-gate mechanism against live docs BEFORE writing it** — it's
-     the least-proven piece (Auth Hooks vs a `before insert on auth.users` trigger; the API changed).
-  2. **The 2b.2 test must prove the NEGATIVE:** a non-allowlisted email is **rejected AND no
-     `auth.users` row is created**. Invite-only *failing open* is the 2b.2 P0 (peer of the 2b.1 leak).
-  Then `handle_new_user` (SECURITY DEFINER) auto-provisions profile + membership from `allowed_emails`.
+- **2b.1 SHIPPED (schema + RLS):** `0002_phase2b.sql` (+ `_down`; additive, touches no 2a table). RLS on
+  every new table; `SECURITY DEFINER` helpers `is_org_member`/`shares_org` avoid policy recursion;
+  membership/allowlist are client-deny (operator/trigger only). **`verify-phase2b-isolation.mjs` GREEN
+  through real JWTs:** cross-tenant read/insert/delete denied (42501; no phantom row; targets survive),
+  union view scoped, B-symmetry. **This gate is the RLS regression proof — re-run after ANY auth change.**
+- **2b.2 SHIPPED (invite-only signup gate + provisioning):** `0003_phase2b_auth.sql` (+ `_down`).
+  `hook_restrict_signup_to_allowlist` = the **"Before User Created" Auth Hook** (current Supabase
+  mechanism, verified vs live docs — NOT the legacy `auth.users` trigger), **DENY BY DEFAULT** (allow
+  only on explicit `allowed_emails` match; null/empty/malformed rejected). `handle_new_user`
+  (after-insert) provisions `profiles` + `org_membership` from the allowlist row + stamps `consumed_at`;
+  idempotent. Both functions `SECURITY DEFINER set search_path=''`. **`verify-phase2b-auth.mjs` GREEN:**
+  NEGATIVE — valid-format but UNLISTED email rejected by OUR hook (403/"invite-only", NOT email-format
+  validation), no `auth.users` row → invite-only **fails CLOSED**; POSITIVE — allowlisted email →
+  account + profiles + `org_membership`(correct org+role) + `consumed_at` + login. Isolation re-run GREEN.
+- **⚠ DEV-ONLY CONFIG used to make the gates run (does NOT apply to prod):** the hook is **enabled** in the
+  dev project's Auth settings, and **"Confirm email" is OFF** on dev (so test `signUp` sends no mail).
+  Test fixtures use `TEST_EMAIL_DOMAIN=polymarket-tracker-dev.com` (Supabase rejects reserved/no-MX
+  domains like `example.com`/`.test` at email-deliverability validation, which runs **after** the hook).
+- **⚠ PROD STANDUP CHECKLIST when a prod project is created:** (1) apply `0001`+`0002`+`0003`; (2)
+  **manually ENABLE the Before-User-Created hook** (a created-but-not-enabled hook **fails OPEN** silently
+  — the negative gate is the proof it's on); (3) set a real **email-confirmation posture** (prod should
+  CONFIRM emails, unlike dev); (4) decide the **deployment-protection posture** (Vercel wall OFF for
+  testing → gate prod via our own auth, per the 2a backlog item); (5) re-run both gates against prod.
+- **Email validation ⟂ access control:** the allowlist hook runs BEFORE email-deliverability validation
+  and is the ONLY access gate; the dev email-validation/confirmation relaxations change nothing about who
+  can get in, and don't affect what the negative gate proved.
 - **Deferred (do NOT scaffold):** dashboard UI (2c), notifications/email (2d), news, "market relates to
   other aspects" analysis (pending a concrete fund definition).
 
