@@ -9,8 +9,15 @@
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
 ## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — 2b.1 + 2b.2 DONE & GATE-PROVEN on dev
-- **Where:** branch `feature/phase2b-accounts` — **NOT merged to main.** (origin backup at `0b1189c`;
-  the 2b.2 commit + this doc update are local until pushed.) Held for operator go-ahead before merge / 2c.
+- **Where:** **MERGED to `main`** (2026-06-20, `--no-ff` merge `d9f1e3e`; 2a was already in main). 119/119
+  tests green on merged main. `feature/phase2b-accounts` retained as the dev/preview branch.
+- **⚠ CODE-ON-MAIN ≠ LIVE-IN-PROD.** `main` now carries `0002`/`0003`, but those migrations are applied
+  **only on the DEV Supabase**. Production is **NOT ready**: do **not** point production Vercel at this
+  stack until a **PROD Supabase exists with `0001`+`0002`+`0003` applied**, the **Before-User-Created hook
+  ENABLED** (created-but-not-enabled fails OPEN — the negative gate is the proof), and a real
+  **email-confirmation posture** set. Vercel production posture is **unchanged** (still the open
+  deployment-protection / prod-vs-preview 2b-backlog decision). The Vercel **preview** still builds the
+  branch.
 - **Design (approved + built):** invite-only accounts. `organizations` + `profiles` (1:1 `auth.users`) +
   `org_membership` (M:N) + `allowed_emails` (operator allowlist) + **two** watchlist tables —
   `personal_watchlist` (private) and `org_watchlist` (shared, **any-member** curate with `added_by`) —
