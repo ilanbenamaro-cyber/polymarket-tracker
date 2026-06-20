@@ -43,14 +43,15 @@ async function signedInClient(email, password) {
 }
 
 const PW = 'Test-Passw0rd!';
-const mkUser = async (tag) => {
-  const email = `${tag}_${RUN}@dev.test`;
+// NOTE (post-2b.2 coexistence): once 0003_phase2b_auth.sql is applied, the
+// after-insert handle_new_user trigger fires for admin-created users too and may
+// auto-create the profiles row. So this only creates the auth user; seed() then
+// upserts/ignore-conflict profiles + membership, and allowlists the emails BEFORE
+// creation so admin.createUser passes the Before-User-Created hook (if enabled).
+const mkUser = async (email) => {
   const { data, error } = await svc.auth.admin.createUser({ email, password: PW, email_confirm: true });
   if (error) throw new Error(`createUser ${email}: ${error.message}`);
-  const id = data.user.id;
-  const up = await svc.from('profiles').insert({ id, email });
-  if (up.error) throw new Error(`profile ${email}: ${up.error.message}`);
-  return { id, email };
+  return { id: data.user.id, email };
 };
 
 const created = { users: [], orgs: [], markets: [] };
@@ -71,14 +72,30 @@ async function seed() {
   const X = oX.data.id, Y = oY.data.id;
   created.orgs = [X, Y];
 
-  // users: A & C in org X, B in org Y
-  const A = await mkUser('a'), B = await mkUser('b'), C = await mkUser('c');
+  // users: A & C in org X, B in org Y. Allowlist them BEFORE creation so
+  // admin.createUser passes the Before-User-Created hook (0003) if it is enabled;
+  // the after-insert trigger then auto-provisions from these rows.
+  const D = process.env.TEST_EMAIL_DOMAIN || 'example.com'; // Supabase rejects .test/.dev at validation
+  const emailA = `a_${RUN}@${D}`, emailB = `b_${RUN}@${D}`, emailC = `c_${RUN}@${D}`;
+  const al = await svc.from('allowed_emails').insert([
+    { email: emailA, org_id: X, role: 'admin' },
+    { email: emailC, org_id: X, role: 'member' },
+    { email: emailB, org_id: Y, role: 'member' },
+  ]);
+  if (al.error) throw new Error(`seed allowlist: ${al.error.message}`);
+  const A = await mkUser(emailA), B = await mkUser(emailB), C = await mkUser(emailC);
   created.users = [A.id, B.id, C.id];
-  const mem = await svc.from('org_membership').insert([
+  // upsert/ignore-conflict: no-op if 0003's trigger already provisioned these,
+  // creates them if 0003 isn't applied yet (gate works pre- AND post-2b.2).
+  const up = await svc.from('profiles').upsert(
+    [{ id: A.id, email: emailA }, { id: B.id, email: emailB }, { id: C.id, email: emailC }],
+    { onConflict: 'id', ignoreDuplicates: true });
+  if (up.error) throw new Error(`seed profiles: ${up.error.message}`);
+  const mem = await svc.from('org_membership').upsert([
     { org_id: X, user_id: A.id, role: 'admin' },
     { org_id: X, user_id: C.id, role: 'member' },
     { org_id: Y, user_id: B.id, role: 'member' },
-  ]);
+  ], { onConflict: 'org_id,user_id', ignoreDuplicates: true });
   if (mem.error) throw new Error(`seed membership: ${mem.error.message}`);
 
   // personal lists: A→m1, B→m4 ; org lists: X→m2 (by A), Y→m3 (by B)
