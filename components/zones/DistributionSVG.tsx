@@ -29,7 +29,8 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
       {[0, 50, 100].map((g) => (
         <g key={g}>
           <line className="dist-grid" x1={PAD.l} x2={VB_W - PAD.r} y1={yScalePct(g)} y2={yScalePct(g)} />
-          <text className="dist-axis" x={PAD.l - 5} y={yScalePct(g) + 3} textAnchor="end">{g}%</text>
+          {/* single string child: adjacent dynamic+static children mis-hydrate in SVG text */}
+          <text className="dist-axis" x={PAD.l - 5} y={yScalePct(g) + 3} textAnchor="end">{`${g}%`}</text>
         </g>
       ))}
       <line className="dist-ref" x1={PAD.l} x2={VB_W - PAD.r} y1={yScalePct(50)} y2={yScalePct(50)} />
@@ -40,17 +41,17 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
       {medX != null && (
         <g data-field="cdf-median-marker">
           <line className="dist-median" x1={medX} x2={medX} y1={PAD.t} y2={VB_H - PAD.b} />
-          <text className="dist-median-lbl" x={Math.min(medX + 4, VB_W - PAD.r - 60)} y={PAD.t + 9}>median ${impliedMedian?.toFixed(2)}{unit}</text>
+          <text className="dist-median-lbl" x={Math.min(medX + 4, VB_W - PAD.r - 60)} y={PAD.t + 9}>{`median $${impliedMedian?.toFixed(2)}${unit}`}</text>
         </g>
       )}
-      <text className="dist-axis" x={PAD.l} y={VB_H - 8} textAnchor="start">${lo}{unit}</text>
-      <text className="dist-axis" x={VB_W - PAD.r} y={VB_H - 8} textAnchor="end">${hi}{unit}</text>
+      <text className="dist-axis" x={PAD.l} y={VB_H - 8} textAnchor="start">{`$${lo}${unit}`}</text>
+      <text className="dist-axis" x={VB_W - PAD.r} y={VB_H - 8} textAnchor="end">{`$${hi}${unit}`}</text>
     </svg>
   );
 }
 
 /** Density: P(value in each bucket). First bar is the "<lowest" complement. */
-function DensityPanel({ markets, impliedMedian }: { markets: LadderPoint[]; impliedMedian: number | null }) {
+function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; impliedMedian: number | null; unit: string }) {
   const bars: Array<{ label: string; v: number; isMedian: boolean }> = [];
   bars.push({ label: `<$${markets[0].threshold}`, v: Math.max(0, 1 - markets[0].adjusted_prob), isMedian: impliedMedian != null && impliedMedian < markets[0].threshold });
   for (let i = 0; i < markets.length; i++) {
@@ -75,7 +76,7 @@ function DensityPanel({ markets, impliedMedian }: { markets: LadderPoint[]; impl
           <g key={b.label}>
             <rect className={`dist-bar${b.isMedian ? ' dist-bar-median' : ''}`}
               x={x} y={VB_H - PAD.b - h} width={bw * 0.76} height={Math.max(0, h)}>
-              <title>{b.label}{markets[0].label.match(/[TBM]/g)?.slice(-1)[0] ?? 'T'} · {(b.v * 100).toFixed(1)}%</title>
+              <title>{`${b.label}${unit} · ${(b.v * 100).toFixed(1)}%`}</title>
             </rect>
           </g>
         );
@@ -96,7 +97,7 @@ export function DistributionSVG({ markets, impliedMedian, unit }: { markets: Lad
       </div>
       <div className="dist-panel">
         <div className="label">Density — where the market expects it to land</div>
-        <DensityPanel markets={markets} impliedMedian={impliedMedian} />
+        <DensityPanel markets={markets} impliedMedian={impliedMedian} unit={unit} />
       </div>
     </div>
   );
