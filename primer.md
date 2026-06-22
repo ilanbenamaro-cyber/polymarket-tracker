@@ -8,9 +8,12 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-22): Phase 2c.2 (watchlist RAIL, Zone 1) — DONE on branch, NOT merged
-- **Where:** `feature/phase2c2-rail` (impl `2fe39ca` + this primer commit). **NOT merged — held for go-ahead.**
+## ⮕ DIRECTION (2026-06-22): Phase 2c.2 (watchlist RAIL, Zone 1) — DONE & MERGED to main
+- **Where:** **MERGED to `main`** (`--no-ff` merge `fd4d1ed`; main was an ancestor of `feature/phase2c2-rail`,
+  no cron race — local==origin/main at merge). **125/125 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2**.
   Backend/auth/schema **untouched** (only added `lib/market-scan.mjs`, the two rail components, rail CSS, 2 scripts).
+- **⚠ Vercel posture UNCHANGED** — production stays erroring **pre-standup** (the expected fails-closed 500;
+  Production-scope env deliberately empty). Pushing 2c.2 to `main` does NOT change that; do not touch prod.
 - **What:** Zone 1 rail = a Server Component (`components/zones/WatchlistRail.tsx`) that reads the
   **cache only** — `listVisible()` (RLS-scoped union) → `lib/market-scan.readScan()` for exactly those
   markets. **It runs NO resolution probe**: the rail is a SCAN SUMMARY on the COST layer; the
