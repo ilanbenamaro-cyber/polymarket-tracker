@@ -1,0 +1,22 @@
+// app/(app)/layout.tsx — the authenticated terminal shell: command bar (Zone 3
+// search lives here) + watchlist rail (Zone 1) + market detail (Zone 2). The auth
+// gate is enforced in middleware.ts (unauth → /login before this renders); we also
+// re-read the user server-side to render the chrome (email, logout).
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { CommandBar } from '@/components/zones/CommandBar';
+import { WatchlistRail } from '@/components/zones/WatchlistRail';
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login'); // defense-in-depth; middleware already guards
+
+  return (
+    <div className="terminal">
+      <CommandBar userEmail={user.email ?? ''} />
+      <WatchlistRail />
+      <main className="detail" data-zone="detail">{children}</main>
+    </div>
+  );
+}

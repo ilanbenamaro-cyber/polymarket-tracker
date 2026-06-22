@@ -19,12 +19,17 @@ const BASE = process.env.BASE_URL;
 if (!BASE) { console.error('Set BASE_URL=https://your-deployment.vercel.app'); process.exit(2); }
 const OPEN_MARKET = process.env.OPEN_MARKET || 'kraken-ipo-closing-market-cap-above';
 const SPACEX = 'spacex-ipo-closing-market-cap-above';
+// Optional Vercel deployment-protection bypass for automation: if the secret is
+// present, send the header so a PROTECTED preview is reachable WITHOUT disabling
+// the wall for humans. No-op (no header) when absent — behavior is unchanged.
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+const FETCH_OPTS = BYPASS ? { headers: { 'x-vercel-protection-bypass': BYPASS } } : {};
 
 let failures = 0;
 const ok = (c, m) => { console.log(`${c ? '  ✓' : '  ✗'} ${m}`); if (!c) failures++; };
 const get = async (id) => {
   const t0 = Date.now();
-  const res = await fetch(`${BASE}/api/market?id=${encodeURIComponent(id)}`);
+  const res = await fetch(`${BASE}/api/market?id=${encodeURIComponent(id)}`, FETCH_OPTS);
   const body = await res.json();
   return { status: res.status, body, ms: Date.now() - t0 };
 };
