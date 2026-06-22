@@ -8,6 +8,20 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) MERGED · Phase 2 (binary) NEXT
+- **Phase 1 — CLOB midpoint fallback: MERGED to `main`** (`--no-ff` `502933b`; no cron race). **133/133 on
+  merged main.** A missing `/midpoints` value no longer fails the whole market — `core/fetch.js fetchLiveSnapshot`
+  now resolves each rung via `clob_midpoint → bid_ask_mean → best_bid/best_ask → last_trade → skip → fail-all`.
+  Measured truth: a missing midpoint = an EMPTY book (no bid/ask), only a last-trade price (deep ITM/OTM rungs).
+  `raw_inputs` records `midpoint_source` (+ `last_trade_price`) — **NOT** in `canonicalizeRawInputs`, so the hash
+  recipe is untouched and **frozen SpaceX `raw_sha256` is byte-identical** (`c1be52e4…b89003`, parity gate proves it).
+  Confidence degrades via a `midpoint_fallback` signal ("N rung(s) priced from last trade…"). Silver+WTI weekly/
+  monthly now compute (1/3/5 last-trade rungs, honestly low confidence). See [[gotchas]] + `core/confidence.js`.
+- **⚠ Noted for a FUTURE parse-hardening pass (NOT done):** the `$X` threshold parser collapses comma-formatted
+  or repeated levels to duplicate thresholds (WTI monthly had two rung-90; the 2c.3 detail key bug was the same
+  family, fixed in `b08b1b1`). Computes fine; just coarser. Out of scope for the midpoint fix + binary work.
+- **Next: Phase 2 — BINARY market support** (single Yes/No markets, not threshold ladders). Plan first.
+
 ## ⮕ DIRECTION (2026-06-22): Phase 2c.4 (search + add, Zone 3) — DONE & MERGED · 2c DASHBOARD COMPLETE
 - **Where:** **MERGED to `main`** (`--no-ff` merge `b77e8a1`; main an ancestor of `feature/phase2c4-search-add`,
   no cron race). **132/132 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2+2c.3+2c.4** — the **three-zone
