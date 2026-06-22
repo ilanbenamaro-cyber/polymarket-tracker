@@ -8,9 +8,20 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-21): Phase 2c.1 (dashboard SHELL) — DONE, gate-proven local + on Vercel
-- **Where:** branch `feature/phase2c1-shell` (commit `32fb92d`, pushed as backup) — **NOT merged to main.**
-  Held for operator go-ahead.
+## ⮕ DIRECTION (2026-06-22): Phase 2c.1 (dashboard SHELL) — DONE & MERGED to main
+- **Where:** **MERGED to `main`** (2026-06-22, `--no-ff` merge `fd97d8e`; main was an ancestor, no race).
+  119/119 on merged main; frozen-hash parity GATE 1+2 reproduce (Option-A behavior-identical).
+  `main` now reflects **2a + 2b + 2c.1**.
+- **⚠ CODE-ON-MAIN ≠ LIVE-IN-PROD (now with a frontend).** Vercel posture is **unchanged** — previews build
+  from branches, **production untouched**, prod Supabase still doesn't exist. Pointing prod Vercel at `main`
+  is **blocked** on the prod-standup checklist (below) — it would build the Next app + `/api/market` against
+  Production-scoped env that isn't set → middleware loud-check throws. The Option-A import-bundling is already
+  in code, so *that* ENOENT mode is prod-safe; the env/Supabase prerequisites are not yet met.
+- **PROD-STANDUP CHECKLIST (extended for 2c.1):** (1) prod Supabase w/ `0001`+`0002`+`0003` applied;
+  (2) Before-User-Created hook **enabled**; (3) email-confirmation posture set; (4) Vercel Framework Preset
+  = **Next.js**; (5) the **4 env vars** (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/
+  `_SERVICE_ROLE_KEY`) in Vercel **Production** scope; (6) deployment-protection / app-auth posture decided;
+  (7) re-run all gates against prod.
 - **What:** Next.js (App Router) on Vercel wrapping the proven backend — the SHELL only (no zones).
   Auth-gated routing (`@supabase/ssr`, **Node-runtime middleware**), institutional-terminal design tokens
   (IBM Plex Sans/Mono, `app/globals.css`), three empty zone shells (rail / detail / command-bar search).
