@@ -8,6 +8,36 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-22): Phase 2c.4 (search + add, Zone 3) — DONE & MERGED · 2c DASHBOARD COMPLETE
+- **Where:** **MERGED to `main`** (`--no-ff` merge `b77e8a1`; main an ancestor of `feature/phase2c4-search-add`,
+  no cron race). **132/132 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2+2c.3+2c.4** — the **three-zone
+  dashboard is functionally complete** (rail · detail · search/add/remove). Backend/auth/schema untouched (no migrations).
+- **⚠ Vercel posture UNCHANGED** — production stays erroring **pre-standup** (fails-closed 500, Production env
+  deliberately empty). Pushing 2c.4 does NOT change that; the auto-built prod deploy from `main` keeps failing — expected, don't touch.
+- **What:** Zone 3 = the command-bar search + the load-bearing **compute-then-add** flow + remove-from-rail.
+  - **Search:** `app/api/search/route.ts` proxies gamma `public-search` server-side (CORS-safe, normalized to
+    `{slug,title,closed,active,volume}`). `MarketSearch.tsx` (client island in CommandBar): **⌘K** activate,
+    debounced fetch, ↑/↓/Enter/Esc, click-outside, add-scope picker (Personal + RLS-scoped orgs).
+  - **Compute-then-add** = **server actions** (`app/(app)/actions.ts`): `addMarket` runs `serveMarket` (service-role
+    DEPS — the COMPUTE populates `markets`+`market_snapshots` via writeRecord), THEN `addPersonal`/`addOrg`
+    (cookie-bound user client, RLS), THEN **`revalidatePath('/', 'layout')`** → the rail (layout Server Component)
+    re-renders. Client auto-navigates `?m=<slug>` → detail opens. `MarketNotInCatalogError` surfaced (the FK guard,
+    not the happy path); compute 404 → "not a supported threshold-ladder market" (e.g. a market with a non-`$X` leg).
+  - **Remove:** `removeMarket` action + hover **×** on each rail row. `lib/market-scan` now carries `org_id` per row.
+    **Dual-scope ×** drops PERSONAL — the row STAYS via org with only the ORG chip; a second × (org-only) removes it.
+- **GATE-PROVEN:** node `scripts/verify-2c4-search-add.mjs` (search · **MarketNotInCatalogError guard** ·
+  **compute side-effect: market_snapshots row exists after add** · add/list/remove) + no-regression (phase2a 12/12,
+  rail, detail). **Playwright:** ⌘K → search → **live compute-then-add** of a real Bitcoin market (appears in rail
+  post-revalidate + detail auto-opens — the live falsification, a genuinely new snapshot row) · add-error surfaced ·
+  **dual-scope remove stays-via-org** · 0 console errors · 1280px screenshot. 132/132 + tsc + build clean.
+- **⚠ Gotcha hit + fixed (`b08b1b1`, a latent 2c.3 bug):** the detail keyed distribution dots/density bars/ladder
+  rows by `m.threshold`/`b.label` — unique for SpaceX but NOT for an arbitrary market (a Bitcoin price ladder parses
+  two legs to the same threshold → two `>$56` rows → React "two children with the same key"). Fix: **index-safe keys**.
+  Only 2c.4's search→add of an arbitrary market could expose it. (Same family as the 2c.3 SVG-hydration trap.)
+- **Next (post-2c, deferred fast-follows):** the **signup / invite-acceptance form** (the dashboard is login-only);
+  the **prod-standup checklist** (below) to take production live; optionally a **history endpoint** if the cut
+  trends/Δ/movers sections are wanted back in the detail. The core 2c product is done.
+
 ## ⮕ DIRECTION (2026-06-22): Phase 2c.3 (market DETAIL, Zone 2) — DONE & MERGED to main
 - **Where:** **MERGED to `main`** (`--no-ff` merge `251a853`; main an ancestor of `feature/phase2c3-detail`,
   no cron race). **132/132 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2+2c.3**.
