@@ -8,7 +8,37 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) MERGED · Phase 2 (binary) NEXT
+## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) + Phase 2 (BINARY) MERGED
+- **Phase 2 — BINARY (Yes/No) market support: MERGED to `main`** (`--no-ff` `a09610a`; no cron race).
+  **135/135 on merged main; frozen SpaceX `raw_sha256` byte-identical** (ladder path untouched). Single Yes/No
+  markets (gamma `event.markets.length === 1`) now compute alongside ladders.
+  - **Detection:** `core/fetch.classifyMarketKind(slug)` — one gamma GET **before** any threshold parse (the
+    parser throws on a binary question, so detection must precede it). `computeMarketRecord` branches to
+    `computeBinaryRecord` → `core/binary.buildBinaryRecord` + `scoreBinaryConfidence` (spread/volume/fallback;
+    no ladder math). `derived = { kind:'binary', probability, probability_no, confidence, total_volume,
+    narrative, freshness }`.
+  - **Provenance:** reuses `canonicalizeRawInputs` UNCHANGED (synthetic threshold 1=YES/0=NO sort key) — same
+    hash recipe, binary content. Phase-1 midpoint fallback applies per token (resolver extracted to a shared
+    `resolveFromBook`/`fetchLastTradePrice`).
+  - **Schema:** single discriminated `schema.json` (`if kind:'binary' then …, else` the unchanged ladder
+    `required` — SpaceX validates identically); `validate.js` skips `bucketErrors` for binary.
+  - **UI:** `BinaryDetailView` (probability hero, trust band + hash-verify, **no SVG/ladder**); `MarketDetailView`
+    branches on `kind`; rail shows the **probability %** headline (binary) vs **$median** (ladder), via a
+    kind-aware `lib/market-scan` + `markets.kind`.
+- **⚠ MIGRATION 0004 (the one schema change Phase 2 needed — my plan's "no migration" was WRONG):**
+  `0004_phase2_binary.sql` widens `markets_kind_check` from `('threshold_ladder')` to
+  `('threshold_ladder','binary')` (the binary probability reuses the **`implied_median` column** — that part
+  needed no migration). **Applied to DEV.** The CHECK violation was caught in the Playwright gate (add error
+  surfaced, not swallowed), fixed, re-run green. **PROD-STANDUP now requires `0001`+`0002`+`0003`+`0004`.**
+- **⚠ Vercel posture UNCHANGED** — production still erroring pre-standup (fails-closed 500). Expected.
+- **GATE-PROVEN:** node `scripts/verify-phase2-binary.mjs` (detection · binary compute · verify-ready hash ·
+  ladder no-regression on live US-recession + WTI) + 135/135 + frozen-hash parity + tsc + build;
+  **Playwright** (⌘K→search→add a real binary → rail **11%** headline → binary detail → **hash-verify ✓ VERIFIED
+  in-browser** → SpaceX ladder full-distribution no-regression → 0 console errors).
+- **⚠ Noted for a future parse-hardening pass (still NOT done):** the `$X` threshold parser collapses
+  comma/repeated levels to duplicate thresholds (WTI monthly two rung-90). Computes fine; separate from binary.
+
+## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) MERGED
 - **Phase 1 — CLOB midpoint fallback: MERGED to `main`** (`--no-ff` `502933b`; no cron race). **133/133 on
   merged main.** A missing `/midpoints` value no longer fails the whole market — `core/fetch.js fetchLiveSnapshot`
   now resolves each rung via `clob_midpoint → bid_ask_mean → best_bid/best_ask → last_trade → skip → fail-all`.

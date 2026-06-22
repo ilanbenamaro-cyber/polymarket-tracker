@@ -10,3 +10,6 @@ polymarket.db-shm
 polymarket.db-wal
 /tmp/polymarket-tracker*.log
 .vercel
+
+# throwaway gate screenshots (root-level)
+/*.png
