@@ -15,6 +15,7 @@ import { unitFromLadder, fmtMoney, fmtRange } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
+import { BinaryDetailView } from './BinaryDetailView';
 import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
@@ -48,6 +49,10 @@ export async function DetailData({ id }: { id: string }) {
 }
 
 function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope: ServeBody }) {
+  // Binary (Yes/No) markets get a distinct, simpler layout — no CDF/ladder/analytics.
+  if (record?.snapshot?.derived?.kind === 'binary') {
+    return <BinaryDetailView record={record} envelope={envelope} />;
+  }
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
   const asset = record?.asset ?? {};

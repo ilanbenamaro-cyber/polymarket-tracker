@@ -80,6 +80,24 @@ test('falls back to market_id as title when the markets row is absent, and emits
   assert.ok(!('record' in row), 'the heavy record JSONB is never shipped on a light row');
 });
 
+test('binary market renders its headline as a probability %, ladder as $median', () => {
+  const visible = [
+    { scope: 'personal', org_id: null, market_id: 'bin', created_at: '2026-06-22T00:00:00Z' },
+    { scope: 'personal', org_id: null, market_id: 'lad', created_at: '2026-06-21T00:00:00Z' },
+  ];
+  const markets = [{ id: 'bin', title: 'Recession?', kind: 'binary' }, { id: 'lad', title: 'SpaceX cap', kind: 'threshold_ladder' }];
+  const latest = [
+    { market_id: 'bin', implied_median: 0.16, confidence_tier: 'low', lifecycle_state: 'OPEN', is_final: false, stale_after: null, fetched_at: '2026-06-22T00:00:00Z', record: {} },
+    { market_id: 'lad', implied_median: 2.1, confidence_tier: 'high', lifecycle_state: 'OPEN', is_final: false, stale_after: null, fetched_at: '2026-06-21T00:00:00Z', record: {} },
+  ];
+  const rows = assembleScanRows(visible, markets, latest);
+  const bin = rows.find((r) => r.market_id === 'bin');
+  const lad = rows.find((r) => r.market_id === 'lad');
+  assert.equal(bin.kind, 'binary');
+  assert.equal(bin.median_display, '16%', 'binary headline is a probability %');
+  assert.equal(lad.median_display, '$2.10T', 'ladder headline is the $median');
+});
+
 test('empty watchlist yields no rows', () => {
   assert.deepEqual(assembleScanRows([], [], []), []);
 });

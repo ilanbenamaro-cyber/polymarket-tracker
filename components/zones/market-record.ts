@@ -35,6 +35,9 @@ export interface Analytics {
 }
 
 export interface Derived {
+  kind?: 'binary' | 'threshold_ladder';
+  probability?: number; // binary: YES midpoint (the headline)
+  probability_no?: number | null;
   implied_median?: number;
   implied_mean?: number;
   median?: Range;

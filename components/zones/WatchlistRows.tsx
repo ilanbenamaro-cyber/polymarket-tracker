@@ -17,10 +17,11 @@ import { removeMarket } from '@/app/(app)/actions';
 export interface ScanRow {
   market_id: string;
   title: string;
+  kind: 'binary' | 'threshold_ladder';
   scopes: Array<'personal' | 'org'>;
   personal: boolean;
   org_id: string | null;
-  median_display: string;
+  median_display: string; // probability % for binary, $median for ladder (kind-formatted server-side)
   confidence_tier: 'high' | 'medium' | 'low' | null;
   lifecycle_state: 'OPEN' | 'CLOSED_PENDING' | 'RESOLVED' | null;
   is_final: boolean;

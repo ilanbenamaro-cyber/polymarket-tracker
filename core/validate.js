@@ -158,7 +158,9 @@ export function validateRecord(record) {
   }
 
   const d = record?.snapshot?.derived;
-  if (d) errors.push(...bucketErrors(d.markets, 'derived'));
+  // Ladder-only invariant: a binary record has no CDF/markets[] (the schema's if/then
+  // enforces its own shape). Skip the bucket checks for kind:'binary'.
+  if (d && d.kind !== 'binary') errors.push(...bucketErrors(d.markets, 'derived'));
   errors.push(...firewallErrors(record));
   errors.push(...lifecycleErrors(record));
 

@@ -3,45 +3,122 @@
   "$id": "https://ilanbenamaro-cyber.github.io/polymarket-tracker/api/v1/schema.json",
   "title": "Polymarket SpaceX-IPO canonical snapshot record",
   "type": "object",
-  "required": ["schema_version", "methodology_version", "assumptions_version", "asset", "snapshot"],
+  "required": [
+    "schema_version",
+    "methodology_version",
+    "assumptions_version",
+    "asset",
+    "snapshot"
+  ],
   "properties": {
-    "schema_version": { "type": "string" },
-    "methodology_version": { "type": "string" },
-    "assumptions_version": { "type": ["string", "null"] },
+    "schema_version": {
+      "type": "string"
+    },
+    "methodology_version": {
+      "type": "string"
+    },
+    "assumptions_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "asset": {
       "type": "object",
-      "required": ["id", "platform", "resolves"],
+      "required": [
+        "id",
+        "platform",
+        "resolves"
+      ],
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "platform": { "type": "string" },
-        "market_url": { "type": ["string", "null"] },
-        "resolves": { "type": ["string", "null"] }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "market_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolves": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "snapshot": {
       "type": "object",
-      "required": ["snapshot_id", "fetched_at", "source", "raw_inputs", "derived"],
+      "required": [
+        "snapshot_id",
+        "fetched_at",
+        "source",
+        "raw_inputs",
+        "derived"
+      ],
       "properties": {
-        "snapshot_id": { "type": "string" },
-        "fetched_at": { "type": "string" },
+        "snapshot_id": {
+          "type": "string"
+        },
+        "fetched_at": {
+          "type": "string"
+        },
         "lifecycle": {
           "type": "object",
           "description": "Market-resolution state (ARCHITECTURE §5). Additive; absent on pre-1.3.0 records. RESOLVED carries the final outcome and is frozen.",
-          "required": ["state"],
+          "required": [
+            "state"
+          ],
           "properties": {
-            "state": { "type": "string", "enum": ["OPEN", "CLOSED_PENDING", "RESOLVED"] },
-            "resolved_outcome": { "type": ["array", "null"] },
-            "as_of": { "type": ["string", "null"] }
+            "state": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "CLOSED_PENDING",
+                "RESOLVED"
+              ]
+            },
+            "resolved_outcome": {
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "as_of": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         },
         "source": {
           "type": "object",
-          "required": ["provider", "raw_sha256"],
+          "required": [
+            "provider",
+            "raw_sha256"
+          ],
           "properties": {
-            "provider": { "type": "string" },
-            "endpoints": { "type": "array", "items": { "type": "string" } },
-            "raw_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            "provider": {
+              "type": "string"
+            },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "raw_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           }
         },
         "raw_inputs": {
@@ -49,98 +126,245 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["token_id", "threshold", "midpoint"],
+            "required": [
+              "token_id",
+              "threshold",
+              "midpoint"
+            ],
             "properties": {
-              "token_id": { "type": "string" },
-              "threshold": { "type": "number" },
-              "midpoint": { "type": "string" },
-              "best_bid": { "type": ["string", "null"] },
-              "best_ask": { "type": ["string", "null"] },
-              "volume": { "type": ["number", "null"] }
+              "token_id": {
+                "type": "string"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "midpoint": {
+                "type": "string"
+              },
+              "best_bid": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "best_ask": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "volume": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
             }
           }
         },
         "derived": {
           "type": "object",
-          "required": [
-            "implied_median", "implied_mean", "mean", "iqr",
-            "total_volume", "adjustment", "confidence", "markets",
-            "market"
-          ],
           "properties": {
             "market": {
               "type": "object",
-              "required": ["analytics"],
+              "required": [
+                "analytics"
+              ],
               "properties": {
                 "analytics": {
                   "type": "object",
-                  "required": ["shape", "dispersion", "velocity", "calibration", "descriptor"],
+                  "required": [
+                    "shape",
+                    "dispersion",
+                    "velocity",
+                    "calibration",
+                    "descriptor"
+                  ],
                   "properties": {
-                    "shape": { "type": "object" },
-                    "dispersion": { "type": "object" },
-                    "velocity": { "type": "object" },
+                    "shape": {
+                      "type": "object"
+                    },
+                    "dispersion": {
+                      "type": "object"
+                    },
+                    "velocity": {
+                      "type": "object"
+                    },
                     "calibration": {
                       "type": "object",
-                      "required": ["status"],
-                      "properties": { "status": { "type": "string" } }
+                      "required": [
+                        "status"
+                      ],
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        }
+                      }
                     },
-                    "descriptor": { "type": "string" }
+                    "descriptor": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             },
             "scenarios": {
               "type": "object",
-              "required": ["assumptions_version", "share_price", "round_over_round"],
+              "required": [
+                "assumptions_version",
+                "share_price",
+                "round_over_round"
+              ],
               "properties": {
-                "assumptions_version": { "type": ["string", "null"] },
-                "share_price": { "type": "object" },
-                "round_over_round": { "type": "object" }
+                "assumptions_version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "share_price": {
+                  "type": "object"
+                },
+                "round_over_round": {
+                  "type": "object"
+                }
               }
             },
-            "implied_median": { "type": ["number", "null"] },
-            "implied_mean": { "type": ["number", "null"] },
+            "implied_median": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "implied_mean": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
             "median": {
-              "type": ["object", "null"],
-              "required": ["central", "low", "high"],
+              "type": [
+                "object",
+                "null"
+              ],
+              "required": [
+                "central",
+                "low",
+                "high"
+              ],
               "properties": {
-                "central": { "type": ["number", "null"] },
-                "low": { "type": ["number", "null"] },
-                "high": { "type": ["number", "null"] }
+                "central": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "low": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "high": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
               }
             },
             "mean": {
               "type": "object",
-              "required": ["central", "low", "high"],
+              "required": [
+                "central",
+                "low",
+                "high"
+              ],
               "properties": {
-                "central": { "type": ["number", "null"] },
-                "low": { "type": ["number", "null"] },
-                "high": { "type": ["number", "null"] }
+                "central": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "low": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "high": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
               }
             },
             "iqr": {
               "type": "object",
               "properties": {
-                "p25": { "type": ["number", "null"] },
-                "p75": { "type": ["number", "null"] }
+                "p25": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "p75": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
               }
             },
-            "total_volume": { "type": "number" },
+            "total_volume": {
+              "type": "number"
+            },
             "adjustment": {
               "type": "object",
-              "required": ["monotonicity_violations", "max_adjustment"],
+              "required": [
+                "monotonicity_violations",
+                "max_adjustment"
+              ],
               "properties": {
-                "monotonicity_violations": { "type": "integer", "minimum": 0 },
-                "max_adjustment": { "type": "number", "minimum": 0 }
+                "monotonicity_violations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max_adjustment": {
+                  "type": "number",
+                  "minimum": 0
+                }
               }
             },
             "confidence": {
               "type": "object",
-              "required": ["tier", "score", "reasons"],
+              "required": [
+                "tier",
+                "score",
+                "reasons"
+              ],
               "properties": {
-                "tier": { "type": "string", "enum": ["high", "medium", "low"] },
-                "score": { "type": "number", "minimum": 0, "maximum": 1 },
-                "reasons": { "type": "array", "items": { "type": "string" } }
+                "tier": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               }
             },
             "markets": {
@@ -148,33 +372,145 @@
               "minItems": 1,
               "items": {
                 "type": "object",
-                "required": ["label", "threshold", "raw_prob", "adjusted_prob", "prob", "bucket_prob"],
+                "required": [
+                  "label",
+                  "threshold",
+                  "raw_prob",
+                  "adjusted_prob",
+                  "prob",
+                  "bucket_prob"
+                ],
                 "properties": {
-                  "label": { "type": "string" },
-                  "threshold": { "type": "number" },
-                  "raw_prob": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "adjusted_prob": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "prob": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "bucket_prob": { "type": "number", "minimum": -0.000001, "maximum": 1 },
-                  "volume": { "type": ["number", "null"] },
-                  "volume_tier": { "type": ["string", "null"], "enum": ["high", "med", "low", null] }
+                  "label": {
+                    "type": "string"
+                  },
+                  "threshold": {
+                    "type": "number"
+                  },
+                  "raw_prob": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "adjusted_prob": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "prob": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "bucket_prob": {
+                    "type": "number",
+                    "minimum": -0.000001,
+                    "maximum": 1
+                  },
+                  "volume": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "volume_tier": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "high",
+                      "med",
+                      "low",
+                      null
+                    ]
+                  }
                 }
               }
             },
-            "narrative": { "type": "string" },
-            "narrative_components": { "type": "object" },
+            "narrative": {
+              "type": "string"
+            },
+            "narrative_components": {
+              "type": "object"
+            },
             "freshness": {
               "type": "object",
               "description": "Tier-1 data-freshness policy. Carries the as-of anchor and an absolute stale_after instant so any consumer evaluates staleness via now > stale_after. Policy only — no frozen age/flag in the published record.",
-              "required": ["as_of", "staleness_threshold_hours", "stale_after"],
+              "required": [
+                "as_of",
+                "staleness_threshold_hours",
+                "stale_after"
+              ],
               "properties": {
-                "as_of": { "type": "string" },
-                "staleness_threshold_hours": { "type": "number" },
-                "stale_after": { "type": "string" },
-                "expected_cadence": { "type": "string" },
-                "policy": { "type": "string" }
+                "as_of": {
+                  "type": "string"
+                },
+                "staleness_threshold_hours": {
+                  "type": "number"
+                },
+                "stale_after": {
+                  "type": "string"
+                },
+                "expected_cadence": {
+                  "type": "string"
+                },
+                "policy": {
+                  "type": "string"
+                }
               }
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "binary",
+                "threshold_ladder"
+              ]
+            },
+            "probability": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "probability_no": {
+              "type": [
+                "number",
+                "null"
+              ]
             }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "binary"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "kind",
+              "probability",
+              "confidence",
+              "total_volume",
+              "freshness"
+            ]
+          },
+          "else": {
+            "required": [
+              "implied_median",
+              "implied_mean",
+              "mean",
+              "iqr",
+              "total_volume",
+              "adjustment",
+              "confidence",
+              "markets",
+              "market"
+            ]
           }
         }
       }

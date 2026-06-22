@@ -1,0 +1,109 @@
+// components/zones/BinaryDetailView.tsx — Zone 2 detail for a BINARY (Yes/No) market.
+//
+// Rendered by MarketDetailView when derived.kind === 'binary'. A binary market has ONE
+// number — the YES probability — so there's no distribution SVG, no ladder, no analytics.
+// The TRUST layer (confidence, freshness, provenance + hash-verify) is identical to the
+// ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
+// settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
+import { canonicalizeRawInputs } from '@/core/fetch.js';
+import { HashVerify } from './HashVerify';
+import { DetailFreshness } from './DetailFreshness';
+import type { MarketRecord, ServeBody, ResolvedLeg } from './market-record';
+
+const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
+const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
+const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
+
+const pctStr = (p: number | null | undefined) => (p == null ? '—' : `${Math.round(p * 100)}%`);
+const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
+
+/** Settled Yes/No from the single resolved leg (threshold 1 = YES). */
+function binaryOutcome(outcome: ResolvedLeg[] | undefined): string | null {
+  if (!Array.isArray(outcome) || outcome.length === 0) return null;
+  const yes = outcome.find((o) => o.threshold === 1) ?? outcome[0];
+  return yes ? `resolved ${yes.outcome.toUpperCase()}` : null;
+}
+
+export function BinaryDetailView({ record, envelope }: { record: MarketRecord; envelope: ServeBody }) {
+  const s = record?.snapshot ?? {};
+  const d = s?.derived ?? {};
+  const asset = record?.asset ?? {};
+  const lifecycleState: string = s?.lifecycle?.state ?? envelope?.lifecycle_state ?? 'OPEN';
+  const isFinal = lifecycleState === 'RESOLVED';
+  const conf = d.confidence ?? {};
+  const fresh = d.freshness ?? {};
+  const rawSha: string = s?.source?.raw_sha256 ?? '';
+  const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
+  const outcome = binaryOutcome(s?.lifecycle?.resolved_outcome);
+
+  return (
+    <article className="detail-view" data-zone="detail-view" data-kind="binary" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
+      <header className="detail-head">
+        <div>
+          <h1 className="detail-title" data-field="title">{asset.name ?? envelope?.market_id}</h1>
+          <div className="detail-sub muted">
+            {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
+            <> · binary (Yes/No)</>
+          </div>
+        </div>
+        <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+          ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+        </span>
+      </header>
+
+      {isFinal && (
+        <div className="detail-resolved" data-field="resolved-banner">
+          <span className="detail-resolved-tag">RESOLVED</span>
+          <span className="detail-resolved-band">{outcome ?? 'settled'}</span>
+          <span className="detail-resolved-note faint">final record · served from cache, not re-pulled live</span>
+        </div>
+      )}
+
+      {/* HEADLINE — the single probability, large */}
+      <div className="detail-headline">
+        <div className="detail-metric">
+          <span className="label">Implied probability · YES</span>
+          <span className="detail-hero num" data-field="probability">{pctStr(d.probability)}</span>
+          <span className="detail-band faint">NO {pctStr(d.probability_no)}</span>
+        </div>
+        <div className="detail-metric">
+          <span className="label">Confidence</span>
+          <span className={`detail-conf ${conf.tier ? CONF_CLASS[conf.tier] : ''}`} data-field="confidence" title={conf.score != null ? `score ${conf.score}` : ''}>
+            {conf.tier ? conf.tier.toUpperCase() : '—'}
+          </span>
+          <span className="detail-band faint">{conf.score != null ? `score ${conf.score}` : ''}</span>
+        </div>
+        <div className="detail-metric">
+          <span className="label">Volume</span>
+          <span className="detail-sec num" data-field="volume">{fmtVol(d.total_volume)}</span>
+          <span className="detail-band faint">cumulative, all-time</span>
+        </div>
+      </div>
+
+      {/* TRUST BAND — identical to the ladder detail */}
+      <div className="detail-trust" data-field="trust">
+        {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
+          <div className="trust-reasons">
+            <span className="label">Confidence basis</span>
+            {conf.reasons.map((r: string, i: number) => <span key={i} className="trust-chip">{r}</span>)}
+          </div>
+        )}
+        <div className="trust-prov">
+          <span className="label">As of</span>
+          <span className="num">{s.fetched_at ? s.fetched_at.replace('T', ' ').slice(0, 16) : '—'} UTC</span>
+          <DetailFreshness asOf={fresh.as_of ?? null} staleAfter={fresh.stale_after ?? null} fetchedAt={s.fetched_at ?? null} isFinal={isFinal} />
+          <span className="trust-sep">·</span>
+          <span className="label">methodology</span><span className="num">v{record.methodology_version ?? '—'}</span>
+          <span className="trust-sep">·</span>
+          <span className="label">sha256</span>
+          {rawSha && canonical
+            ? <HashVerify canonical={canonical} publishedHash={rawSha} />
+            : <span className="faint">unavailable</span>}
+        </div>
+      </div>
+
+      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+    </article>
+  );
+}
