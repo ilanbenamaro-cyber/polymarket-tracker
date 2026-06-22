@@ -11,15 +11,16 @@
 // A MarketConfig is the single source of truth for those values; core/ functions
 // receive the relevant slice and never hold a second copy.
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+// Pinned configs are IMPORTED (bundled into the JS) via the manifest, not read from
+// disk at runtime — so the serverless function never ENOENTs (see markets/manifest.mjs).
+import { PINNED_BY_NAME } from './markets/manifest.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-/** Load a pinned market config by name from core/markets/<name>.json. */
+/** Load a pinned market config by name (filename stem). structuredClone returns a
+ *  fresh mutable object per call, preserving the old JSON.parse(readFileSync) contract. */
 export function loadMarketConfig(name) {
-  const cfg = JSON.parse(readFileSync(join(__dirname, 'markets', `${name}.json`), 'utf8'));
+  const src = PINNED_BY_NAME[name];
+  if (!src) throw new Error(`No pinned market config '${name}' in core/markets/manifest.mjs`);
+  const cfg = structuredClone(src);
   validateMarketConfig(cfg);
   return cfg;
 }

@@ -1,0 +1,161 @@
+/* app/globals.css — the 2c design system: "institutional terminal".
+ *
+ * Density via HIERARCHY, color via MEANING. Tokens only here; zones consume them.
+ * Fonts (IBM Plex Sans / Mono) are injected by app/layout.tsx via next/font as the
+ * CSS variables --font-sans / --font-mono.
+ */
+
+:root {
+  /* ── type ── */
+  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", monospace;
+
+  /* dense modular scale (px) */
+  --fs-micro: 10.5px;   /* uppercase labels, +tracking */
+  --fs-tiny: 11.5px;    /* secondary / captions */
+  --fs-body: 13px;      /* body + most data */
+  --fs-emph: 15px;      /* emphasis */
+  --fs-sec: 18px;       /* section values */
+  --fs-lg: 21px;        /* sub-headlines */
+  --fs-hero: 30px;      /* hero metric */
+  --lh-tight: 1.2;
+  --lh-data: 1.35;
+  --lh-prose: 1.55;
+  --track-label: 0.5px; /* letter-spacing on uppercase micro-labels */
+
+  /* ── spacing (4px base grid) ── */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;  --sp-6: 24px;  --sp-8: 32px;
+
+  /* ── surfaces (warm dark) ── */
+  --bg: #111110;
+  --bg-card: #1a1a18;
+  --bg-card-2: #201f1c;
+  --bg-elev: #232220;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* ── text ── */
+  --text: #e8e6df;
+  --text-muted: #9a9890;
+  --text-faint: #6b6860;
+
+  /* ── color = MEANING (never decorative) ──
+   * confidence: high/med/low · delta: up/down/flat · freshness: stale
+   * resolution: open(neutral) / closed_pending(amber) / resolved(settled green)
+   * accent: blue (links/interactive) + amber (primary highlight) */
+  --c-high: #4ade80;      /* confidence high · delta up · resolved */
+  --c-med: #c47f3a;       /* confidence medium · closed_pending */
+  --c-low: #f87171;       /* confidence low · delta down · stale */
+  --c-flat: var(--text-muted);
+  --accent-blue: #5b9bd5; /* links, interactive, lifecycle OPEN */
+  --accent-amber: #c47f3a;/* primary highlight */
+  --tier1: #2dd4bf;       /* Tier-1 analytics tag */
+
+  /* semantic aliases */
+  --up: var(--c-high);
+  --down: var(--c-low);
+  --flat: var(--c-flat);
+
+  /* ── layout ── */
+  --rail-w: 264px;
+  --cmdbar-h: 48px;
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  /* ── motion ── */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --t-fast: 120ms;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-data);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* tabular numerics everywhere data lives */
+.mono, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+a { color: var(--accent-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.muted { color: var(--text-muted); }
+.faint { color: var(--text-faint); }
+
+/* micro-label: the dense uppercase caption used across zones */
+.label {
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+  color: var(--text-muted);
+}
+
+/* ── semantic color utilities (apply ONLY when the value carries signal) ── */
+.is-up { color: var(--up); }
+.is-down { color: var(--down); }
+.is-flat { color: var(--flat); }
+.conf-high { color: var(--c-high); }
+.conf-med { color: var(--c-med); }
+.conf-low { color: var(--c-low); }
+.state-open { color: var(--accent-blue); }
+.state-pending { color: var(--c-med); }
+.state-resolved { color: var(--c-high); }
+.is-stale { color: var(--c-low); }
+
+/* ── the terminal grid (the 3-zone shell) ── */
+.terminal {
+  display: grid;
+  grid-template-columns: var(--rail-w) 1fr;
+  grid-template-rows: var(--cmdbar-h) 1fr;
+  grid-template-areas:
+    "cmdbar cmdbar"
+    "rail   detail";
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+.cmdbar { grid-area: cmdbar; border-bottom: 1px solid var(--border); }
+.rail   { grid-area: rail;   border-right: 1px solid var(--border); overflow-y: auto; }
+.detail { grid-area: detail; overflow-y: auto; }
+
+/* hairline section header reused by zones */
+.zone-head {
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+  color: var(--text-muted);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+/* empty-state used by every zone shell in 2c.1 */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 120px;
+  color: var(--text-faint);
+  font-size: var(--fs-tiny);
+  text-align: center;
+  padding: var(--sp-6);
+}
+
+/* ── responsive: rail collapses below 1024px (drawer wiring is 2c.2) ── */
+@media (max-width: 1024px) {
+  .terminal {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "cmdbar"
+      "detail";
+  }
+  .rail { display: none; }
+}

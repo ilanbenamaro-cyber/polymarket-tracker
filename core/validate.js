@@ -9,21 +9,19 @@
 //      bucket_prob equals adjusted_i - adjusted_{i+1}.
 
 import Ajv2020 from 'ajv/dist/2020.js';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+// Schema is IMPORTED (bundled into the JS), not read from disk — so the serverless
+// function never ENOENTs on an un-traced file (see core/markets/manifest.mjs).
+import schemaJson from '../docs/api/v1/schema.json' with { type: 'json' };
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCHEMA_PATH = join(__dirname, '../docs/api/v1/schema.json');
 const BUCKET_SUM_EPSILON = 1e-6;
 const MONO_EPSILON = 1e-9;
 
 let _validateSchema = null;
 function schemaValidator() {
   if (_validateSchema) return _validateSchema;
-  const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf8'));
   const ajv = new Ajv2020({ allErrors: true, strict: false });
-  _validateSchema = ajv.compile(schema);
+  // clone so ajv.compile can't mutate the shared bundled schema (compiled once).
+  _validateSchema = ajv.compile(structuredClone(schemaJson));
   return _validateSchema;
 }
 

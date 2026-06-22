@@ -1,8 +1,12 @@
 node_modules/
+.next/
+*.tsbuildinfo
 .env
+.env.local
 .claude/settings.local.json
 .playwright-mcp/
 polymarket.db
 polymarket.db-shm
 polymarket.db-wal
 /tmp/polymarket-tracker*.log
+.vercel
