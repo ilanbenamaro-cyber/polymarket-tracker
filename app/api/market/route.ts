@@ -9,8 +9,7 @@
 //
 // Route handlers are server-only by nature (never client-bundled), so importing the
 // service-role-backed lib/cache.mjs + lib/compute.mjs here is safe.
-import { readCache, writeRecord, touchProbe } from '@/lib/cache.mjs';
-import { computeMarketRecord, probeLifecycle } from '@/lib/compute.mjs';
+import { DEPS } from '@/lib/market-deps.mjs';
 import { serveMarket } from '@/lib/serve-market.mjs';
 
 // Node runtime (NOT edge): core/ uses readFileSync + Node APIs, and lib/cache.mjs
@@ -20,8 +19,6 @@ import { serveMarket } from '@/lib/serve-market.mjs';
 export const runtime = 'nodejs';
 // Never statically optimize: every request must run (resolution probe is per-call).
 export const dynamic = 'force-dynamic';
-
-const DEPS = { readCache, writeRecord, touchProbe, computeMarketRecord, probeLifecycle };
 
 export async function GET(req: Request): Promise<Response> {
   const id = new URL(req.url).searchParams.get('id') ?? '';
