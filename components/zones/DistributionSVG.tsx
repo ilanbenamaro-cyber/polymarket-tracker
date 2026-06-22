@@ -35,8 +35,8 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
       ))}
       <line className="dist-ref" x1={PAD.l} x2={VB_W - PAD.r} y1={yScalePct(50)} y2={yScalePct(50)} />
       <polyline className="dist-cdf-line" points={pts} fill="none" />
-      {markets.map((m) => (
-        <circle key={m.threshold} className="dist-cdf-dot" cx={xScale(m.threshold, lo, hi)} cy={yScalePct(m.prob * 100)} r={2.5} />
+      {markets.map((m, i) => ( // index key: an arbitrary market's parsed thresholds aren't guaranteed unique
+        <circle key={i} className="dist-cdf-dot" cx={xScale(m.threshold, lo, hi)} cy={yScalePct(m.prob * 100)} r={2.5} />
       ))}
       {medX != null && (
         <g data-field="cdf-median-marker">
@@ -73,7 +73,7 @@ function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]
         const h = (b.v / maxV) * (VB_H - PAD.t - PAD.b);
         const x = PAD.l + i * bw + bw * 0.12;
         return (
-          <g key={b.label}>
+          <g key={i}>
             <rect className={`dist-bar${b.isMedian ? ' dist-bar-median' : ''}`}
               x={x} y={VB_H - PAD.b - h} width={bw * 0.76} height={Math.max(0, h)}>
               <title>{`${b.label}${unit} · ${(b.v * 100).toFixed(1)}%`}</title>

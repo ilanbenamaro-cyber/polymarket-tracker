@@ -12,9 +12,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login'); // defense-in-depth; middleware already guards
 
+  // The user's orgs (RLS-scoped via org_select_member) drive the add-scope picker.
+  const { data: orgRows } = await supabase.from('organizations').select('id, name');
+  const orgs = (orgRows ?? []).map((o) => ({ id: o.id as string, name: (o.name as string) ?? 'Org' }));
+
   return (
     <div className="terminal">
-      <CommandBar userEmail={user.email ?? ''} />
+      <CommandBar userEmail={user.email ?? ''} orgs={orgs} />
       <WatchlistRail />
       <main className="detail" data-zone="detail">{children}</main>
     </div>
