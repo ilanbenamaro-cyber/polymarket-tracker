@@ -8,6 +8,34 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-21): Phase 2c.1 (dashboard SHELL) — DONE, gate-proven local + on Vercel
+- **Where:** branch `feature/phase2c1-shell` (commit `32fb92d`, pushed as backup) — **NOT merged to main.**
+  Held for operator go-ahead.
+- **What:** Next.js (App Router) on Vercel wrapping the proven backend — the SHELL only (no zones).
+  Auth-gated routing (`@supabase/ssr`, **Node-runtime middleware**), institutional-terminal design tokens
+  (IBM Plex Sans/Mono, `app/globals.css`), three empty zone shells (rail / detail / command-bar search).
+  `/api/market` relocated to `app/api/market/route.ts` — behavior-identical (same serveMarket + no-store;
+  **frozen SpaceX `raw_sha256` unchanged**). Login-only (signup/invite-acceptance = deferred fast-follow).
+- **Service-role boundary:** `server-only` fence on `lib/supabase/server.ts`; key never `NEXT_PUBLIC_`;
+  `lib/watchlist.mjs` is the lone client-safe lib (used by Client Components).
+- **GATE-PROVEN:** local (build + auth negative/positive/logout + `verify-phase2a` 12/12 + 119 tests) AND
+  **real Vercel preview build** (`verify-phase2a` 12/12, no ENOENT; `verify-2c1-authgate` unauth→/login).
+- **⚠ TWO DURABLE LEARNINGS (now in [[gotchas]] — don't rediscover):**
+  1. **Vercel's `@vercel/next` builder does NOT honor `outputFileTracingIncludes`** like `next build`/
+     `output:standalone` do — files traced locally were missing from the deployed function (ENOENT).
+     **Durable fix applied: bundle `core/` JSON via `import … with { type: 'json' }`** (+
+     `core/markets/manifest.mjs` for the old `readdirSync`), so there's **no runtime file read**. Local
+     trace/standalone is NOT a faithful proxy for Vercel packaging — bundle data, don't `readFileSync`.
+  2. **Stale `.next` runs old middleware/build** — `next dev` ran stale **edge** middleware after a
+     `next build` despite `runtime:'nodejs'`. `rm -rf .next` when switching build↔dev or changing
+     runtime/config; confirm via `process.env.NEXT_RUNTIME`. (Same stale-artifact family as edge-replay.)
+- **Vercel project config:** Framework Preset must be **Next.js** (the old static-site preset's `public`
+  Output Directory override broke the build); `vercel.json` has `framework:nextjs` as a lock. Preview
+  needs the 4 dev env vars in **Preview** scope. Wall still UP (Protection-Bypass-for-Automation for the
+  verify scripts — they read `VERCEL_AUTOMATION_BYPASS_SECRET`, no-op when absent).
+- **Next: 2c.2 (watchlist rail)** → 2c.3 (market detail, generalizes docs/index.html) → 2c.4 (search +
+  compute-then-add, where `MarketNotInCatalogError` is handled). Plus deferred: signup form, prod standup.
+
 ## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — COMPLETE (2b.1+2b.2+2b.3), GATE-PROVEN on dev
 - **Where:** **MERGED to `main`** — 2b.1+2b.2 via `--no-ff` `d9f1e3e`, **2b.3 via `--no-ff` `3fd4761`**
   (2a was already in main). 119/119 tests green on merged main.

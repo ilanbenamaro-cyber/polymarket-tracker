@@ -5,6 +5,42 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Vercel's @vercel/next builder does NOT honor `outputFileTracingIncludes` — bundle data, don't readFileSync
+**Symptom:** a Next route handler (`app/api/market/route.ts`) ran `core/` which `readFileSync`'d
+`core/methodology.json` at runtime. `next.config` had `outputFileTracingIncludes: { '/api/market':
+['./core/**', …] }`. Locally everything looked right — the route's `.nft.json` listed the files AND
+`output:'standalone'` copied them into the deployable output. But the **deployed Vercel function 500'd**
+with `ENOENT … /vercel/path0/core/methodology.json`. Two next.config attempts (key, then
+`outputFileTracingRoot` pin) both failed on deploy while passing locally.
+**Reality:** Vercel's `@vercel/next` builder packages functions differently from `next build` /
+`output:standalone` — it does **not** reliably bundle the extra files declared in
+`outputFileTracingIncludes`. So a local trace/standalone check is **NOT** a faithful proxy for what
+Vercel deploys. (The 2a raw-function `vercel.json functions.includeFiles` worked, but that mechanism
+does not carry over to Next-managed route handlers.)
+**Lesson (durable fix):** for serverless route handlers, **don't `readFileSync` at runtime — `import`
+the data so the bundler inlines it into the JS** (`import x from './x.json' with { type: 'json' }`).
+Dynamic `readdirSync` over a dir → a static manifest module that imports each file
+(`core/markets/manifest.mjs`). Then there is no file read → no trace dependency → no ENOENT, on any
+platform. Confirm locally by grepping the built `.next/server/app/**/route.js` for the inlined data and
+that **no `readFileSync`** of it remains (the `.nft.json` may still *list* the source file — harmless,
+since nothing opens it). Preserve fresh-object-per-call semantics with `structuredClone` (verify the
+frozen parity hash is unchanged — it was). See [[decisions]] Phase 2c.
+
+## Stale `.next` runs old middleware/build — `rm -rf .next` when switching build↔dev or changing runtime
+**Symptom:** added `export const config = { runtime: 'nodejs' }` to `middleware.ts`; `next build`
+produced a correct Node middleware bundle, but `next dev` still ran it on **edge-server** (env undefined,
+500). Earlier in the same saga, env/runtime fixes "didn't take" until `.next` was cleared. Cost several
+round-trips chasing config when the code was already right.
+**Reality:** `next dev` compiles middleware lazily and **reuses a stale `.next`**; interleaving
+`next build` and `next dev` in the same `.next` leaves mixed/stale artifacts (stale edge middleware,
+stale env inlining). The config was correct the whole time.
+**Lesson:** after changing middleware **runtime**/config, env wiring, or `next.config`, **`rm -rf .next`
+then restart** — don't trust a warm `.next`. Confirm the middleware runtime with a temp
+`console.log(process.env.NEXT_RUNTIME)` (expect `nodejs`) **before** running gates, rather than
+discovering via a 500. This is the **same stale-artifact family** as the Vercel-edge-replay, the
+http.server browser cache, and the deploy-timing traps — when a config change "doesn't take," suspect a
+stale build cache before the config.
+
 ## Vercel edge-caches `public, max-age` responses and replays them — the function never runs
 **Symptom:** Phase 2a live verify C2 failed: a 2nd `/api/market` call within TTL returned
 `cached:false` on a market that was genuinely OPEN — but with the SAME `fetched_at` as call #1 and
