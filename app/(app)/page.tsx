@@ -1,8 +1,16 @@
-// app/(app)/page.tsx — Zone 2 (market detail) region. 2c.1 ships the empty shell;
-// the generalized verified detail view (headline / confidence / ladder / provenance
-// / freshness / resolution — generalizing docs/index.html) is built in 2c.3.
-import { MarketDetail } from '@/components/zones/MarketDetail';
+// app/(app)/page.tsx — Zone 2 region. Reads the rail's ?m=<market_id> selection
+// server-side and runs the AUTHORITATIVE probed serve for that one market (2c.3).
+// No ?m= → empty state; the fetch is suspended (keyed by m) so a skeleton streams
+// while the resolution probe runs on selection.
+import { Suspense } from 'react';
+import { DetailData, DetailEmpty, DetailSkeleton } from '@/components/zones/MarketDetailView';
 
-export default function DashboardPage() {
-  return <MarketDetail />;
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
+  const { m } = await searchParams;
+  if (!m) return <DetailEmpty />;
+  return (
+    <Suspense key={m} fallback={<DetailSkeleton />}>
+      <DetailData id={m} />
+    </Suspense>
+  );
 }
