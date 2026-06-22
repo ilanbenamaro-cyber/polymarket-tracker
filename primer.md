@@ -55,6 +55,38 @@
   verify scripts — they read `VERCEL_AUTOMATION_BYPASS_SECRET`, no-op when absent).
 - **Next: 2c.2 (watchlist rail)** → 2c.3 (market detail, generalizes docs/index.html) → 2c.4 (search +
   compute-then-add, where `MarketNotInCatalogError` is handled). Plus deferred: signup form, prod standup.
+- **Backup:** `feature/phase2c1-shell` retained on origin (commit `b9003bc`) as an off-machine backup.
+
+## ⮕ DEV ENVIRONMENT — fresh-context resume facts (2026-06-22)
+> A new session needs these to run dev/gates; none are in the code. No secrets here (project ref + emails
+> are not credentials; the 4 env-var VALUES live only in Vercel/.env.local, never in this repo).
+- **Dev Supabase project:** ref **`dxoyxjxcfbgygvjvrrfk`** (`https://dxoyxjxcfbgygvjvrrfk.supabase.co`).
+  All 3 migrations applied (`0001_phase2a` + `0002_phase2b` + `0003_phase2b_auth`); **Before-User-Created
+  hook ENABLED**; **Confirm-email OFF** (dev only); **SpaceX seeded** (frozen RESOLVED, `raw_sha256`
+  `c1be52e4…`) via `scripts/seed-spacex.mjs`.
+- **Dev login (allowlisted):** **`ilanbenamaro@gmail.com`** — `admin` in org **"Dev Org"** (`allowed_emails`
+  seeded). Account exists (signed up out-of-band; there is no UI signup form yet).
+- **Vercel env:** the 4 vars (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/`_SERVICE_ROLE_KEY`)
+  are set in **Preview** scope with **dev values**. **Production scope is EMPTY** (deliberate → the prod 500).
+- **Local:** `.env.local` (gitignored) holds the 4 dev vars. Signup-fixture domain:
+  `TEST_EMAIL_DOMAIN=polymarket-tracker-dev.com` (Supabase rejects `example.com`/`.test` at validation).
+- **Gates all green on dev:** `verify-phase2a` 12/12, `verify-phase2b-{isolation,auth,watchlist}`,
+  `verify-2c1-authgate`. Run them with the dev creds in env (+ `VERCEL_AUTOMATION_BYPASS_SECRET` if hitting
+  a protected preview).
+
+## ⮕ 2c SCOPE (locked) — dashboard; what's CUT / DEFERRED / ABANDONED
+- **Product:** the 2c dashboard — **Bloomberg-dense, institutional-terminal** aesthetic (density via
+  hierarchy + color-as-meaning, not clutter; IBM Plex Sans/Mono; tokens in `app/globals.css`). Quant audience.
+- **Three zones:** Zone 1 watchlist rail · Zone 2 market detail · Zone 3 search+add (in the command bar).
+- **Build order:** 2c.1 shell **DONE** → **2c.2 rail** (`lib/watchlist.listVisible`) → **2c.3 detail**
+  (generalizes `docs/index.html` via `/api/market`) → **2c.4 search+add** (gamma `public-search` +
+  compute-then-add, handling `MarketNotInCatalogError`).
+- **CUT entirely (do NOT build):** related-markets / "market relates to other aspects" analysis; **scenario
+  analysis (Tier-2)**; anything **trading / positions / P&L**.
+- **DEFERRED to 2d:** email / notifications.
+- **ABANDONED:** the **news area** — `docs/ARCHITECTURE.md §8` designed a firewall to "build later"; that is
+  now **dropped**, not merely deferred. (ARCHITECTURE.md §8 is superseded on this point.)
+- **Deferred fast-follow:** the signup / invite-acceptance form (2c.1 is **login-only**).
 
 ## ⮕ DIRECTION (2026-06-20): Phase 2b (accounts + watchlists) — COMPLETE (2b.1+2b.2+2b.3), GATE-PROVEN on dev
 - **Where:** **MERGED to `main`** — 2b.1+2b.2 via `--no-ff` `d9f1e3e`, **2b.3 via `--no-ff` `3fd4761`**
