@@ -149,6 +149,60 @@ a:hover { text-decoration: underline; }
   padding: var(--sp-6);
 }
 
+/* ── Zone 1: watchlist rail rows (2c.2) ──────────────────────────────────────
+ * STRUCTURAL classes only — every color comes from the existing semantic tokens
+ * (.conf-*, .is-up/down/flat, .state-*, .is-stale). No new color/semantic tokens. */
+.wl-list { list-style: none; margin: 0; padding: 0; }
+
+.wl-row {
+  display: block;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid transparent; /* selection marker rail */
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.wl-row:hover { background: var(--bg-card); text-decoration: none; }
+.wl-selected { background: var(--bg-elev); border-left-color: var(--border-strong); }
+
+.wl-row-top { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.wl-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.wl-title {
+  flex: 1 1 auto; min-width: 0;
+  font-size: var(--fs-body); line-height: var(--lh-tight);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wl-chip {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-1);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text-faint);
+}
+
+.wl-row-data {
+  display: flex; align-items: baseline; gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  font-size: var(--fs-tiny); line-height: var(--lh-data);
+}
+.wl-median { font-size: var(--fs-emph); color: var(--text); }
+.wl-delta { flex: 0 0 auto; }
+.wl-conf { font-size: var(--fs-micro); letter-spacing: var(--track-label); font-weight: 600; }
+.wl-fresh { margin-left: auto; flex: 0 0 auto; font-size: var(--fs-micro); }
+.wl-stale-pill { text-transform: uppercase; letter-spacing: var(--track-label); }
+
+.wl-error { color: var(--c-low); }
+
+/* skeleton (loading) — shimmer between existing surface tokens, no new color */
+.wl-skel { cursor: default; }
+.wl-skel-bar { height: 9px; border-radius: var(--radius-sm); background: var(--bg-card-2);
+  background-image: linear-gradient(90deg, var(--bg-card-2) 0%, var(--bg-elev) 50%, var(--bg-card-2) 100%);
+  background-size: 200% 100%; animation: wl-shimmer 1.4s var(--ease) infinite; }
+.wl-skel-title { width: 70%; margin-bottom: var(--sp-2); }
+.wl-skel-data { width: 45%; }
+@keyframes wl-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .wl-skel-bar { animation: none; } }
+
 /* ── responsive: rail collapses below 1024px (drawer wiring is 2c.2) ── */
 @media (max-width: 1024px) {
   .terminal {

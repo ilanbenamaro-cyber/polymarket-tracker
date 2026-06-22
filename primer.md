@@ -8,6 +8,36 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-22): Phase 2c.2 (watchlist RAIL, Zone 1) — DONE on branch, NOT merged
+- **Where:** `feature/phase2c2-rail` (impl `2fe39ca` + this primer commit). **NOT merged — held for go-ahead.**
+  Backend/auth/schema **untouched** (only added `lib/market-scan.mjs`, the two rail components, rail CSS, 2 scripts).
+- **What:** Zone 1 rail = a Server Component (`components/zones/WatchlistRail.tsx`) that reads the
+  **cache only** — `listVisible()` (RLS-scoped union) → `lib/market-scan.readScan()` for exactly those
+  markets. **It runs NO resolution probe**: the rail is a SCAN SUMMARY on the COST layer; the
+  authoritative probed serve stays in **Zone 2 / `/api/market`** for the selected market. Dense rows reuse
+  existing tokens (`.conf-*`/`.is-*`/`.state-*`/`.is-stale`) — **no new design tokens**. Client freshness
+  (live `now`, no hydration mismatch). Selection sets **`?m=<market_id>`** + marks `.wl-selected` — this is
+  the handoff **2c.3 consumes server-side**. Suspense skeleton + real empty + caught error states.
+- **⚠ KEY ARCHITECTURE DECISION (option b):** the scan fields are **already promoted to `market_latest`
+  columns** (`implied_median`/`confidence_tier`/`lifecycle_state`/`is_final`/`stale_after`/`fetched_at`);
+  the 24h delta lives in the record JSONB at `snapshot.derived.market.analytics.velocity.change_24h`. So the
+  rail reads the cache — **no recompute, NO `/api/market` fan-out** (proven below). Rejected naive N×/api/market.
+- **⚠ THE FIREWALL (load-bearing):** `readScan` uses the **service-role** key (RLS-bypassing) but takes
+  **NO id list** — ids come ONLY from `listVisible()` and every query is bounded `.in('market_id', ids)`.
+  A market the user can't see can't reach the rail even though service-role could read it. Lives in
+  `lib/market-scan.mjs` (server-only, `cache.mjs` fence pattern); the heavy `record` is never shipped to the client.
+- **GATE-PROVEN:** node gate `scripts/verify-2c2-rail.mjs` GREEN (FIREWALL cross-tenant exclusion · FIDELITY
+  scan===market_latest, no drift, `median_display`===`fmtT` · DEDUP dual-scope→one merged row); **Playwright**
+  GREEN (3 seeded rows + titles, confidence/lifecycle/delta pills, **STALE pill ONLY on the past-`stale_after`
+  row**, ORG chip only on the org row, click→`?m=`+`.wl-selected`, **zero `/api/market` on rail load
+  [architecture-falsification]**, 0 rail console errors, 1280px screenshot); **125/125 `node --test`** (6 new) +
+  `tsc` clean + `next build` clean. **Empty state + no-regression re-runs (`verify-phase2a` 12/12 +
+  `verify-2c1-authgate`) operator-verified separately.**
+- **Seed for the rail demo:** `scripts/seed-watchlist-dev.mjs` (dev user: real SpaceX RESOLVED + synthetic
+  `dev-rail-open-fresh` + `dev-rail-open-stale`; `.in`-bounded, idempotent). DEV-only fixtures.
+- **Next: 2c.3 (market detail, Zone 2)** — reads the **`?m=` selection this phase wired** (server-side
+  `searchParams`), fetches `/api/market?id=` (the authoritative probed serve), generalizes `docs/index.html`.
+
 ## ⮕ DIRECTION (2026-06-22): Phase 2c.1 (dashboard SHELL) — DONE & MERGED to main
 - **Where:** **MERGED to `main`** (2026-06-22, `--no-ff` merge `fd97d8e`; main was an ancestor, no race).
   119/119 on merged main; frozen-hash parity GATE 1+2 reproduce (Option-A behavior-identical).
@@ -53,7 +83,7 @@
   Output Directory override broke the build); `vercel.json` has `framework:nextjs` as a lock. Preview
   needs the 4 dev env vars in **Preview** scope. Wall still UP (Protection-Bypass-for-Automation for the
   verify scripts — they read `VERCEL_AUTOMATION_BYPASS_SECRET`, no-op when absent).
-- **Next: 2c.2 (watchlist rail)** → 2c.3 (market detail, generalizes docs/index.html) → 2c.4 (search +
+- **Next (2c.2 rail now DONE on branch): 2c.3** (market detail, generalizes docs/index.html) → 2c.4 (search +
   compute-then-add, where `MarketNotInCatalogError` is handled). Plus deferred: signup form, prod standup.
 - **Backup:** `feature/phase2c1-shell` retained on origin (commit `b9003bc`) as an off-machine backup.
 
@@ -68,7 +98,11 @@
   seeded). Account exists (signed up out-of-band; there is no UI signup form yet).
 - **Vercel env:** the 4 vars (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/`_SERVICE_ROLE_KEY`)
   are set in **Preview** scope with **dev values**. **Production scope is EMPTY** (deliberate → the prod 500).
-- **Local:** `.env.local` (gitignored) holds the 4 dev vars. Signup-fixture domain:
+- **Local:** `.env.local` (gitignored) **is NOT reliable across sessions** — don't assume it
+  holds all 4 dev vars (a fresh machine had only `NEXT_PUBLIC_SUPABASE_URL`). The gate scripts
+  read `process.env` directly, so the **4 dev vars must be present in the shell/env at run time**
+  (export them or prefix the command). **Canonical source of the dev VALUES = Vercel Preview-scope
+  env + the operator's own records, NOT a guaranteed-present `.env.local`.** Signup-fixture domain:
   `TEST_EMAIL_DOMAIN=polymarket-tracker-dev.com` (Supabase rejects `example.com`/`.test` at validation).
 - **Gates all green on dev:** `verify-phase2a` 12/12, `verify-phase2b-{isolation,auth,watchlist}`,
   `verify-2c1-authgate`. Run them with the dev creds in env (+ `VERCEL_AUTOMATION_BYPASS_SECRET` if hitting
@@ -78,9 +112,9 @@
 - **Product:** the 2c dashboard — **Bloomberg-dense, institutional-terminal** aesthetic (density via
   hierarchy + color-as-meaning, not clutter; IBM Plex Sans/Mono; tokens in `app/globals.css`). Quant audience.
 - **Three zones:** Zone 1 watchlist rail · Zone 2 market detail · Zone 3 search+add (in the command bar).
-- **Build order:** 2c.1 shell **DONE** → **2c.2 rail** (`lib/watchlist.listVisible`) → **2c.3 detail**
-  (generalizes `docs/index.html` via `/api/market`) → **2c.4 search+add** (gamma `public-search` +
-  compute-then-add, handling `MarketNotInCatalogError`).
+- **Build order:** 2c.1 shell **DONE** → **2c.2 rail DONE** (`lib/watchlist.listVisible` + `lib/market-scan`,
+  on branch, not merged) → **2c.3 detail (NEXT)** (generalizes `docs/index.html` via `/api/market`) →
+  **2c.4 search+add** (gamma `public-search` + compute-then-add, handling `MarketNotInCatalogError`).
 - **CUT entirely (do NOT build):** related-markets / "market relates to other aspects" analysis; **scenario
   analysis (Tier-2)**; anything **trading / positions / P&L**.
 - **DEFERRED to 2d:** email / notifications.
