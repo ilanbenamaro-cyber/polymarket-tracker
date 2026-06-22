@@ -17,11 +17,20 @@
   is **blocked** on the prod-standup checklist (below) — it would build the Next app + `/api/market` against
   Production-scoped env that isn't set → middleware loud-check throws. The Option-A import-bundling is already
   in code, so *that* ENOENT mode is prod-safe; the env/Supabase prerequisites are not yet met.
-- **PROD-STANDUP CHECKLIST (extended for 2c.1):** (1) prod Supabase w/ `0001`+`0002`+`0003` applied;
-  (2) Before-User-Created hook **enabled**; (3) email-confirmation posture set; (4) Vercel Framework Preset
-  = **Next.js**; (5) the **4 env vars** (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/
-  `_SERVICE_ROLE_KEY`) in Vercel **Production** scope; (6) deployment-protection / app-auth posture decided;
-  (7) re-run all gates against prod.
+- **PROD-STANDUP CHECKLIST — production goes live ONLY when ALL of these are done:** (1) prod Supabase
+  project created w/ `0001`+`0002`+`0003` applied; (2) Before-User-Created hook **enabled** (created-but-
+  not-enabled fails OPEN); (3) email-confirmation posture set (prod CONFIRMS, unlike dev); (4) Vercel
+  Framework Preset = **Next.js** + `public` Output-Dir override cleared; (5) the **4 env vars**
+  (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/`_SERVICE_ROLE_KEY`) set in Vercel **Production**
+  scope with **PROD values (NOT dev)**; (6) deployment-protection / app-auth posture decided; (7) re-run all
+  gates against prod. Until ALL are done, production must NOT be treated as live.
+- **✅ EXPECTED PRE-STANDUP STATE (NOT a bug — do not chase):** `polymarket-tracker-nu.vercel.app`
+  (Vercel auto-built a **production** deploy from `main`) returns **500** — the middleware loud env-check
+  (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY missing at runtime`). This is **correct: the gate fails CLOSED**
+  because Production-scope env is deliberately **empty** (env vars are Preview-only; prod Supabase doesn't
+  exist yet). **Every push to `main` will auto-build a failing production deploy until standup — this is
+  fine and expected**, not something to investigate each time. Leave production erroring **as-is**; it
+  becomes healthy only after the checklist above. (Confirms "code-on-main ≠ live-in-prod" empirically.)
 - **What:** Next.js (App Router) on Vercel wrapping the proven backend — the SHELL only (no zones).
   Auth-gated routing (`@supabase/ssr`, **Node-runtime middleware**), institutional-terminal design tokens
   (IBM Plex Sans/Mono, `app/globals.css`), three empty zone shells (rail / detail / command-bar search).
