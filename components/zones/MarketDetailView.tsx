@@ -154,10 +154,10 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
             <table className="detail-table num" data-field="ladder">
               <thead><tr><th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th><th>All-time volume</th></tr></thead>
               <tbody>
-                {d.markets.map((m: LadderRow) => {
+                {d.markets.map((m: LadderRow, i: number) => {
                   const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
                   return (
-                    <tr key={m.threshold} className={m.volume_tier === 'low' ? 'thin' : ''}>
+                    <tr key={`${m.threshold}-${i}`} className={m.volume_tier === 'low' ? 'thin' : ''}>
                       <td className="tl">{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
                       <td>{pct(m.prob)}</td>
                       <td>{pct1(m.bucket_prob)}</td>
