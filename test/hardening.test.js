@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { pava, adjustSnapshot, medianBand, meanSensitivity } from '../core/stats.js';
 import { computeImpliedMedian } from '../core/metrics.js';
 import { scoreConfidence } from '../core/confidence.js';
+import { scoreBinaryConfidence } from '../core/binary.js';
 import { buildNarrative } from '../core/narrative.js';
 import { validateRecord } from '../core/validate.js';
 import { hashRawInputs, canonicalizeRawInputs } from '../core/fetch.js';
@@ -113,6 +114,21 @@ test('confidence surfaces midpoint-fallback reasons + degrades; null is a no-op 
   // skipped rungs → reason naming the thresholds + low tier
   const sk = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 1, skippedThresholds: [2.4] } });
   assert.ok(sk.reasons.some((r) => /1 rung\(s\) excluded \(no price\): 2\.4/.test(r)) && sk.tier === 'low');
+});
+
+test('binary confidence: liquid → high; illiquid+thin → low with reasons', () => {
+  const liquid = scoreBinaryConfidence({ probability: 0.105, bestBid: '0.10', bestAsk: '0.11', totalVolume: 1_600_000 });
+  assert.equal(liquid.tier, 'high');
+
+  const illiquid = scoreBinaryConfidence({ probability: 0.145, bestBid: '0.08', bestAsk: '0.21', totalVolume: 2978 });
+  assert.equal(illiquid.tier, 'low');
+  assert.ok(illiquid.reasons.some((r) => /spread .*pp \(illiquid\)/.test(r)));
+  assert.ok(illiquid.reasons.some((r) => /thin volume/.test(r)));
+  assert.ok(illiquid.reasons.some((r) => /% of the implied probability/.test(r)));
+
+  // Phase-1 fallback flows through to binary confidence too
+  const lt = scoreBinaryConfidence({ probability: 0.5, bestBid: '0.49', bestAsk: '0.51', totalVolume: 500000, midpointFallback: { lastTradeCount: 1, skippedCount: 0 } });
+  assert.ok(lt.reasons.some((r) => /priced from last trade/.test(r)) && lt.tier !== 'high');
 });
 
 test('validateRecord throws on a negative/inconsistent bucket', () => {
