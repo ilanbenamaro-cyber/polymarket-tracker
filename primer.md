@@ -68,7 +68,11 @@
   seeded). Account exists (signed up out-of-band; there is no UI signup form yet).
 - **Vercel env:** the 4 vars (`NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` + `SUPABASE_URL`/`_SERVICE_ROLE_KEY`)
   are set in **Preview** scope with **dev values**. **Production scope is EMPTY** (deliberate → the prod 500).
-- **Local:** `.env.local` (gitignored) holds the 4 dev vars. Signup-fixture domain:
+- **Local:** `.env.local` (gitignored) **is NOT reliable across sessions** — don't assume it
+  holds all 4 dev vars (a fresh machine had only `NEXT_PUBLIC_SUPABASE_URL`). The gate scripts
+  read `process.env` directly, so the **4 dev vars must be present in the shell/env at run time**
+  (export them or prefix the command). **Canonical source of the dev VALUES = Vercel Preview-scope
+  env + the operator's own records, NOT a guaranteed-present `.env.local`.** Signup-fixture domain:
   `TEST_EMAIL_DOMAIN=polymarket-tracker-dev.com` (Supabase rejects `example.com`/`.test` at validation).
 - **Gates all green on dev:** `verify-phase2a` 12/12, `verify-phase2b-{isolation,auth,watchlist}`,
   `verify-2c1-authgate`. Run them with the dev creds in env (+ `VERCEL_AUTOMATION_BYPASS_SECRET` if hitting
