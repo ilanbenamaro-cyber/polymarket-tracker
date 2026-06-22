@@ -5,6 +5,33 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A missing CLOB midpoint means an EMPTY book (not a one-sided book) — fall back to last_trade
+**Symptom:** `core/fetch.js` threw `No midpoint for token X` and failed the WHOLE market
+when ANY single rung lacked a midpoint — breaking live, active commodity ladders (Silver
+XAGUSD, WTI) that have one or more illiquid rungs.
+**Reality (measured against live CLOB):** when `/midpoints` omits a token, the orderbook is
+**empty** — `/prices` returns NO best_bid AND NO best_ask, `/midpoint` → "No orderbook
+exists", `/book` is empty. The intuitive fallback `(bid+ask)/2` almost never applies (there's
+no bid/ask). Across WTI+Silver weekly+WTI monthly, **all 9 no-midpoint rungs had only a
+`last-trade-price`** (deep ITM/OTM near-settled rungs, e.g. >$75 WTI pinned at 0.999). So the
+fix's load-bearing tier is **`last_trade_price`**, not bid/ask. Priority: `clob_midpoint` →
+`bid_ask_mean` → single side → **`last_trade`** → skip the rung → fail only if ALL rungs are
+dead. Skipping a *middle* rung punches a hole in the CDF, so `last_trade` (keeps the rung) is
+tried before skip.
+**Provenance tradeoff (deliberate):** `raw_inputs` records `midpoint_source` (+ `last_trade_price`
+when used) so an auditor sees exactly how each midpoint was derived — but these fields are
+**NOT** in `canonicalizeRawInputs`, so the **hash recipe is untouched** and the **frozen SpaceX
+`raw_sha256` stays byte-identical** (`c1be52e4…b89003`; SpaceX is cache-final and never
+recomputed, and all its rungs are real midpoints → no fallback branch runs). Consequence: the
+resolved midpoint **value** is tamper-evident (it IS hashed), but the **source label** is
+metadata (not hashed). Accepted to keep the recipe stable. Confidence degrades honestly:
+"N rung(s) priced from last trade (no live book)" / "M rung(s) excluded (no price)".
+**Lesson:** don't assume a missing midpoint leaves a usable book — it usually doesn't. When
+adding provenance fields to `raw_inputs`, keep them OUT of the canonicalizer or you silently
+break every stored hash. Verify the frozen parity gate after ANY `core/fetch.js` change.
+
+---
+
 ## SVG `<text>`/`<title>` with adjacent dynamic+static children mis-hydrates — use ONE string child
 **Symptom:** the 2c.3 detail page threw React **"Hydration failed because the server rendered HTML didn't
 match the client"**, the tree bottoming out at a distribution-SVG `<title>` (`+ {"<$1"}`). It rendered fine

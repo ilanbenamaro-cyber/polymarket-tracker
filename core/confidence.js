@@ -43,6 +43,7 @@ export function scoreConfidence({
   maxAdjustment = 0,
   liquidity = null,
   anomalies = null,
+  midpointFallback = null,
   countHigh = MIN_THRESHOLDS_HIGH,
   countMedium = MIN_THRESHOLDS_MEDIUM,
   ladderSize = 16,
@@ -128,6 +129,22 @@ export function scoreConfidence({
     }
   }
 
+  // 6) Midpoint fallback — rungs with no live midpoint priced from the last trade
+  //    (no live book), or excluded for want of any price. A rung off the live book is
+  //    less trustworthy, so it degrades the tier. Null/zero on the normal path → no
+  //    effect (SpaceX has none → frozen confidence unchanged).
+  if (midpointFallback) {
+    if (midpointFallback.lastTradeCount > 0) {
+      tiers.push('medium');
+      reasons.push(`${midpointFallback.lastTradeCount} rung(s) priced from last trade (no live book)`);
+    }
+    if (midpointFallback.skippedCount > 0) {
+      tiers.push('low');
+      const ts = (midpointFallback.skippedThresholds ?? []).join(', ');
+      reasons.push(`${midpointFallback.skippedCount} rung(s) excluded (no price)${ts ? `: ${ts}` : ''}`);
+    }
+  }
+
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
 
   // Smooth 0..1 score for sorting / the badge.
@@ -140,6 +157,10 @@ export function scoreConfidence({
     if (anomalies.stale) score -= 0.15;
     if (anomalies.closedCount > 0 && !settled) score -= 0.1 * Math.min(3, anomalies.closedCount);
     if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) score -= 0.1;
+  }
+  if (midpointFallback) {
+    score -= 0.05 * Math.min(4, midpointFallback.lastTradeCount ?? 0);
+    score -= 0.1 * Math.min(4, midpointFallback.skippedCount ?? 0);
   }
   score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
 

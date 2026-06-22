@@ -71,7 +71,7 @@ function probAt(markets, threshold) {
  * all metrics from the adjusted curve + confidence. `context` carries optional
  * anomaly inputs for confidence.
  */
-function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null }) {
+function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null }) {
   const adj = adjustSnapshot(markets, floorOpts(config)); // markets carry raw_prob + adjusted_prob + bucket_prob>=0
   const adjusted = adj.markets;
   const impliedMedian = computeImpliedMedian(adjusted);
@@ -84,6 +84,7 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     liquidity: adj.liquidity,
     anomalies,
     lifecycle,
+    midpointFallback,
     ...confidenceOpts(config),
   });
   return {
@@ -102,8 +103,8 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
 }
 
 /** Full "current" derived block: core + spread-implied median band + mean sensitivity. */
-export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null }) {
-  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle });
+export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null }) {
+  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle, midpointFallback });
   const median = medianBand(rawInputs, core.implied_median);
   const mean = meanSensitivity(core.markets, sensitivityOpts(config));
   const { _adj, ...clean } = core;
@@ -123,6 +124,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, 
     anomalies,
     config,
     lifecycle,
+    midpointFallback: live.midpoint_fallback ?? null, // absent on history/frozen paths → no-op (SpaceX byte-identical)
   });
   // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + a
   // threshold. The cron path passes nothing → the schedule-derived 17h (SpaceX

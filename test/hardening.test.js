@@ -93,6 +93,28 @@ test('confidence surfaces each anomaly reason', () => {
   assert.ok(thin.reasons.some((r) => /thin liquidity on 9 of 16/.test(r)));
 });
 
+test('confidence surfaces midpoint-fallback reasons + degrades; null is a no-op (SpaceX-safety)', () => {
+  const markets = Array.from({ length: 16 }, (_, i) => ({ threshold: 1 + i * 0.2, prob: 0.9 - i * 0.05 }));
+  const rawInputs = markets.map(() => ({ best_bid: '0.5', best_ask: '0.51' }));
+  const liquidity = { thinCount: 0, total: 16, thinShare: 0 };
+
+  // null / absent fallback → identical to no fallback at all (the frozen-record invariant)
+  const base = scoreConfidence({ markets, rawInputs, liquidity });
+  const nullFb = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: null });
+  assert.deepEqual(nullFb, base, 'null midpointFallback must not change tier/score/reasons');
+  const zeroFb = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 0, skippedThresholds: [] } });
+  assert.deepEqual(zeroFb, base, 'zero-count fallback is also a no-op');
+
+  // last-trade rungs → reason + degraded tier (was high)
+  const lt = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 2, lastTradeThresholds: [1.8, 2.0], skippedCount: 0, skippedThresholds: [] } });
+  assert.ok(lt.reasons.some((r) => /2 rung\(s\) priced from last trade \(no live book\)/.test(r)));
+  assert.ok(lt.tier !== 'high' && lt.score < base.score);
+
+  // skipped rungs → reason naming the thresholds + low tier
+  const sk = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 1, skippedThresholds: [2.4] } });
+  assert.ok(sk.reasons.some((r) => /1 rung\(s\) excluded \(no price\): 2\.4/.test(r)) && sk.tier === 'low');
+});
+
 test('validateRecord throws on a negative/inconsistent bucket', () => {
   const tampered = JSON.parse(JSON.stringify(LATEST));
   tampered.snapshot.derived.markets[3].adjusted_prob = 0.999; // breaks monotonicity + bucket

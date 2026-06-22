@@ -17,7 +17,9 @@ export const ENDPOINTS = {
   gamma: `https://gamma-api.polymarket.com/events?slug=${EVENT_SLUG}`,
   midpoints: 'https://clob.polymarket.com/midpoints',
   prices: 'https://clob.polymarket.com/prices',
+  lastTrade: 'https://clob.polymarket.com/last-trade-price',
 };
+const lastTradeUrl = (token) => `${ENDPOINTS.lastTrade}?token_id=${token}`;
 const THRESHOLD_RE = /\$(\d+\.?\d*)/;
 
 export const ASSET = {
@@ -135,29 +137,85 @@ export async function fetchLiveSnapshot(config = null) {
     body: JSON.stringify(priceBody),
   });
 
-  const raw_inputs = meta.map((m) => {
-    const mid = midRaw[m.token_id];
-    if (mid == null) throw new Error(`No midpoint for token ${m.token_id}`);
+  // Resolve a midpoint per rung with a documented fallback chain — an illiquid /
+  // near-settled rung often has NO live midpoint AND an empty book (no bid/ask),
+  // leaving only a last trade. Priority: clob_midpoint → bid_ask_mean → single side
+  // → last_trade → skip (no usable price). raw_inputs records the RESOLVED midpoint
+  // plus its `midpoint_source` (and `last_trade_price` when used) for honest
+  // provenance; those extra fields are deliberately NOT in canonicalizeRawInputs, so
+  // the hash recipe — and the frozen SpaceX hash — are untouched (the resolved
+  // midpoint VALUE is what's hashed). Skipped rungs are excluded from raw_inputs AND
+  // the ladder, and surfaced via midpoint_fallback → confidence. See gotchas.md.
+  const resolved = meta.map((m) => {
     const book = priceRaw[m.token_id] || {};
-    return {
-      token_id: m.token_id,
-      threshold: m.threshold,
-      midpoint: String(mid), // keep API's literal string for provenance
-      best_bid: book.BUY != null ? String(book.BUY) : null,
-      best_ask: book.SELL != null ? String(book.SELL) : null,
-      volume: m.volume,
-    };
+    const best_bid = book.BUY != null ? String(book.BUY) : null;
+    const best_ask = book.SELL != null ? String(book.SELL) : null;
+    const mid = midRaw[m.token_id];
+    if (mid != null) return { m, best_bid, best_ask, midpoint: String(mid), midpoint_source: 'clob_midpoint' };
+    if (best_bid != null && best_ask != null) {
+      return { m, best_bid, best_ask, midpoint: String((Number(best_bid) + Number(best_ask)) / 2), midpoint_source: 'bid_ask_mean' };
+    }
+    if (best_bid != null) return { m, best_bid, best_ask, midpoint: best_bid, midpoint_source: 'best_bid' };
+    if (best_ask != null) return { m, best_bid, best_ask, midpoint: best_ask, midpoint_source: 'best_ask' };
+    return { m, best_bid, best_ask, needsLastTrade: true }; // no midpoint, no book
   });
 
-  const markets = meta.map((m) => {
-    const r = raw_inputs.find((x) => x.token_id === m.token_id);
-    return {
-      label: m.label,
-      threshold: m.threshold,
-      prob: parseFloat(r.midpoint),
-      volume: m.volume,
-    };
-  });
+  // Fetch last-trade ONLY for the no-book rungs (small N) — never on the normal path.
+  const needers = resolved.filter((r) => r.needsLastTrade);
+  const lastTrades = await Promise.all(
+    needers.map(async (r) => {
+      try {
+        const lt = await fetchJson(lastTradeUrl(r.m.token_id));
+        return [r.m.token_id, lt && lt.price != null ? String(lt.price) : null];
+      } catch {
+        return [r.m.token_id, null];
+      }
+    })
+  );
+  const lastTradeBy = new Map(lastTrades);
+
+  const skippedThresholds = [];
+  const lastTradeThresholds = [];
+  const raw_inputs = [];
+  for (const r of resolved) {
+    if (r.needsLastTrade) {
+      const price = lastTradeBy.get(r.m.token_id);
+      if (price == null) { skippedThresholds.push(r.m.threshold); continue; } // truly no price → skip rung
+      lastTradeThresholds.push(r.m.threshold);
+      raw_inputs.push({
+        token_id: r.m.token_id, threshold: r.m.threshold, midpoint: price,
+        best_bid: null, best_ask: null, volume: r.m.volume,
+        midpoint_source: 'last_trade', last_trade_price: price,
+      });
+    } else {
+      raw_inputs.push({
+        token_id: r.m.token_id, threshold: r.m.threshold, midpoint: r.midpoint,
+        best_bid: r.best_bid, best_ask: r.best_ask, volume: r.m.volume,
+        midpoint_source: r.midpoint_source,
+      });
+    }
+  }
+
+  if (raw_inputs.length === 0) {
+    throw new Error(`No usable price for any rung of ${config ? config.event_slug : EVENT_SLUG}`);
+  }
+
+  const labelByToken = new Map(meta.map((m) => [m.token_id, m.label]));
+  const markets = raw_inputs.map((r) => ({
+    label: labelByToken.get(r.token_id),
+    threshold: r.threshold,
+    prob: parseFloat(r.midpoint),
+    volume: r.volume,
+  }));
+
+  // Fallback signal for confidence (empty/zero on the normal path → no effect, so
+  // SpaceX's frozen confidence is unchanged).
+  const midpoint_fallback = {
+    lastTradeCount: lastTradeThresholds.length,
+    lastTradeThresholds,
+    skippedCount: skippedThresholds.length,
+    skippedThresholds,
+  };
 
   // Side channel for anomaly detection + lifecycle classification (closed /
   // inactive / not accepting orders / UMA resolution / settled outcome).
@@ -179,6 +237,7 @@ export async function fetchLiveSnapshot(config = null) {
     raw_sha256: hashRawInputs(raw_inputs),
     markets,
     status,
+    midpoint_fallback,
   };
 }
 
