@@ -8,6 +8,43 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-22): Phase 2c.3 (market DETAIL, Zone 2) — DONE & MERGED to main
+- **Where:** **MERGED to `main`** (`--no-ff` merge `251a853`; main an ancestor of `feature/phase2c3-detail`,
+  no cron race). **132/132 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2+2c.3**.
+  Backend/auth/schema/rail **untouched** (the one edit to `app/api/market/route.ts` is the shared-DEPS
+  extraction — behavior-identical, `verify-phase2a` 12/12 covers it).
+- **⚠ Vercel posture UNCHANGED** — production stays erroring **pre-standup** (fails-closed 500, Production
+  env deliberately empty). This push auto-builds a **failing prod deploy from `main`** — expected, don't chase/touch.
+- **What:** Zone 2 detail = a PORT+GENERALIZE of `docs/index.html` into the React pane, fed by the rail's
+  **`?m=<id>` selection** (read server-side in `app/(app)/page.tsx` via `searchParams`). It runs the
+  **AUTHORITATIVE probed serve** for that one market — `serveMarket` called DIRECTLY with the **shared
+  `lib/market-deps.mjs` DEPS** (same object `/api/market/route.ts` now imports — no drift, no HTTP hop). This
+  is the CORRECTNESS layer (per-call resolution probe), the deliberate opposite of the rail's cached read.
+- **Sections (from `record.snapshot.derived` + `record.asset`):** header (asset.name/resolves/market_url),
+  TRUST band high (confidence tier+reasons, freshness, provenance sha256 + **in-browser hash-verify**),
+  narrative, **distribution SVG** (hand-rolled CDF polyline + median marker + density bars — NO charting dep),
+  Tier-1 analytics, current-snapshot ladder table, methodology. **RESOLVED** → prominent frozen-outcome banner
+  (served cache-final, no live re-pull). Defensive optional-chaining → a thin record degrades, never throws.
+- **⚠ UNIT-AWARE formatter** (`lib/format-detail.mjs`): derives T/B/M scale from the ladder labels so the
+  headline reads in the market's own denomination (not hardcoded $T). Velocity delta still rendered verbatim.
+- **⚠ HASH-VERIFY**: client `crypto.subtle` over the **server-canonicalized** `raw_inputs`
+  (`core/fetch.js canonicalizeRawInputs` reused — can't import client-side, core untouched). Gate proved ✓ verified.
+- **CUT (no source in `/api/market` — it carries no history):** trends chart, per-threshold Δ columns, movers.
+  Tier-2 scenarios cut (locked scope). History is a future backend addition, not this phase.
+- **GATE-PROVEN:** node `scripts/verify-2c3-detail.mjs` (RESOLVED served cache-final · field coverage ·
+  verify-ready) + `verify-phase2a` 12/12 + `verify-2c2-rail` (no regression); **Playwright** (full render,
+  field-match, **hash-verify → ✓ verified**, RESOLVED banner + `data-lifecycle="RESOLVED"`, SVG CDF+density+
+  median marker, states: empty / bogus→error / thin→degrades, 0 console errors, 1280px screenshot);
+  **132/132 `node --test`** (+7: 6 format-detail, 1 hash-verify parity) + tsc + build clean.
+- **⚠ Gotcha hit + fixed (`b90184d`):** SVG `<text>`/`<title>` with adjacent dynamic+static children
+  **mis-hydrate** ("Hydration failed") — consolidate each to a SINGLE template-literal child. (Caught in the
+  Playwright gate, distinguished from stale-`.next` 404 noise.) Add to [[gotchas]] if not already.
+- **Dev seed** (`scripts/seed-watchlist-dev.mjs`): synthetic OPEN markets are now **FULL records with a REAL
+  `hashRawInputs` sha256**, so the in-browser verify passes on them too (not only SpaceX).
+- **Next: 2c.4 (search + compute-then-add, Zone 3 in the command bar)** — gamma `public-search`, then
+  compute-then-add (`/api/market?id=` populates `markets`, retry the watchlist add) **handling
+  `MarketNotInCatalogError`**; also the deferred remove-from-rail wiring + signup form fast-follow.
+
 ## ⮕ DIRECTION (2026-06-22): Phase 2c.2 (watchlist RAIL, Zone 1) — DONE & MERGED to main
 - **Where:** **MERGED to `main`** (`--no-ff` merge `fd4d1ed`; main was an ancestor of `feature/phase2c2-rail`,
   no cron race — local==origin/main at merge). **125/125 on merged main.** `main` now reflects **2a+2b+2c.1+2c.2**.

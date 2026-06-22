@@ -5,6 +5,23 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## SVG `<text>`/`<title>` with adjacent dynamic+static children mis-hydrates — use ONE string child
+**Symptom:** the 2c.3 detail page threw React **"Hydration failed because the server rendered HTML didn't
+match the client"**, the tree bottoming out at a distribution-SVG `<title>` (`+ {"<$1"}`). It rendered fine
+visually (React regenerates the subtree client-side) but logged a console error every load. Easy to misread
+as the **stale-`.next`/stale-tab** noise that appears alongside it (versioned `_next/static/*.js?v=…` 404s) —
+those vanish on a clean reload; the hydration error did NOT, so it was real.
+**Reality:** SVG `<text>`/`<title>` with MULTIPLE adjacent children mixing expressions and literals
+(`{g}%`, `median ${m}{unit}`, `{label}{unit} · {pct}%`) serialize with text-segment markers that the browser's
+SVG text-node parsing normalizes differently than React's client render → node-count mismatch → hydration
+fails. The values were fully deterministic (no Date/random) — the structure, not the data, was the bug.
+**Lesson:** inside SVG `<text>`/`<title>` (and the same family: `<option>`, `<textarea>`), make the content a
+**single string child** — one template literal: `{`median $${m}${unit}`}` not `median ${m}{unit}`. To triage a
+hydration error: clean-reload first to clear stale-asset 404 noise; if it persists, read the tree path React
+prints — it names the exact offending node. (Caught by the Playwright console check, not the build — `next
+build`/tsc are both clean with this latent bug. Same stale-artifact-vs-real-bug discrimination as the edge/
+.next family above.)
+
 ## Vercel's @vercel/next builder does NOT honor `outputFileTracingIncludes` — bundle data, don't readFileSync
 **Symptom:** a Next route handler (`app/api/market/route.ts`) ran `core/` which `readFileSync`'d
 `core/methodology.json` at runtime. `next.config` had `outputFileTracingIncludes: { '/api/market':
