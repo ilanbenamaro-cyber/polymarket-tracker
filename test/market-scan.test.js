@@ -43,6 +43,7 @@ test('dedups by market_id and MERGES both scopes into one row', () => {
   assert.equal(rows.length, 1, 'one merged row, not two');
   assert.equal(rows[0].personal, true);
   assert.deepEqual(rows[0].scopes.sort(), ['org', 'personal']);
+  assert.equal(rows[0].org_id, 'orgA', 'captures the org_id for org-scoped remove');
 });
 
 test('orders personal-first, then most-recently-added', () => {

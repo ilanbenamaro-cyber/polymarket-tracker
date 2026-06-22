@@ -11,13 +11,15 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { removeMarket } from '@/app/(app)/actions';
 
 export interface ScanRow {
   market_id: string;
   title: string;
   scopes: Array<'personal' | 'org'>;
   personal: boolean;
+  org_id: string | null;
   median_display: string;
   confidence_tier: 'high' | 'medium' | 'low' | null;
   lifecycle_state: 'OPEN' | 'CLOSED_PENDING' | 'RESOLVED' | null;
@@ -62,6 +64,14 @@ function Freshness({ staleAfter, fetchedAt, isFinal }: { staleAfter: string | nu
 
 export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
   const selected = useSearchParams().get('m');
+  const [removing, startRemove] = useTransition();
+
+  function remove(r: ScanRow) {
+    // dual-scope/personal row → drop the personal entry (row stays via org); org-only → drop the org entry.
+    const orgId = r.scopes.includes('personal') ? null : r.org_id;
+    startRemove(async () => { await removeMarket(r.market_id, orgId); });
+  }
+
   return (
     <ul className="wl-list" data-zone="rail-list">
       {rows.map((r) => {
@@ -69,7 +79,7 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
         const confClass = r.confidence_tier ? CONF_CLASS[r.confidence_tier] : '';
         const lifeClass = r.lifecycle_state ? LIFECYCLE_CLASS[r.lifecycle_state] : 'is-flat';
         return (
-          <li key={r.market_id}>
+          <li key={r.market_id} className="wl-li">
             <Link
               href={`/?m=${encodeURIComponent(r.market_id)}`}
               scroll={false}
@@ -94,6 +104,18 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
                 <Freshness staleAfter={r.stale_after} fetchedAt={r.fetched_at} isFinal={r.is_final} />
               </div>
             </Link>
+            <button
+              type="button"
+              className="wl-remove"
+              onClick={() => remove(r)}
+              disabled={removing}
+              title="remove from watchlist"
+              aria-label={`remove ${r.title}`}
+              data-field="remove-btn"
+              data-market-id={r.market_id}
+            >
+              ×
+            </button>
           </li>
         );
       })}
