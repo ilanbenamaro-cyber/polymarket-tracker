@@ -6,8 +6,10 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
+import { fmtEastern } from '@/lib/format-detail.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
+import { RefreshButton } from './RefreshButton';
 import type { MarketRecord, ServeBody, ResolvedLeg } from './market-record';
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
@@ -47,9 +49,12 @@ export function BinaryDetailView({ record, envelope }: { record: MarketRecord; e
             <> · binary (Yes/No)</>
           </div>
         </div>
-        <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
-          ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
-        </span>
+        <div className="detail-head-actions">
+          {envelope?.market_id && <RefreshButton slug={envelope.market_id} />}
+          <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+            ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+          </span>
+        </div>
       </header>
 
       {isFinal && (
@@ -91,7 +96,7 @@ export function BinaryDetailView({ record, envelope }: { record: MarketRecord; e
         )}
         <div className="trust-prov">
           <span className="label">As of</span>
-          <span className="num">{s.fetched_at ? s.fetched_at.replace('T', ' ').slice(0, 16) : '—'} UTC</span>
+          <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
           <DetailFreshness asOf={fresh.as_of ?? null} staleAfter={fresh.stale_after ?? null} fetchedAt={s.fetched_at ?? null} isFinal={isFinal} />
           <span className="trust-sep">·</span>
           <span className="label">methodology</span><span className="num">v{record.methodology_version ?? '—'}</span>

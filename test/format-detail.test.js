@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { unitFromLadder, fmtMoney, fmtRange } from '../lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '../lib/format-detail.mjs';
 
 test('derives T from a trillions ladder (SpaceX-style)', () => {
   assert.equal(unitFromLadder([{ label: '>$1T' }, { label: '>$1.8T' }]), 'T');
@@ -41,4 +41,19 @@ test('end-to-end: a billions market formats its headline in $B', () => {
   const markets = [{ label: '>$16B' }, { label: '>$20B' }, { label: '>$28B' }];
   const unit = unitFromLadder(markets);
   assert.equal(fmtMoney(22.4, unit), '$22.40B');
+});
+
+test('fmtEastern converts UTC → America/New_York with a DST-aware zone label', () => {
+  // 19:42 UTC in summer = 3:42 PM EDT (UTC-4)
+  const summer = fmtEastern('2026-06-24T19:42:00Z');
+  assert.match(summer, /3:42\s?PM/);
+  assert.match(summer, /EDT/);
+  assert.doesNotMatch(summer, /UTC/);
+  // 18:42 UTC in winter = 1:42 PM EST (UTC-5) — proves we never hardcode -4
+  const winter = fmtEastern('2026-01-15T18:42:00Z');
+  assert.match(winter, /1:42\s?PM/);
+  assert.match(winter, /EST/);
+  // bad input degrades, never throws
+  assert.equal(fmtEastern(null), '—');
+  assert.equal(fmtEastern('not-a-date'), '—');
 });
