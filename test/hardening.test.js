@@ -17,7 +17,7 @@ import { scoreConfidence } from '../core/confidence.js';
 import { scoreBinaryConfidence } from '../core/binary.js';
 import { buildNarrative } from '../core/narrative.js';
 import { validateRecord } from '../core/validate.js';
-import { hashRawInputs, canonicalizeRawInputs } from '../core/fetch.js';
+import { hashRawInputs, canonicalizeRawInputs, kindFromMarkets } from '../core/fetch.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LATEST = JSON.parse(readFileSync(join(__dirname, '../docs/api/v1/latest.json'), 'utf8'));
@@ -114,6 +114,15 @@ test('confidence surfaces midpoint-fallback reasons + degrades; null is a no-op 
   // skipped rungs → reason naming the thresholds + low tier
   const sk = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 1, skippedThresholds: [2.4] } });
   assert.ok(sk.reasons.some((r) => /1 rung\(s\) excluded \(no price\): 2\.4/.test(r)) && sk.tier === 'low');
+});
+
+test('kindFromMarkets: binary / ladder / categorical from event shape (no parser throw)', () => {
+  assert.equal(kindFromMarkets([{ question: 'US recession by end of 2026?' }]), 'binary');
+  assert.equal(kindFromMarkets([{ question: 'Will WTI hit $75 this week?' }, { question: 'Will WTI hit $80 this week?' }]), 'ladder');
+  // multi-leg, non-numeric outcomes → categorical (NOT a thrown "Cannot parse threshold")
+  assert.equal(kindFromMarkets([{ question: 'Will Ed Miliband be the next Chancellor?' }, { question: 'Will Rachel Reeves be the next Chancellor?' }]), 'categorical');
+  assert.equal(kindFromMarkets([{ question: 'Fed rate cut by June 2026 meeting?' }, { question: 'Fed rate cut by July 2026 meeting?' }]), 'categorical');
+  assert.throws(() => kindFromMarkets([]), /no markets/);
 });
 
 test('binary confidence: liquid → high; illiquid+thin → low with reasons', () => {
