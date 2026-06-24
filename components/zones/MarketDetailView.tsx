@@ -11,10 +11,11 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { unitFromLadder, fmtMoney, fmtRange } from '@/lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
+import { RefreshButton } from './RefreshButton';
 import { BinaryDetailView } from './BinaryDetailView';
 import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
 
@@ -77,9 +78,12 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
           </div>
         </div>
-        <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
-          ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
-        </span>
+        <div className="detail-head-actions">
+          {envelope?.market_id && <RefreshButton slug={envelope.market_id} />}
+          <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+            ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+          </span>
+        </div>
       </header>
 
       {/* RESOLVED banner — prominent, frozen outcome, no live pull */}
@@ -127,7 +131,7 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
         )}
         <div className="trust-prov">
           <span className="label">As of</span>
-          <span className="num">{s.fetched_at ? s.fetched_at.replace('T', ' ').slice(0, 16) : '—'} UTC</span>
+          <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
           <DetailFreshness asOf={fresh.as_of ?? null} staleAfter={fresh.stale_after ?? null} fetchedAt={s.fetched_at ?? null} isFinal={isFinal} />
           <span className="trust-sep">·</span>
           <span className="label">methodology</span><span className="num">v{record.methodology_version ?? '—'}</span>
@@ -148,8 +152,9 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
         <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />
       </section>
 
-      {/* TIER-1 ANALYTICS */}
-      {analytics && <AnalyticsCards analytics={analytics} unit={unit} />}
+      {/* TIER-1 ANALYTICS — always rendered (real data, "—" per missing field, or an
+          explicit insufficient-data state); never silently absent. */}
+      <AnalyticsCards analytics={analytics} unit={unit} />
 
       {/* ALL THRESHOLDS (current columns only — no history in /api/market) */}
       {Array.isArray(d.markets) && d.markets.length > 0 && (
@@ -190,7 +195,15 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
   );
 }
 
-function AnalyticsCards({ analytics, unit }: { analytics: Analytics; unit: string }) {
+function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit: string }) {
+  if (!analytics) {
+    return (
+      <section className="detail-section">
+        <h2 className="detail-h2">Market analytics <span className="tier1-tag">Tier 1 · market-derived</span></h2>
+        <div className="empty" data-field="analytics-insufficient">Analytics pending — insufficient history for this market.</div>
+      </section>
+    );
+  }
   const sh = analytics.shape ?? {};
   const di = analytics.dispersion ?? {};
   const ve = analytics.velocity ?? {};

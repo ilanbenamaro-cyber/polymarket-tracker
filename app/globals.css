@@ -213,6 +213,14 @@ a:hover { text-decoration: underline; }
 .detail-sub { font-size: var(--fs-tiny); }
 .detail-lifecycle { flex: 0 0 auto; font-size: var(--fs-micro); letter-spacing: var(--track-label);
   font-weight: 600; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--sp-1) var(--sp-2); }
+.detail-head-actions { display: flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto; }
+.detail-refresh-wrap { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.detail-refresh { background: var(--bg-card); border: 1px solid var(--border-strong); color: var(--accent-blue);
+  border-radius: var(--radius-sm); padding: var(--sp-1) var(--sp-2); font-size: var(--fs-micro);
+  font-family: var(--font-mono); cursor: pointer; transition: background var(--t-fast) var(--ease); }
+.detail-refresh:hover { background: var(--bg-elev); }
+.detail-refresh:disabled { opacity: 0.6; cursor: default; }
+.detail-refresh-err { color: var(--c-low); font-size: var(--fs-micro); }
 
 .detail-resolved { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
   margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--bg-card-2);
@@ -266,6 +274,7 @@ a:hover { text-decoration: underline; }
 .dist-median { stroke: var(--accent-amber); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .dist-median-lbl { fill: var(--accent-amber); font-family: var(--font-mono); font-size: 9px; }
 .dist-axis { fill: var(--text-faint); font-family: var(--font-mono); font-size: 9px; }
+.dist-tick { fill: var(--text-faint); font-family: var(--font-mono); font-size: 6.5px; }
 .dist-bar { fill: var(--accent-blue); opacity: 0.38; }
 .dist-bar-median { fill: var(--accent-amber); opacity: 1; }
 

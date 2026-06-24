@@ -11,6 +11,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
+import { readCache, writeRecord } from '@/lib/cache.mjs';
+import { computeMarketRecord } from '@/lib/compute.mjs';
 import { addPersonal, addOrg, removePersonal, removeOrg, MarketNotInCatalogError } from '@/lib/watchlist.mjs';
 
 export interface ActionResult {
@@ -69,5 +71,27 @@ export async function removeMarket(marketId: string, orgId: string | null): Prom
   }
 
   revalidatePath('/', 'layout');
+  return { ok: true, slug: id };
+}
+
+/**
+ * Force a FRESH compute for one market, bypassing the cache TTL. computeMarketRecord
+ * always re-fetches (it doesn't consult the TTL — that's serveMarket's job), so calling
+ * it directly + writeRecord stores a new snapshot with as-of = now. revalidatePath('/',
+ * 'page') re-renders ONLY the detail page segment — NOT the layout — so the rail is not
+ * re-fetched (per the scope-the-revalidation constraint).
+ */
+export async function refreshMarket(slug: string): Promise<ActionResult> {
+  const id = (slug ?? '').trim();
+  if (!id) return { ok: false, error: 'no market selected' };
+  try {
+    const { snapshot } = await readCache(id); // prior, for the RESOLVED freeze path
+    const prior = snapshot?.record ?? null;
+    const { record, lifecycle, config } = await computeMarketRecord({ id, prior });
+    await writeRecord(id, record, lifecycle, config);
+  } catch (e) {
+    return { ok: false, error: msg(e, 'could not refresh market') };
+  }
+  revalidatePath('/', 'page'); // detail only — rail (layout) untouched
   return { ok: true, slug: id };
 }
