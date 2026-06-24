@@ -12,6 +12,7 @@
 import { createHash } from 'node:crypto';
 import { thresholdRegExp, labelGt } from './market-config.js';
 import { parseBucketLeg, buildPmfLadder } from './bucket.js';
+import { parseTouchLeg, impliedRange } from './touch.js';
 import { deriveUnit } from './money.js';
 
 const EVENT_SLUG = 'spacex-ipo-closing-market-cap-above';
@@ -548,6 +549,109 @@ export async function fetchBucketPmfSnapshot(config) {
     midpoint_fallback: { lastTradeCount: lastTradeThresholds.length, lastTradeThresholds, skippedCount: skippedThresholds.length, skippedThresholds },
     unit, pmf_mean: pmfMean, total_volume: priced.reduce((s, p) => s + (p.l.volume ?? 0), 0),
     title: meta.title, end_date: meta.end_date, excluded_count: meta.excludedCount,
+  };
+}
+
+// ── DIRECTIONAL-TOUCH market support ─────────────────────────────────────────
+// WTI/Silver "(LOW)/(HIGH) hit $X" markets price P(price touches a level before expiry),
+// NOT a settlement value. There is no survival curve / implied median. We parse HIGH legs
+// (P touch ≥ X) and LOW legs (P touch ≤ X) as SEPARATE series and derive the implied range
+// from their 50% crossovers (core/touch.js). raw_inputs use a SIGNED synthetic threshold
+// (+level for HIGH, −level for LOW, mantissa units) so canonicalizeRawInputs stays UNCHANGED
+// and deterministic (mirrors binary's 1=YES/0=NO trick). See MARKET-TYPES-PLAN.md.
+
+/** Gamma event → { title, end_date, unitInfo, legs[] } of parseable touch legs. */
+async function fetchTouchMeta(config) {
+  const events = await fetchJson(gammaUrl(config.event_slug));
+  if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
+  const ev = events[0];
+  const all = Array.isArray(ev.markets) ? ev.markets : [];
+  const legs = all.map((m) => {
+    const t = parseTouchLeg(m.question);
+    if (!t) return null;
+    const ids = typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds;
+    return {
+      side: t.side, level: t.level, token_id: ids[0],
+      volume: m.volume != null ? Number(m.volume) : null,
+      closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
+      uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
+    };
+  }).filter(Boolean);
+  if (legs.length < 2) throw new Error(`Touch event ${config.event_slug} has <2 parseable legs`);
+  return { title: ev.title ?? config.event_slug, end_date: ev.endDate ?? null, unitInfo: deriveUnit(legs.map((l) => l.level)), legs };
+}
+
+/** Gamma-only lifecycle signal for a touch market (no CLOB; threshold = leg index). */
+export async function fetchTouchStatus(config) {
+  const meta = await fetchTouchMeta(config);
+  return meta.legs.map((l, i) => ({
+    threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+    umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+  }));
+}
+
+/**
+ * Live directional-touch snapshot. Resolves each leg's YES (touch) midpoint, splits into
+ * HIGH/LOW series (levels in the ladder's derived mantissa unit), and derives the implied
+ * range from the 50% crossovers. raw_inputs use signed synthetic thresholds for a stable hash.
+ */
+export async function fetchTouchSnapshot(config) {
+  const fetchedAt = new Date().toISOString();
+  const meta = await fetchTouchMeta(config);
+  const { divisor, unit } = meta.unitInfo;
+  const tokens = meta.legs.map((l) => l.token_id);
+
+  const midRaw = await fetchJson(ENDPOINTS.midpoints, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.map((t) => ({ token_id: t }))),
+  });
+  if (midRaw && midRaw.error) throw new Error(`CLOB midpoints: ${midRaw.error}`);
+  const priceRaw = await fetchJson(ENDPOINTS.prices, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.flatMap((t) => [{ token_id: t, side: 'BUY' }, { token_id: t, side: 'SELL' }])),
+  });
+
+  const resolved = meta.legs.map((l) => ({ l, ...resolveFromBook(midRaw[l.token_id], priceRaw[l.token_id] || {}) }));
+  const needers = resolved.filter((r) => r.needsLastTrade);
+  const lastTradeBy = new Map(await Promise.all(needers.map(async (r) => [r.l.token_id, await fetchLastTradePrice(r.l.token_id)])));
+
+  const lastTradeThresholds = [];
+  const skippedThresholds = [];
+  const raw_inputs = [];
+  const high = [];
+  const low = [];
+  for (const r of resolved) {
+    let midpoint = r.midpoint, source = r.midpoint_source, best_bid = r.best_bid ?? null, best_ask = r.best_ask ?? null;
+    const lvl = r.l.level / divisor; // mantissa level
+    const signed = (r.l.side === 'HIGH' ? 1 : -1) * lvl; // unique signed key for the hash
+    if (r.needsLastTrade) {
+      midpoint = lastTradeBy.get(r.l.token_id);
+      if (midpoint == null) { skippedThresholds.push(signed); continue; }
+      source = 'last_trade'; lastTradeThresholds.push(signed);
+    }
+    raw_inputs.push({
+      token_id: r.l.token_id, threshold: signed, midpoint, best_bid, best_ask, volume: r.l.volume,
+      ...(source === 'last_trade' ? { midpoint_source: 'last_trade', last_trade_price: midpoint } : { midpoint_source: source }),
+    });
+    (r.l.side === 'HIGH' ? high : low).push({ level: lvl, prob: parseFloat(midpoint), volume: r.l.volume ?? 0 });
+  }
+  if (high.length + low.length < 2) throw new Error(`No usable prices for touch event ${config.event_slug}`);
+  high.sort((a, b) => a.level - b.level);
+  low.sort((a, b) => a.level - b.level);
+
+  return {
+    fetched_at: fetchedAt,
+    endpoints: [gammaUrl(config.event_slug), ENDPOINTS.midpoints, ENDPOINTS.prices],
+    raw_inputs, raw_sha256: hashRawInputs(raw_inputs),
+    high_series: high, low_series: low, implied_range: impliedRange(high, low),
+    unit, total_volume: meta.legs.reduce((s, l) => s + (l.volume ?? 0), 0),
+    status: meta.legs.map((l, i) => ({
+      threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+      umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+    })),
+    midpoint_fallback: { lastTradeCount: lastTradeThresholds.length, lastTradeThresholds, skippedCount: skippedThresholds.length, skippedThresholds },
+    title: meta.title, end_date: meta.end_date,
+    yes_best_bid: null, yes_best_ask: null,
   };
 }
 
