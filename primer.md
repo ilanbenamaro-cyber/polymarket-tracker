@@ -16,7 +16,15 @@
   so the raw "Cannot parse threshold" error never reaches the UI (it surfaces in the search overlay via the
   add flow). Binary + ladder paths unaffected; frozen SpaceX parity intact. (NB: a `$`-valuation ladder like
   Anthropic still classifies 'ladder' and computes.)
-- **UI polish (4 items): MERGED** (`--no-ff` <PENDING>; see the next merge). [filled in by the ui-polish merge]
+- **Detail UI polish (4 items): MERGED** (`--no-ff` `6b893ec`; 137/137; presentation-only, backend untouched):
+  (1) **Distribution axes** — CDF gets a Y probability scale (0/25/50/75/100% + hairline grid) + a rotated X
+  threshold label at every rung; density gets rotated X bucket labels; the median marker has an explicit text
+  label (`.dist-tick` token). (2) **Analytics always renders** — real cards (`—` per null field) OR an
+  "Analytics pending — insufficient history" state; never silently absent. (3) **Refresh button** in the
+  detail header → `refreshMarket` server action force-recomputes (bypasses TTL) + writes, then
+  **`revalidatePath('/', 'page')` — DETAIL ONLY, not the layout** (rail not re-fetched). (4) **Timestamps →
+  America/New_York** via `lib/format-detail.fmtEastern` (Intl `timeZoneName:'short'` → EST/EDT, DST-safe; the
+  detail "As of" in both ladder+binary views). Display-only — DB / raw_inputs / raw_sha256 stay UTC.
 - **⚠ Vercel posture UNCHANGED** — production stays erroring pre-standup (fails-closed 500). Expected.
 
 ## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) + Phase 2 (BINARY) MERGED
