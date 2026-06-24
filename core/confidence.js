@@ -15,6 +15,28 @@ const THIN_SHARE_MEDIUM = 0.5; // 20–50% thin → medium
 const MATERIAL_ADJUSTMENT = 0.005; // 0.5%: below this an isotonic tweak is immaterial
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 
+const NEAR_SETTLEMENT_DAYS = 7;
+const EXTREME_LOW = 0.01;
+const EXTREME_HIGH = 0.99;
+
+/**
+ * "Near settlement" market state: expiring within 7 days AND a MAJORITY of rungs pinned to
+ * ~0/~1 (adjusted_prob ≤0.01 or ≥0.99) — the outcome is essentially decided. Such a market's
+ * large monotonicity adjustments and many closed/last-trade rungs are EXPECTED (the book is
+ * winding down), not data-quality noise, so confidence must not penalize them as if the
+ * market were a live, contested ladder, and the UI shows an amber NEAR SETTLEMENT badge
+ * rather than OPEN. Pure; daysToExpiry null/unknown ⇒ false (never a false badge).
+ */
+export function nearSettlement(markets, daysToExpiry) {
+  if (daysToExpiry == null || daysToExpiry > NEAR_SETTLEMENT_DAYS) return false;
+  if (!Array.isArray(markets) || markets.length === 0) return false;
+  const extreme = markets.filter((m) => {
+    const p = m.adjusted_prob ?? m.prob;
+    return p != null && (p <= EXTREME_LOW || p >= EXTREME_HIGH);
+  }).length;
+  return extreme / markets.length > 0.5;
+}
+
 /** Mean bid/ask spread across raw_inputs, or null if no book data present. */
 function meanSpread(rawInputs) {
   if (!rawInputs) return null;
