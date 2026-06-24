@@ -8,6 +8,44 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-24): Market-type redesign — 5 shapes routed correctly — MERGED to main
+- **MERGED** (`--no-ff` `8db0251`; clean topology, no cron race; **163/163** on merged main; SpaceX
+  `raw_sha256` byte-identical — parity GATE 1 green). The P0 cluster (Bugs 1/2/4) is fixed AT THE ROOT:
+  the pipeline no longer forces every multi-leg `$` market through the survival ladder.
+- **5 shapes** — `core/fetch.js marketShapeFromMarkets`/`classifyMarketShape` → `computeMarketRecord`
+  routes `binary | survival | bucket_pmf | directional_touch | categorical`, classified from gamma
+  question text BEFORE any threshold parse (`kindFromMarkets` kept for the binary gate + its tests):
+  - **survival** (SpaceX "above $X") — unchanged, pinned, frozen-hash.
+  - **bucket_pmf** (Bitcoin/Anthropic "between $X and $Y") — `core/bucket.js`: parse intervals → de-vig
+    PMF → derive survival curve + PMF mean (`computeBucketPmfRecord`). Stored kind `threshold_ladder`
+    (NO migration), renders via the ladder detail view. **Bitcoin $60.98K, Anthropic $1.69T** (was
+    $T / $54T). The "not IPO" categorical leg is excluded with a count.
+  - **directional_touch** (WTI/Silver "(LOW)/(HIGH) hit $X") — `core/touch.js` (pure, parse+range) +
+    `core/touch-record.js` (builder) + `computeTouchRecord` + `components/zones/TouchDetailView.tsx`.
+    NO median — the implied 50%-crossover RANGE. **WTI $66.73–$90.00.** New `kind='directional_touch'`
+    (schema `allOf` branch + migration 0005). raw_inputs use SIGNED synthetic thresholds (canonicalize
+    unchanged).
+- **Units (Bug 1):** `core/money.js` parseMoney (commas + K/M/B/T → absolute $) + deriveUnit; thresholds
+  stored as MANTISSAS in the derived unit; detail (`unitFromLadder` now T/B/M/K/bare-$) + rail
+  (`market-scan.headlineDisplay` reads the record's labels) + narrative read each market's OWN unit —
+  no more "$T on everything". $T still routes through `fmtT` so the SpaceX rail string is byte-identical.
+- **⚠ MIGRATION 0005** (`0005_directional_touch.sql`): widens `markets_kind_check` to add
+  'directional_touch'. **APPLIED to DEV.** bucket_pmf needs none. **PROD-STANDUP now requires
+  `0001`+`0002`+`0003`+`0004`+`0005`.**
+- **GATE-PROVEN:** 163/163 + frozen-hash parity GATE 1 + tsc clean; live `/api/market` serve (compute →
+  Supabase cache WRITE → read) for Bitcoin (bucket) + WTI (touch, post-0005); **Playwright** (dev :3001,
+  `DEV_LOGIN_PASSWORD`): Bitcoin bucket detail = $60.98K full distribution, WTI touch detail = TOUCH
+  MARKET badge + $66.73–$90.00 range + touch table + range bar, rail shows the WTI range — **0 console
+  errors** (favicon 404 only).
+- **⚠ Vercel posture UNCHANGED** — production stays erroring pre-standup (fails-closed 500). Expected.
+- **⚠ Stale cache (cosmetic, NOT a bug):** watchlist rows computed by the OLD pipeline show bare-$
+  medians in the rail until recomputed; every NEW compute is correct.
+- **Roadmap:** `MARKET-TYPES-PLAN.md` (delete when the epic fully lands). **NEXT: I5+** — Bug 3
+  (confidence recalibration + NEAR SETTLEMENT state), Bug 5 (ladder "< lowest" / "> highest" median
+  labels), Bug 6 (near-settlement settlement view), Bug 8 (analytics "requires history"), Bug 7 (titles
+  polish) + Enhancements 1–8 + signup form (Enh 6) + keyboard nav (Enh 8). Minor polish: touch range-bar
+  labels overlap when the band is narrow. Backup branch `feature/p0-parser-units-mean` retained.
+
 ## ⮕ DIRECTION (2026-06-24): Categorical detection + UI polish — MERGED to main
 - **Categorical market detection: MERGED** (`--no-ff` `174cab0`; 136/136). `core/fetch.kindFromMarkets`
   now classifies **binary / ladder / categorical** from the event shape (multi-leg + first leg's question has
