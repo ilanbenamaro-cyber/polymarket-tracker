@@ -8,6 +8,17 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-24): Categorical detection + UI polish — MERGED to main
+- **Categorical market detection: MERGED** (`--no-ff` `174cab0`; 136/136). `core/fetch.kindFromMarkets`
+  now classifies **binary / ladder / categorical** from the event shape (multi-leg + first leg's question has
+  no numeric `$threshold` → categorical). `computeMarketRecord` routes categorical to a **friendly 422**
+  ("This market uses categorical outcomes — numeric threshold or binary markets only") **before** any parsing,
+  so the raw "Cannot parse threshold" error never reaches the UI (it surfaces in the search overlay via the
+  add flow). Binary + ladder paths unaffected; frozen SpaceX parity intact. (NB: a `$`-valuation ladder like
+  Anthropic still classifies 'ladder' and computes.)
+- **UI polish (4 items): MERGED** (`--no-ff` <PENDING>; see the next merge). [filled in by the ui-polish merge]
+- **⚠ Vercel posture UNCHANGED** — production stays erroring pre-standup (fails-closed 500). Expected.
+
 ## ⮕ DIRECTION (2026-06-22): Market-type work — Phase 1 (midpoint fallback) + Phase 2 (BINARY) MERGED
 - **Phase 2 — BINARY (Yes/No) market support: MERGED to `main`** (`--no-ff` `a09610a`; no cron race).
   **135/135 on merged main; frozen SpaceX `raw_sha256` byte-identical** (ladder path untouched). Single Yes/No
