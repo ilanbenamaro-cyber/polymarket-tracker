@@ -42,10 +42,11 @@ thresholds for uniqueness, same trick as binary's 1=YES/0=NO).
 
 - **I1 ✅ DONE** (`137fee0`) classifier + `parseMoney` + `deriveUnit`.
 - **I2 ✅ DONE** bucket_pmf: core (`173c6a9`) + pipeline wire (`4aa1005`) + detail display fix (`18a72bd`). Bitcoin $61.13K / Anthropic $1.69T live-verified through `/api/market` (compute+cache write). Bugs 1/2/4 fixed for PMF.
-- **I3 — compute ✅ DONE** (`cb947fe` core, `e987e8e` pipeline+schema+migration). WTI $66.76–$90 / Silver "<$58"–$67.53 verified via computeMarketRecord. **REMAINS (I3c):** `TouchDetailView` UI + `MarketDetailView` kind branch; **apply migration 0005 to DEV** before touch serves via `/api/market`.
-- **I4** unit-formatter propagation: **rail** (`lib/market-scan.js:68` hardcodes `fmtT` → bucket markets show $T in the RAIL) + narrative/axes/band/velocity.
-- **I5+** remaining bugs (3 confidence recalibration, 5 n/a median, 6 near-settlement view, 7 titles, 8 analytics) + enhancements 1–8.
-- **Batched Playwright** (bucket needs no migration; touch needs 0005): before/after on WTI/Silver range view + Bitcoin/Anthropic correct medians, 0 console errors. Uses DEV_LOGIN_PASSWORD from .env.local.
+- **I3 ✅ DONE** (`cb947fe` core, `e987e8e` pipeline+schema+migration 0005, `2d97ccb` TouchDetailView UI). Migration 0005 APPLIED to dev. WTI serves $66.73–$90 via `/api/market` (DB write OK).
+- **I4 ✅ DONE** (`2d97ccb`) rail unit propagation (`market-scan.headlineDisplay` reads the record's labels; $T→fmtT keeps SpaceX byte-identical; touch shows its range). Narrative/axes already unit-aware via config.
+- **Playwright ✅ DONE** (dev :3001, DEV_LOGIN_PASSWORD): Bitcoin bucket detail = **$60.98K** (not $T), full distribution; WTI touch detail = TOUCH MARKET badge + **$66.73–$90.00** range + touch table + range bar; rail shows WTI range. **0 console errors** on both (only a favicon 404). Screenshots: verify-bucket-bitcoin-detail.png, verify-touch-wti-detail.png. Minor polish noted: touch range-bar labels overlap when the band is narrow vs axis.
+- **I5+ (REMAINING):** Bug 3 (confidence recalibration + NEAR SETTLEMENT state), Bug 5 (ladder "< lowest"/"> highest" median labels), Bug 6 (near-settlement settlement view), Bug 7 (titles pass — bucket/touch already get gamma titles), Bug 8 (analytics "requires history") + Enhancements 1–8 + signup form (Enh 6) + keyboard (Enh 8).
+- **Stale-cache note:** existing watchlist rows computed by the OLD pipeline show bare-$ medians in the rail until refreshed/recomputed (not a code bug — new computes are correct).
 
 ## Verification
 
