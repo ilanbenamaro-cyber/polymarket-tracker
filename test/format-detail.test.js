@@ -16,16 +16,24 @@ test('derives B from a billions ladder (Kraken-style) and M from millions', () =
   assert.equal(unitFromLadder([{ label: '>$500M' }]), 'M');
 });
 
-test('falls back to T on a missing/odd label', () => {
-  assert.equal(unitFromLadder([]), 'T');
-  assert.equal(unitFromLadder(undefined), 'T');
-  assert.equal(unitFromLadder([{ label: '' }]), 'T');
+test('derives K from a thousands ladder (Bitcoin) and plain $ from a bare ladder (WTI)', () => {
+  assert.equal(unitFromLadder([{ label: '>$56K' }, { label: '>$74K' }]), 'K');
+  assert.equal(unitFromLadder([{ label: '>$90' }, { label: '>$120' }]), ''); // bare dollars
+});
+
+test('falls back to dimensionless (NOT $T) on a missing/odd label', () => {
+  // Defaulting to "T" was Bug 1 — an ambiguous label must render dimensionless, never $T.
+  assert.equal(unitFromLadder([]), '');
+  assert.equal(unitFromLadder(undefined), '');
+  assert.equal(unitFromLadder([{ label: '' }]), '');
 });
 
 test('fmtMoney renders in the derived unit', () => {
   assert.equal(fmtMoney(2.1, 'T'), '$2.10T');
   assert.equal(fmtMoney(28, 'B'), '$28.00B');
   assert.equal(fmtMoney(500, 'M'), '$500.00M');
+  assert.equal(fmtMoney(61.13, 'K'), '$61.13K');
+  assert.equal(fmtMoney(90, ''), '$90.00'); // plain dollars — no unit suffix
   assert.equal(fmtMoney(null, 'T'), 'n/a');
   assert.equal(fmtMoney(Infinity, 'B'), 'n/a');
 });
