@@ -266,6 +266,30 @@ export function kindFromMarkets(markets) {
   return THRESHOLD_RE.test(markets[0]?.question ?? '') ? 'ladder' : 'categorical';
 }
 
+// A "(LOW)"/"(HIGH)" qualifier marks a directional TOUCH leg (P(price touches a level
+// before expiry), not a settlement value). A "between X and Y" leg marks a bucket PMF
+// (disjoint intervals). Neither is a survival curve, so both must route away from the
+// ladder math (see MARKET-TYPES-PLAN.md).
+const TOUCH_RE = /\((?:LOW|HIGH)\)/;
+const BUCKET_RE = /\bbetween\b/i;
+
+/** Finer shape of a MULTI-LEG event, classified from question text only (no CLOB):
+ *   'directional_touch' — any leg is a "(LOW)/(HIGH) hit $X" touch market (WTI, Silver);
+ *   'bucket_pmf'        — any leg is a "between $X and $Y" interval bucket (Bitcoin,
+ *                         Anthropic IPO) — a PMF, possibly with one categorical leg;
+ *   'survival'          — nested "above $X" legs that ARE a P(>X) curve (SpaceX);
+ *   'categorical'       — multi-leg with no numeric $ threshold at all.
+ * Detection order matters: touch and bucket are checked before survival because their
+ * legs also contain a `$`. */
+export function ladderShapeFromMarkets(markets) {
+  if (!Array.isArray(markets) || markets.length === 0) throw new Error('Gamma event contained no markets');
+  const questions = markets.map((m) => m?.question ?? '');
+  if (questions.some((qn) => TOUCH_RE.test(qn))) return 'directional_touch';
+  if (questions.some((qn) => BUCKET_RE.test(qn))) return 'bucket_pmf';
+  if (questions.some((qn) => THRESHOLD_RE.test(qn))) return 'survival';
+  return 'categorical';
+}
+
 /** 'binary' | 'ladder' | 'categorical'. One gamma GET, no threshold parsing. */
 export async function classifyMarketKind(slug) {
   const events = await fetchJson(gammaUrl(slug));
