@@ -249,17 +249,28 @@ export async function fetchLiveSnapshot(config = null) {
 // ── BINARY (single Yes/No) market support (Phase 2) ──────────────────────────
 // A binary EVENT has exactly ONE market with outcomes ["Yes","No"]; a ladder event
 // has many threshold legs. Detection MUST happen before any threshold parsing,
-// because fetchMarketMeta throws "Cannot parse threshold" on a non-`$` binary
-// question — so classifyMarketKind reads only event.markets.length.
+// because fetchMarketMeta throws "Cannot parse threshold" on a non-`$` leg question
+// — so classifyMarketKind never parses; it classifies from the event shape only.
 
-/** 'binary' (one Yes/No market) | 'ladder' (multiple threshold legs). One gamma GET,
- *  no threshold parsing — the safe discriminator the ladder path can't provide. */
+/** Pure classifier from an event's markets[]:
+ *   'binary'      — one Yes/No leg;
+ *   'ladder'      — multi-leg AND the first leg's question carries a numeric $threshold;
+ *   'categorical' — multi-leg with non-numeric outcomes (Fed cuts, next Chancellor, …)
+ *                   the threshold pipeline can't process. Returning this (instead of
+ *                   letting fetchMarketMeta throw "Cannot parse threshold") keeps the raw
+ *                   parser error off the UI — computeMarketRecord turns it into a friendly
+ *                   "not supported" message. Binary detection (length === 1) is unaffected. */
+export function kindFromMarkets(markets) {
+  if (!Array.isArray(markets) || markets.length === 0) throw new Error('Gamma event contained no markets');
+  if (markets.length === 1) return 'binary';
+  return THRESHOLD_RE.test(markets[0]?.question ?? '') ? 'ladder' : 'categorical';
+}
+
+/** 'binary' | 'ladder' | 'categorical'. One gamma GET, no threshold parsing. */
 export async function classifyMarketKind(slug) {
   const events = await fetchJson(gammaUrl(slug));
   if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
-  const markets = events[0].markets;
-  if (!Array.isArray(markets) || markets.length === 0) throw new Error('Gamma event contained no markets');
-  return markets.length === 1 ? 'binary' : 'ladder';
+  return kindFromMarkets(events[0].markets);
 }
 
 /** The single Yes/No market's metadata — NO threshold parsing (the binary question
