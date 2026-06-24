@@ -5,6 +5,46 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Market shape taxonomy — 5 types, shape-aware routing (not "any multi-leg $ = ladder")
+**Decided (2026-06-24):** `computeMarketRecord` (`lib/compute.mjs`) routes on a FINE market
+shape — `binary | survival | bucket_pmf | directional_touch | categorical`
+(`core/fetch.js marketShapeFromMarkets`/`classifyMarketShape`) — classified from gamma
+question text BEFORE any threshold parse. The legacy `kindFromMarkets`/`classifyMarketKind`
+(binary|ladder|categorical) is kept ONLY for the binary gate + its existing tests; the new
+path refines the old 'ladder' bucket into the three real multi-leg structures.
+- **survival** (SpaceX "above $X"): the original P(>X) ladder, unchanged.
+- **bucket_pmf** (Bitcoin/Anthropic "between $X and $Y" / "less than" / "or greater"): parse
+  intervals → de-vig the PMF to sum 1 → DERIVE the survival curve P(>boundary) → reuse the
+  ladder math (`core/bucket.js` + `computeBucketPmfRecord`). Stored kind `threshold_ladder`
+  (ladder-SHAPED → no migration, renders in the ladder detail view). The headline mean is the
+  PMF expectation Σ midpoint·prob (NOT the survival-tail formula — that was the $54T blowup).
+  One non-`$` categorical leg ("Will X not IPO …") is excluded with a count.
+- **directional_touch** (WTI/Silver "(LOW)/(HIGH) hit $X"): HIGH = P(touch ≥ X), LOW =
+  P(touch ≤ X); tent-shaped, non-monotone → NO settlement distribution, NO implied median.
+  The signal is the implied 50%-crossover RANGE (`core/touch.js` pure + `core/touch-record.js`
+  builder + `computeTouchRecord` + `components/zones/TouchDetailView.tsx`). New
+  `kind='directional_touch'` (schema `allOf` branch + DB migration 0005).
+- **Units** (`core/money.js`): `parseMoney` (thousands-commas + K/M/B/T suffix → absolute $),
+  `deriveUnit`; thresholds are stored as MANTISSAS in the derived unit (like SpaceX's "1.8"
+  for $1.8T), so every surface (detail/rail/narrative/labels) reads in the market's own unit.
+**Why:** The pipeline assumed ONE shape (SpaceX's "above $X" survival ladder). Real Polymarket
+markets mostly are NOT that. Forcing bucket/touch markets through the survival model produced
+duplicate-threshold collisions, a 30× median/mean ratio, and "$T" on everything — all
+plausible-but-WRONG numbers (the worst failure for a trust product). The fix MODELS each shape
+correctly; a dedup + trimmed-mean patch over the wrong model was explicitly rejected.
+**Constrains:** SpaceX stays a pinned `survival` ladder with its mantissa-only `parse_pattern`
+→ frozen `raw_sha256` byte-identical (the ONLY frozen record; all new parsing is off the
+pinned path). `canonicalizeRawInputs` is UNCHANGED — bucket uses the bucket lower-bound as
+`threshold`; touch uses SIGNED synthetic thresholds (+level HIGH / −level LOW) for uniqueness
++ deterministic hash (mirrors binary's 1=YES/0=NO). New `kind` values need a
+`markets_kind_check` widen (migration 0005 = directional_touch; bucket needs none).
+`schema.json derived.kind` is an `allOf` of three if/then branches (binary | directional_touch
+| else-ladder); `validate.js` skips the ladder invariants for binary + directional_touch.
+Import-cycle guard: `core/touch.js` stays pure (no snapshot import) so `fetch.js` can import
+it; the builder lives in `core/touch-record.js`. Adding a shape = fetcher + builder + schema
+branch + route (the binary precedent) — never a market literal in core/ math. See
+`MARKET-TYPES-PLAN.md` + [[gotchas]] "survival pipeline silently mis-modeled".
+
 ## `/api/market` is NEVER HTTP-cached (`Cache-Control: no-store`) — the probe is the correctness layer
 **Decided (2026-06-18):** The serverless function (`api/market.mjs`) sets `Cache-Control: no-store` on
 **every** response (was `public, max-age=30` on 200s). No edge/CDN/proxy/browser caching of

@@ -5,6 +5,29 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## The survival pipeline silently mis-modeled non-survival markets (plausible-but-WRONG numbers)
+**Symptom:** Bitcoin's detail showed "$53.58T" (should be $K); Anthropic showed median $1.84T
+with mean $54.25T (a 30× ratio that screams "the math is broken"); WTI/Silver showed duplicate
+thresholds (">$90" twice) and 12+ rows at an identical P(>X). No crash — just wrong numbers a
+quant would trust.
+**Reality (measured from live gamma):** `kindFromMarkets` labeled ANY multi-leg market with a
+`$` in `markets[0].question` a 'ladder', and the survival math assumed every leg is P(value >
+X). Only SpaceX-style "above $X" markets are that. Bitcoin/Anthropic are **bucket PMFs**
+("between $X and $Y" / "less than" / "or greater") — each leg is P(in bucket), not P(>X).
+WTI/Silver are **directional-touch** ("(LOW)/(HIGH) hit $X") — P(touch ≥/≤ X), tent-shaped,
+non-monotone. The default parser `\$(\d+\.?\d*)` compounded it: it took the FIRST number,
+dropping thousands-commas ("$56,000"→56) and unit suffixes ("$53.58K"→53.58, "$1.5T"→1.5), so a
+mixed-unit ladder ("$600B" parsed 600 next to "$1.5T" parsed 1.5) blew the mean up via the
+survival top-tail term (≈800·0.07). Duplicate thresholds were "(LOW)$90"/"(HIGH)$90"→both 90 and
+"less than $56,000"/"between $56,000…"→both 56.
+**Lesson:** The dangerous failure is a plausible WRONG number, not a crash. Before "fixing"
+duplicate-threshold collisions (dedup) or a broken mean (trimmed mean), check whether the market
+is even a survival ladder — it usually isn't. MODEL the shape (bucket → derive survival from the
+PMF; touch → implied 50%-crossover range), don't patch survival-pipeline symptoms. Shape
+detection MUST run before any threshold parse (a bucket market's "not IPO" leg and a categorical
+leg both throw "Cannot parse threshold"). Fixed via the 5-type taxonomy (see [[decisions]]
+"Market shape taxonomy"); SpaceX stays a pinned survival ladder, frozen hash byte-identical.
+
 ## A missing CLOB midpoint means an EMPTY book (not a one-sided book) — fall back to last_trade
 **Symptom:** `core/fetch.js` threw `No midpoint for token X` and failed the WHOLE market
 when ANY single rung lacked a midpoint — breaking live, active commodity ladders (Silver

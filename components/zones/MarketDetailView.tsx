@@ -17,6 +17,7 @@ import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { BinaryDetailView } from './BinaryDetailView';
+import { TouchDetailView } from './TouchDetailView';
 import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
@@ -53,6 +54,10 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
   // Binary (Yes/No) markets get a distinct, simpler layout — no CDF/ladder/analytics.
   if (record?.snapshot?.derived?.kind === 'binary') {
     return <BinaryDetailView record={record} envelope={envelope} />;
+  }
+  // Directional-touch (WTI/Silver "hit $X") markets: implied range + touch table, no CDF.
+  if (record?.snapshot?.derived?.kind === 'directional_touch') {
+    return <TouchDetailView record={record} envelope={envelope} />;
   }
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};

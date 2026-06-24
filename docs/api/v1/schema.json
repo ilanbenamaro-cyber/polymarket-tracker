@@ -464,7 +464,8 @@
               "type": "string",
               "enum": [
                 "binary",
-                "threshold_ladder"
+                "threshold_ladder",
+                "directional_touch"
               ]
             },
             "probability": {
@@ -480,38 +481,32 @@
               ]
             }
           },
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "binary"
-              }
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "const": "binary" } }, "required": ["kind"] },
+              "then": { "required": ["kind", "probability", "confidence", "total_volume", "freshness"] }
             },
-            "required": [
-              "kind"
-            ]
-          },
-          "then": {
-            "required": [
-              "kind",
-              "probability",
-              "confidence",
-              "total_volume",
-              "freshness"
-            ]
-          },
-          "else": {
-            "required": [
-              "implied_median",
-              "implied_mean",
-              "mean",
-              "iqr",
-              "total_volume",
-              "adjustment",
-              "confidence",
-              "markets",
-              "market"
-            ]
-          }
+            {
+              "if": { "properties": { "kind": { "const": "directional_touch" } }, "required": ["kind"] },
+              "then": { "required": ["kind", "implied_range", "high_series", "low_series", "confidence", "total_volume", "freshness"] }
+            },
+            {
+              "if": { "properties": { "kind": { "not": { "enum": ["binary", "directional_touch"] } } } },
+              "then": {
+                "required": [
+                  "implied_median",
+                  "implied_mean",
+                  "mean",
+                  "iqr",
+                  "total_volume",
+                  "adjustment",
+                  "confidence",
+                  "markets",
+                  "market"
+                ]
+              }
+            }
+          ]
         }
       }
     }

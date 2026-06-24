@@ -34,8 +34,23 @@ export interface Analytics {
   descriptor?: string;
 }
 
+export interface TouchPoint {
+  level: number; // in the ladder's derived unit (mantissa)
+  prob: number; // HIGH: P(touch ≥ level); LOW: P(touch ≤ level)
+  volume?: number;
+}
+
+export interface ImpliedRange {
+  low?: number | null;
+  high?: number | null;
+  confidence?: number; // e.g. 0.5
+  low_label?: string; // display string incl. honest "< $X" outside-ladder cases
+  high_label?: string;
+  unit?: string;
+}
+
 export interface Derived {
-  kind?: 'binary' | 'threshold_ladder';
+  kind?: 'binary' | 'threshold_ladder' | 'directional_touch';
   probability?: number; // binary: YES midpoint (the headline)
   probability_no?: number | null;
   implied_median?: number;
@@ -49,6 +64,11 @@ export interface Derived {
   market?: { analytics?: Analytics };
   freshness?: { as_of?: string; stale_after?: string; final?: boolean };
   narrative?: string;
+  // directional-touch fields
+  implied_range?: ImpliedRange;
+  high_series?: TouchPoint[];
+  low_series?: TouchPoint[];
+  unit?: string;
 }
 
 export interface ResolvedLeg {
