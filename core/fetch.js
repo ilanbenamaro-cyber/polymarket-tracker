@@ -11,6 +11,8 @@
 
 import { createHash } from 'node:crypto';
 import { thresholdRegExp, labelGt } from './market-config.js';
+import { parseBucketLeg, buildPmfLadder } from './bucket.js';
+import { deriveUnit } from './money.js';
 
 const EVENT_SLUG = 'spacex-ipo-closing-market-cap-above';
 export const ENDPOINTS = {
@@ -297,6 +299,24 @@ export async function classifyMarketKind(slug) {
   return kindFromMarkets(events[0].markets);
 }
 
+/** The FINE market shape used for compute routing (computeMarketRecord):
+ *   'binary' | 'survival' | 'bucket_pmf' | 'directional_touch' | 'categorical'.
+ *  kindFromMarkets/classifyMarketKind keep the coarse binary|ladder|categorical contract
+ *  (binary gate + existing tests); this refines the 'ladder' bucket into the three real
+ *  multi-leg structures so each routes to its own pipeline. */
+export function marketShapeFromMarkets(markets) {
+  if (!Array.isArray(markets) || markets.length === 0) throw new Error('Gamma event contained no markets');
+  if (markets.length === 1) return 'binary';
+  return ladderShapeFromMarkets(markets);
+}
+
+/** Fine shape from a slug. One gamma GET, no threshold parsing. */
+export async function classifyMarketShape(slug) {
+  const events = await fetchJson(gammaUrl(slug));
+  if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
+  return marketShapeFromMarkets(events[0].markets);
+}
+
 /** The single Yes/No market's metadata — NO threshold parsing (the binary question
  *  has none). Returns the YES/NO token ids + resolution signals + display fields. */
 async function fetchBinaryMeta(config = null) {
@@ -409,6 +429,125 @@ export async function fetchBinarySnapshot(config = null) {
       lastTradeCount: lastTradeThresholds.length, lastTradeThresholds,
       skippedCount: skippedThresholds.length, skippedThresholds,
     },
+  };
+}
+
+// ── BUCKET-PMF (interval) market support ─────────────────────────────────────
+// A bucket event prices DISJOINT value intervals ("between $X and $Y", "less than $X",
+// "$Y or greater") whose YES prices form a PMF — NOT a survival ladder. We parse each leg
+// to an interval (core/bucket.parseBucketLeg, dropping any non-$ categorical leg such as
+// "Will X not IPO …"), de-vig the PMF to sum to 1, then DERIVE the survival curve P(>X) so
+// the existing ladder math/record/detail all apply. Thresholds are stored as mantissas in
+// the ladder's own derived unit (core/money.deriveUnit), exactly like SpaceX stores "1.8"
+// for $1.8T — so labels/median/mean read in the market's denomination, fixing Bugs 1/2/4.
+
+/** Gamma event → { title, end_date, unit, legs[] } where each leg is a parseable bucket
+ *  (lo/hi absolute $, YES token, volume, resolution signals). Non-$ legs are excluded. */
+async function fetchBucketMeta(config) {
+  const events = await fetchJson(gammaUrl(config.event_slug));
+  if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
+  const ev = events[0];
+  const all = Array.isArray(ev.markets) ? ev.markets : [];
+  const legs = all.map((m) => {
+    const interval = parseBucketLeg(m.question);
+    if (!interval) return null; // categorical leg (no $ amount) — excluded from the PMF
+    const ids = typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds;
+    return {
+      lo: interval.lo, hi: interval.hi, token_id: ids[0],
+      volume: m.volume != null ? Number(m.volume) : null,
+      closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
+      uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
+    };
+  }).filter(Boolean).sort((a, b) => a.lo - b.lo);
+  if (legs.length < 2) throw new Error(`Bucket event ${config.event_slug} has <2 parseable buckets`);
+  const absVals = legs.flatMap((l) => [l.lo, l.hi]).filter((v) => Number.isFinite(v) && v > 0);
+  return { title: ev.title ?? config.event_slug, end_date: ev.endDate ?? null, unitInfo: deriveUnit(absVals), excludedCount: all.length - legs.length, legs };
+}
+
+/** Gamma-only lifecycle signal for a bucket market (no CLOB; threshold = bucket index). */
+export async function fetchBucketStatus(config) {
+  const meta = await fetchBucketMeta(config);
+  return meta.legs.map((l, i) => ({
+    threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+    umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+  }));
+}
+
+/**
+ * Live bucket-PMF snapshot. Resolves each bucket's YES midpoint (Phase-1 fallback chain),
+ * de-vigs the PMF, derives the survival ladder + PMF mean. raw_inputs carry the OBSERVED
+ * per-bucket midpoint (threshold = bucket lower bound in mantissa units) — same hash recipe
+ * (canonicalizeRawInputs unchanged); only the content differs. Returns a fetchLiveSnapshot-
+ * shaped object (markets = derived survival rungs) plus { unit, pmf_mean, total_volume, … }.
+ */
+export async function fetchBucketPmfSnapshot(config) {
+  const fetchedAt = new Date().toISOString();
+  const meta = await fetchBucketMeta(config);
+  const { divisor, unit } = meta.unitInfo;
+  const tokens = meta.legs.map((l) => l.token_id);
+
+  const midRaw = await fetchJson(ENDPOINTS.midpoints, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.map((t) => ({ token_id: t }))),
+  });
+  if (midRaw && midRaw.error) throw new Error(`CLOB midpoints: ${midRaw.error}`);
+  const priceRaw = await fetchJson(ENDPOINTS.prices, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.flatMap((t) => [{ token_id: t, side: 'BUY' }, { token_id: t, side: 'SELL' }])),
+  });
+
+  // Resolve each bucket's YES price with the shared fallback chain (last-trade for a dead book).
+  const resolved = meta.legs.map((l) => ({ l, ...resolveFromBook(midRaw[l.token_id], priceRaw[l.token_id] || {}) }));
+  const needers = resolved.filter((r) => r.needsLastTrade);
+  const lastTradeBy = new Map(await Promise.all(needers.map(async (r) => [r.l.token_id, await fetchLastTradePrice(r.l.token_id)])));
+
+  const lastTradeThresholds = [];
+  const skippedThresholds = [];
+  const priced = []; // { l, prob (number), midpoint (string), best_bid, best_ask }
+  for (const r of resolved) {
+    let midpoint = r.midpoint, source = r.midpoint_source, best_bid = r.best_bid ?? null, best_ask = r.best_ask ?? null;
+    if (r.needsLastTrade) {
+      midpoint = lastTradeBy.get(r.l.token_id);
+      if (midpoint == null) { skippedThresholds.push(r.l.lo / divisor); continue; }
+      source = 'last_trade'; lastTradeThresholds.push(r.l.lo / divisor);
+    }
+    priced.push({ l: r.l, prob: parseFloat(midpoint), midpoint, source, best_bid, best_ask });
+  }
+  if (priced.length < 2) throw new Error(`No usable prices for bucket event ${config.event_slug}`);
+
+  // De-vig: normalize the observed PMF mass to sum to 1 (overround removed). The OBSERVED
+  // midpoint stays in raw_inputs (provenance); the normalized prob feeds the derived curve.
+  const probSum = priced.reduce((s, p) => s + (Number.isFinite(p.prob) ? p.prob : 0), 0);
+  const norm = probSum > 0 ? probSum : 1;
+
+  const raw_inputs = priced.map((p) => ({
+    token_id: p.l.token_id, threshold: p.l.lo / divisor, midpoint: p.midpoint,
+    best_bid: p.best_bid, best_ask: p.best_ask, volume: p.l.volume,
+    ...(p.source === 'last_trade' ? { midpoint_source: 'last_trade', last_trade_price: p.midpoint } : { midpoint_source: p.source }),
+  }));
+
+  // PMF in mantissa units → derived survival ladder + PMF mean.
+  const pmfLegs = priced.map((p) => ({ lo: p.l.lo / divisor, hi: Number.isFinite(p.l.hi) ? p.l.hi / divisor : Infinity, prob: p.prob / norm }));
+  const { markets: survival, mean: pmfMean } = buildPmfLadder(pmfLegs);
+
+  // Per-boundary volume = the bucket starting at that boundary (for the liquidity signal).
+  const volByLo = new Map(priced.map((p) => [p.l.lo / divisor, p.l.volume ?? 0]));
+  const markets = survival.map((m) => ({
+    label: `>$${m.threshold}${unit}`, threshold: m.threshold, prob: m.prob, volume: volByLo.get(m.threshold) ?? 0,
+  }));
+
+  const status = meta.legs.map((l, i) => ({
+    threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+    umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+  }));
+
+  return {
+    fetched_at: fetchedAt,
+    endpoints: [gammaUrl(config.event_slug), ENDPOINTS.midpoints, ENDPOINTS.prices],
+    raw_inputs, raw_sha256: hashRawInputs(raw_inputs), markets, status,
+    midpoint_fallback: { lastTradeCount: lastTradeThresholds.length, lastTradeThresholds, skippedCount: skippedThresholds.length, skippedThresholds },
+    unit, pmf_mean: pmfMean, total_volume: priced.reduce((s, p) => s + (p.l.volume ?? 0), 0),
+    title: meta.title, end_date: meta.end_date, excluded_count: meta.excludedCount,
   };
 }
 
