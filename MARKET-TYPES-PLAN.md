@@ -40,11 +40,12 @@ thresholds for uniqueness, same trick as binary's 1=YES/0=NO).
 
 ## Sequencing (each increment: TDD → `node --test` green → parity gate → commit)
 
-- **I1** classifier + `parseMoney` + `deriveUnit` (pure layer, this branch). ← in progress
-- **I2** `bucket_pmf` end-to-end (Bitcoin + Anthropic): fetch → build → schema branch → route → ladder-view reuse → live verify. Fixes Bugs 1/2/4 for PMF markets.
-- **I3** `directional_touch` end-to-end (WTI + Silver): fetch → build → schema branch → route → `TouchDetailView` → live verify.
-- **I4** unit-formatter propagation (Bug 1 across rail/narrative/axes/band/velocity).
-- **I5+** remaining bugs (3 confidence, 5 n/a median, 6 near-settlement view, 7 titles, 8 analytics) + enhancements 1–8, per the original spec order.
+- **I1 ✅ DONE** (`137fee0`) classifier + `parseMoney` + `deriveUnit`.
+- **I2 ✅ DONE** bucket_pmf: core (`173c6a9`) + pipeline wire (`4aa1005`) + detail display fix (`18a72bd`). Bitcoin $61.13K / Anthropic $1.69T live-verified through `/api/market` (compute+cache write). Bugs 1/2/4 fixed for PMF.
+- **I3 — compute ✅ DONE** (`cb947fe` core, `e987e8e` pipeline+schema+migration). WTI $66.76–$90 / Silver "<$58"–$67.53 verified via computeMarketRecord. **REMAINS (I3c):** `TouchDetailView` UI + `MarketDetailView` kind branch; **apply migration 0005 to DEV** before touch serves via `/api/market`.
+- **I4** unit-formatter propagation: **rail** (`lib/market-scan.js:68` hardcodes `fmtT` → bucket markets show $T in the RAIL) + narrative/axes/band/velocity.
+- **I5+** remaining bugs (3 confidence recalibration, 5 n/a median, 6 near-settlement view, 7 titles, 8 analytics) + enhancements 1–8.
+- **Batched Playwright** (bucket needs no migration; touch needs 0005): before/after on WTI/Silver range view + Bitcoin/Anthropic correct medians, 0 console errors. Uses DEV_LOGIN_PASSWORD from .env.local.
 
 ## Verification
 
