@@ -11,14 +11,25 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
+import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
+
+// Shape for the Phase 1 history rows (lib/market-history.mjs is untyped JS; this types the
+// boundary readHistory returns). The derived velocity/dispersion/UI types live in TrendHistory.
+interface HistoryRow {
+  snapshot_date: string; kind: string;
+  implied_median: number | null; probability: number | null;
+  touch_range_lo: number | null; touch_range_hi: number | null;
+  record: MarketRecord;
+}
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
@@ -47,17 +58,30 @@ export async function DetailData({ id }: { id: string }) {
   if (status !== 200 || !body?.record) {
     return <DetailError id={id} status={status} message={body?.error} />;
   }
-  return <MarketDetailView record={body.record} envelope={body} />;
+  // History layer (Phase 1): read the stored daily series and derive trend analytics +
+  // a LEAN chart series (the heavy record JSONB never ships to the client). Additive —
+  // a read failure degrades to empty, never breaking the authoritative serve.
+  const dk = body.record?.snapshot?.derived?.kind;
+  const chartKind = dk === 'binary' ? 'binary' : dk === 'directional_touch' ? 'directional_touch' : 'ladder';
+  let rows: HistoryRow[] = [];
+  try { rows = (await readHistory(id, 90)) as HistoryRow[]; } catch { rows = []; }
+  const hist: HistoryUI = {
+    velocity: deriveVelocity(rows) as VelocityResult,
+    dispersion: deriveDispersion(rows) as DispersionResult,
+    points: rows.map((r) => ({ date: r.snapshot_date, value: headlineValue(r) as number })).filter((p) => p.value != null),
+    kind: chartKind,
+  };
+  return <MarketDetailView record={body.record} envelope={body} hist={hist} />;
 }
 
-function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope: ServeBody }) {
+function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; envelope: ServeBody; hist: HistoryUI }) {
   // Binary (Yes/No) markets get a distinct, simpler layout — no CDF/ladder/analytics.
   if (record?.snapshot?.derived?.kind === 'binary') {
-    return <BinaryDetailView record={record} envelope={envelope} />;
+    return <BinaryDetailView record={record} envelope={envelope} hist={hist} />;
   }
   // Directional-touch (WTI/Silver "hit $X") markets: implied range + touch table, no CDF.
   if (record?.snapshot?.derived?.kind === 'directional_touch') {
-    return <TouchDetailView record={record} envelope={envelope} />;
+    return <TouchDetailView record={record} envelope={envelope} hist={hist} />;
   }
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
@@ -156,6 +180,10 @@ function MarketDetailView({ record, envelope }: { record: MarketRecord; envelope
         <h2 className="detail-h2">Distribution</h2>
         <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />
       </section>
+
+      {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
+          "Collecting" state until enough days accrue; never dashes. */}
+      <TrendHistorySection hist={hist} unit={unit} label="Implied median" />
 
       {/* TIER-1 ANALYTICS — always rendered (real data, "—" per missing field, or an
           explicit insufficient-data state); never silently absent. */}

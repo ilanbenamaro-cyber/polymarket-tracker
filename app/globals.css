@@ -285,6 +285,16 @@ a:hover { text-decoration: underline; }
 .acard-s { font-size: var(--fs-micro); margin-top: var(--sp-1); }
 .detail-analytics-desc { font-size: var(--fs-tiny); margin-top: var(--sp-2); }
 
+/* history chart (Phase 1) */
+.hist-chart { margin-top: var(--sp-3); }
+.hist-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
+.hist-range { display: inline-flex; gap: 2px; }
+.hist-range-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+  font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; padding: 2px 7px;
+  border-radius: var(--radius); cursor: pointer; letter-spacing: var(--track-label); }
+.hist-range-btn:hover { color: var(--accent-blue); border-color: var(--border-strong); }
+.hist-range-btn.is-active { color: var(--accent-amber); border-color: var(--accent-amber); }
+
 /* ladder table */
 .detail-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; }

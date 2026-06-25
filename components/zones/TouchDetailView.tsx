@@ -11,6 +11,7 @@ import { fmtEastern } from '@/lib/format-detail.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
+import { TrendHistorySection, type HistoryUI } from './TrendHistory';
 import type { MarketRecord, ServeBody, TouchPoint } from './market-record';
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
@@ -49,7 +50,7 @@ function RangeBar({ low, high, lowLabel, highLabel, levels }: {
   );
 }
 
-export function TouchDetailView({ record, envelope }: { record: MarketRecord; envelope: ServeBody }) {
+export function TouchDetailView({ record, envelope, hist }: { record: MarketRecord; envelope: ServeBody; hist?: HistoryUI }) {
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
   const asset = record?.asset ?? {};
@@ -166,6 +167,9 @@ export function TouchDetailView({ record, envelope }: { record: MarketRecord; en
           </div>
         </section>
       )}
+
+      {/* TREND & HISTORY — implied-range midpoint over time (Phase 1) */}
+      {hist && <TrendHistorySection hist={hist} unit={unit} label="Range midpoint" />}
 
       <details className="detail-method">
         <summary>How these numbers are computed (methodology v{record.methodology_version ?? '—'})</summary>
