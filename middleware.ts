@@ -5,7 +5,10 @@
 // NEGATIVE guarantee (the security-critical half — see scripts/verify-2c1-authgate.mjs):
 //   no session + a protected route  → 307 redirect to /login (renders no dashboard).
 //   session + /login                → redirect to /  (already in).
-// Public exception: /api/market (verified market data is public + no-store).
+// Non-session API exceptions (the middleware must NOT redirect these to /login —
+// each governs its own auth): /api/market (public verified data, no-store) and
+// /api/snapshot (the daily cron, authenticated by its CRON_SECRET bearer, not a
+// session cookie — see app/api/snapshot/route.ts).
 // Uses the ANON key only; never the service-role key.
 //
 // RUNTIME: Node.js (not Edge). Edge middleware did not materialize NEXT_PUBLIC_*
@@ -47,9 +50,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname === '/login' || pathname.startsWith('/login/');
-  const isPublicApi = pathname.startsWith('/api/market'); // public verified market data
+  // Routes whose OWN auth governs them (not the session cookie) — never session-redirect:
+  //   /api/market   = public verified market data (no-store);
+  //   /api/snapshot = the cron job, gated by CRON_SECRET bearer in the route handler.
+  const isNonSessionApi = pathname.startsWith('/api/market') || pathname.startsWith('/api/snapshot');
 
-  if (!user && !isAuthRoute && !isPublicApi) {
+  if (!user && !isAuthRoute && !isNonSessionApi) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
