@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { addMarket } from '@/app/(app)/actions';
+import { KBD } from './kbd';
 import type { SearchResult } from '@/app/api/search/route';
 
 const DEBOUNCE_MS = 250;
@@ -47,6 +48,14 @@ export function MarketSearch({ orgs }: { orgs: Array<{ id: string; name: string 
     }
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  // Enh 8: the global Esc handler closes the overlay even when the input isn't focused
+  // (the input's own onKeyDown still handles Esc while typing).
+  useEffect(() => {
+    function onEsc() { setOpen(false); }
+    window.addEventListener(KBD.escape, onEsc);
+    return () => window.removeEventListener(KBD.escape, onEsc);
   }, []);
 
   // Debounced search via the proxy; abort the in-flight request on each keystroke.

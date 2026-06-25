@@ -3,8 +3,9 @@
 // Calls the refreshMarket server action (bypasses cache TTL, recomputes, writes a new
 // snapshot, revalidates the DETAIL page only — not the rail). Shows a loading state
 // while the probe/compute runs; surfaces an error instead of crashing.
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { refreshMarket } from '@/app/(app)/actions';
+import { KBD } from './kbd';
 
 export function RefreshButton({ slug }: { slug: string }) {
   const [pending, start] = useTransition();
@@ -17,6 +18,15 @@ export function RefreshButton({ slug }: { slug: string }) {
       if (!res.ok) setError(res.error ?? 'could not refresh');
     });
   }
+
+  // Enh 8: the global 'R' shortcut refreshes the current market (one RefreshButton mounts
+  // per detail). Ignored while a refresh is already in flight.
+  useEffect(() => {
+    function onKbd() { if (!pending) onRefresh(); }
+    window.addEventListener(KBD.refresh, onKbd);
+    return () => window.removeEventListener(KBD.refresh, onKbd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, slug]);
 
   return (
     <span className="detail-refresh-wrap">

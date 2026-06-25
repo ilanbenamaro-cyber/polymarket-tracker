@@ -10,9 +10,10 @@
 // renderFreshness, so the stale pill is honest and there's no SSR hydration mismatch.
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { removeMarket } from '@/app/(app)/actions';
+import { KBD } from './kbd';
 
 export interface ScanRow {
   market_id: string;
@@ -64,8 +65,51 @@ function Freshness({ staleAfter, fetchedAt, isFinal }: { staleAfter: string | nu
 }
 
 export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
+  const router = useRouter();
   const selected = useSearchParams().get('m');
   const [removing, startRemove] = useTransition();
+
+  // Keyboard navigation (Enh 8): a focus CURSOR distinct from the URL selection — J/K move
+  // it, Enter opens it. A ref backs the window listeners (no stale closures); state drives
+  // the .wl-focused highlight. The cursor starts on the selected row.
+  const [focus, setFocus] = useState(-1);
+  const focusRef = useRef(-1);
+  const setF = (n: number) => { focusRef.current = n; setFocus(n); };
+
+  useEffect(() => {
+    const i = rows.findIndex((r) => r.market_id === selected);
+    setF(i); // -1 when nothing is selected
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, rows.length]);
+
+  useEffect(() => {
+    function scrollTo(id: string) {
+      document.querySelector(`[data-zone="rail-list"] [data-market-id="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    }
+    function onNav(e: Event) {
+      if (rows.length === 0) return;
+      const dir = ((e as CustomEvent).detail?.dir ?? 1) as number;
+      const cur = focusRef.current;
+      const next = cur < 0 ? (dir > 0 ? 0 : rows.length - 1)
+        : Math.max(0, Math.min(rows.length - 1, cur + dir));
+      setF(next);
+      scrollTo(rows[next].market_id);
+    }
+    function onOpen() {
+      const i = focusRef.current;
+      if (i >= 0 && rows[i]) router.push(`/?m=${encodeURIComponent(rows[i].market_id)}`, { scroll: false });
+    }
+    function onEscape() { setF(-1); }
+    window.addEventListener(KBD.nav, onNav);
+    window.addEventListener(KBD.open, onOpen);
+    window.addEventListener(KBD.escape, onEscape);
+    return () => {
+      window.removeEventListener(KBD.nav, onNav);
+      window.removeEventListener(KBD.open, onOpen);
+      window.removeEventListener(KBD.escape, onEscape);
+    };
+  }, [rows, router]);
 
   function remove(r: ScanRow) {
     // dual-scope/personal row → drop the personal entry (row stays via org); org-only → drop the org entry.
@@ -75,8 +119,9 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
 
   return (
     <ul className="wl-list" data-zone="rail-list">
-      {rows.map((r) => {
+      {rows.map((r, i) => {
         const isSel = r.market_id === selected;
+        const isFocus = i === focus;
         const confClass = r.confidence_tier ? CONF_CLASS[r.confidence_tier] : '';
         const lifeClass = r.lifecycle_state ? LIFECYCLE_CLASS[r.lifecycle_state] : 'is-flat';
         return (
@@ -84,10 +129,11 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
             <Link
               href={`/?m=${encodeURIComponent(r.market_id)}`}
               scroll={false}
-              className={`wl-row${isSel ? ' wl-selected' : ''}`}
+              className={`wl-row${isSel ? ' wl-selected' : ''}${isFocus ? ' wl-focused' : ''}`}
               aria-current={isSel ? 'true' : undefined}
               data-market-id={r.market_id}
               data-selected={isSel ? 'true' : undefined}
+              data-focused={isFocus ? 'true' : undefined}
             >
               <div className="wl-row-top">
                 <span className={`wl-dot ${lifeClass}`} title={r.lifecycle_state ?? 'unknown'} aria-hidden="true" />
