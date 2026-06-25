@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '../lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, settlementZone, settlementZoneLabel } from '../lib/format-detail.mjs';
 
 test('derives T from a trillions ladder (SpaceX-style)', () => {
   assert.equal(unitFromLadder([{ label: '>$1T' }, { label: '>$1.8T' }]), 'T');
@@ -64,4 +64,47 @@ test('fmtEastern converts UTC → America/New_York with a DST-aware zone label',
   // bad input degrades, never throws
   assert.equal(fmtEastern(null), '—');
   assert.equal(fmtEastern('not-a-date'), '—');
+});
+
+// ── Bug 6: settlement zone (the converged bucket for a near-settled ladder) ──────
+test('settlementZone: picks the interior bucket holding the most mass', () => {
+  // converged: ~all mass between $2.0 and $2.2 (P(>2.0)=0.99, P(>2.2)=0.01)
+  const m = [
+    { threshold: 1.8, adjusted_prob: 0.999, bucket_prob: 0.009 },
+    { threshold: 2.0, adjusted_prob: 0.99, bucket_prob: 0.98 },
+    { threshold: 2.2, adjusted_prob: 0.01, bucket_prob: 0.01 },
+  ];
+  const z = settlementZone(m);
+  assert.equal(z.kind, 'between');
+  assert.equal(z.lo, 2.0);
+  assert.equal(z.hi, 2.2);
+  assert.equal(settlementZoneLabel(z, 'T'), '$2–2.2T');
+});
+
+test('settlementZone: converged ABOVE the top strike → the ">top" tail wins', () => {
+  const m = [
+    { threshold: 1.8, adjusted_prob: 0.999, bucket_prob: 0.001 },
+    { threshold: 2.0, adjusted_prob: 0.999, bucket_prob: 0.001 },
+    { threshold: 2.2, adjusted_prob: 0.998, bucket_prob: 0.998 }, // top tail holds the mass
+  ];
+  const z = settlementZone(m);
+  assert.equal(z.kind, 'above');
+  assert.equal(z.lo, 2.2);
+  assert.equal(settlementZoneLabel(z, 'T'), '> $2.2T');
+});
+
+test('settlementZone: converged BELOW the lowest strike → the "<lowest" bucket wins', () => {
+  const m = [
+    { threshold: 1.8, adjusted_prob: 0.02, bucket_prob: 0.01 }, // P(<1.8) = 0.98
+    { threshold: 2.0, adjusted_prob: 0.01, bucket_prob: 0.01 },
+  ];
+  const z = settlementZone(m);
+  assert.equal(z.kind, 'below');
+  assert.equal(z.hi, 1.8);
+  assert.equal(settlementZoneLabel(z, 'T'), '< $1.8T');
+});
+
+test('settlementZone: empty ladder → null (degrades, never throws)', () => {
+  assert.equal(settlementZone([]), null);
+  assert.equal(settlementZoneLabel(null, 'T'), 'n/a');
 });

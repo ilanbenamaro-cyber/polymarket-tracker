@@ -371,6 +371,15 @@ a:hover { text-decoration: underline; }
 .touch-axisend { fill: var(--text-faint); font-family: var(--font-mono); font-size: 22px; }
 .touch-hot { color: var(--accent-amber); font-weight: 700; }
 
+/* ── settlement-consensus view (Bug 6, near settlement) ──────────────────── */
+.settle-view { margin-top: var(--sp-3); }
+.settle-headline { display: flex; align-items: baseline; gap: var(--sp-3); }
+.settle-zone { font-size: var(--fs-hero); font-weight: 700; color: var(--accent-amber); line-height: 1; }
+.settle-prob { font-size: var(--fs-tiny); }
+.settle-bar { width: 100%; height: auto; margin-top: var(--sp-3); display: block; }
+.settle-band { fill: var(--accent-amber); fill-opacity: 0.22; stroke: var(--accent-amber); stroke-opacity: 0.7; stroke-width: 1; }
+.settle-note { font-size: var(--fs-tiny); line-height: var(--lh-prose); margin: var(--sp-3) 0 0; max-width: 70ch; }
+
 /* ── categorical detail view ─────────────────────────────────────────────── */
 .cat-tag { display: inline-block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--track-label);
   text-transform: uppercase; color: var(--accent-amber); border: 1px solid var(--accent-amber);
