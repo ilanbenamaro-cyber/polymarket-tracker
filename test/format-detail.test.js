@@ -108,3 +108,40 @@ test('settlementZone: empty ladder → null (degrades, never throws)', () => {
   assert.equal(settlementZone([]), null);
   assert.equal(settlementZoneLabel(null, 'T'), 'n/a');
 });
+
+// ── Bug 5: implied-median label (honest <lowest / >highest, not bare n/a) ────────
+import { impliedMedianLabel, titleFromSlug, displayTitle } from '../lib/format-detail.mjs';
+
+test('impliedMedianLabel: shows the value when the CDF crosses 50%', () => {
+  const m = [{ threshold: 1.8, adjusted_prob: 0.7 }, { threshold: 2.4, adjusted_prob: 0.3 }];
+  assert.equal(impliedMedianLabel(m, 2.05, 'T'), '$2.05T');
+});
+
+test('impliedMedianLabel: median above the top strike → "> $highest"', () => {
+  // even at the highest strike P(>X) ≥ 0.5 → value is above it
+  const m = [{ threshold: 1.8, adjusted_prob: 0.95 }, { threshold: 2.4, adjusted_prob: 0.6 }];
+  assert.equal(impliedMedianLabel(m, null, 'T'), '> $2.4T');
+});
+
+test('impliedMedianLabel: median below the lowest strike → "< $lowest"', () => {
+  // even at the lowest strike P(>X) < 0.5 → value is below it
+  const m = [{ threshold: 1.8, adjusted_prob: 0.3 }, { threshold: 2.4, adjusted_prob: 0.05 }];
+  assert.equal(impliedMedianLabel(m, null, 'T'), '< $1.8T');
+});
+
+test('impliedMedianLabel: no markets → n/a (degrades, never throws)', () => {
+  assert.equal(impliedMedianLabel([], null, 'T'), 'n/a');
+});
+
+// ── Bug 7: title fallback (cleaned slug when no gamma title) ─────────────────────
+test('titleFromSlug: humanizes a hyphenated event slug', () => {
+  assert.equal(titleFromSlug('how-many-fed-rate-cuts-in-2026'), 'How Many Fed Rate Cuts In 2026');
+  assert.equal(titleFromSlug(''), '');
+});
+
+test('displayTitle: prefers the stored name, falls back to a cleaned slug', () => {
+  assert.equal(displayTitle('SpaceX IPO market cap', 'spacex-ipo'), 'SpaceX IPO market cap');
+  assert.equal(displayTitle(null, 'how-many-fed-rate-cuts-in-2026'), 'How Many Fed Rate Cuts In 2026');
+  // a name that is just the raw slug is treated as missing → cleaned
+  assert.equal(displayTitle('wti-crude-oil', 'wti-crude-oil'), 'Wti Crude Oil');
+});
