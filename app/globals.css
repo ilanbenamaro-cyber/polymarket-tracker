@@ -286,6 +286,10 @@ a:hover { text-decoration: underline; }
 .dist-ref { stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 5 4; }
 .dist-cdf-line { stroke: var(--accent-blue); stroke-width: 1.5; }
 .dist-cdf-dot { fill: var(--accent-blue); }
+/* Enh 1: gradient area under the CDF + a dot on the median crossing */
+.dist-cdf-grad-top { stop-color: var(--accent-blue); stop-opacity: 0.28; }
+.dist-cdf-grad-bot { stop-color: var(--accent-blue); stop-opacity: 0; }
+.dist-median-dot { fill: var(--accent-amber); }
 .dist-median { stroke: var(--accent-amber); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .dist-median-lbl { fill: var(--accent-amber); font-family: var(--font-mono); font-size: 9px; }
 .dist-axis { fill: var(--text-faint); font-family: var(--font-mono); font-size: 9px; }
@@ -349,6 +353,12 @@ a:hover { text-decoration: underline; }
 .search-row:disabled { opacity: 0.6; cursor: default; }
 .search-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-tiny); }
 .search-vol { flex: 0 0 auto; font-size: var(--fs-micro); }
+/* Enh 5: market-type chip + category tag in search results */
+.search-type { flex: 0 0 auto; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
+  letter-spacing: var(--track-label); color: var(--text-muted); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 0 5px; }
+.search-type.is-categorical { color: var(--accent-amber); border-color: var(--accent-amber); }
+.search-cat { flex: 0 0 auto; font-size: var(--fs-micro); }
 
 /* remove-from-rail (×) — hover-revealed, right-aligned over the row */
 .wl-li { position: relative; }
@@ -405,3 +415,10 @@ a:hover { text-decoration: underline; }
 .cat-bar-label { fill: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
 .cat-bar-pct { fill: var(--text-faint); font-family: var(--font-mono); font-size: 10px; }
 .cat-row-top td { color: var(--accent-amber); }
+
+/* ── binary detail view: probability meter (Enh 4) ───────────────────────── */
+.bin-meter { margin-top: var(--sp-3); }
+.bin-meter-track { height: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.bin-meter-fill { height: 100%; background: var(--accent-blue); transition: width var(--t-fast) var(--ease); }
+.bin-meter-legend { display: flex; justify-content: space-between; align-items: center; margin-top: var(--sp-2); font-size: var(--fs-micro); }
+.bin-consensus { font-family: var(--font-mono); font-weight: 700; letter-spacing: var(--track-label); }

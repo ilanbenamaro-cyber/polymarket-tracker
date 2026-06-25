@@ -39,6 +39,20 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
   const outcome = binaryOutcome(s?.lifecycle?.resolved_outcome);
 
+  // Enh 4: YES bid-ask spread from the stored raw inputs (threshold 1 = YES), and a
+  // strong-consensus read off the probability — both presentation-only (no recompute).
+  const yesRaw = (Array.isArray(s?.raw_inputs) ? s.raw_inputs : [])
+    .find((r): r is { threshold: number; best_bid?: string | null; best_ask?: string | null } =>
+      typeof r === 'object' && r != null && (r as { threshold?: number }).threshold === 1);
+  const spread = yesRaw?.best_bid != null && yesRaw?.best_ask != null
+    ? Number(yesRaw.best_ask) - Number(yesRaw.best_bid) : null;
+  const p = d.probability ?? null;
+  const consensus = p == null ? null
+    : p >= 0.8 ? { label: 'STRONG · YES', cls: 'conf-high' }
+    : p <= 0.2 ? { label: 'STRONG · NO', cls: 'conf-high' }
+    : p >= 0.6 || p <= 0.4 ? { label: 'LEANING', cls: 'conf-med' }
+    : { label: 'CONTESTED', cls: 'conf-low' };
+
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="binary" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
       <header className="detail-head">
@@ -84,6 +98,28 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
           <span className="label">Volume</span>
           <span className="detail-sec num" data-field="volume">{fmtVol(d.total_volume)}</span>
           <span className="detail-band faint">cumulative, all-time</span>
+        </div>
+        <div className="detail-metric">
+          <span className="label">Spread</span>
+          <span className="detail-sec num" data-field="spread">{spread != null ? `${(spread * 100).toFixed(1)}pp` : '—'}</span>
+          <span className="detail-band faint">{spread == null ? 'no live book' : spread < 0.04 ? 'tight' : spread <= 0.08 ? 'moderate' : 'wide'}</span>
+        </div>
+        <div className="detail-metric">
+          <span className="label">Resolves</span>
+          <span className="detail-sec num" data-field="resolves">{asset.resolves ?? '—'}</span>
+          <span className="detail-band faint">settlement date</span>
+        </div>
+      </div>
+
+      {/* Enh 4: probability meter — the YES/NO split at a glance + a consensus read */}
+      <div className="bin-meter" data-field="prob-meter">
+        <div className="bin-meter-track" role="img" aria-label={`YES ${pctStr(d.probability)}`}>
+          <div className="bin-meter-fill" style={{ width: `${Math.round((d.probability ?? 0) * 100)}%` }} />
+        </div>
+        <div className="bin-meter-legend">
+          <span className="faint">YES {pctStr(d.probability)}</span>
+          {consensus && <span className={`bin-consensus ${consensus.cls}`} data-field="consensus">{consensus.label}</span>}
+          <span className="faint">NO {pctStr(d.probability_no)}</span>
         </div>
       </div>
 
