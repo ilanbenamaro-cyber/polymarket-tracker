@@ -26,9 +26,13 @@
   shows `< $lowest`/`> $highest` (not n/a) when the CDF doesn't cross 50% (`format-detail.impliedMedianLabel`).
   Bug 7: titles fall back to a humanized slug (`displayTitle`/`titleFromSlug`) across all 4 detail views + rail.
   Bug 8: Tier-1 analytics never show bare dashes — "Requires history — collecting" + per-card collecting states.
-- **NEXT (Phase 2 cont.):** Enh 1 (distribution chart polish), Enh 4 (binary view), Enh 5 (search tags),
-  **Enh 6 signup form**, **Enh 8 keyboard nav** → Phase 3 (v1-parity: delta columns, movers, populated
-  velocity — HARD-GATED on real history rows accruing from the now-live daily cron) → Phase 4 polish.
+- **Enh 6 signup form — MERGED** (`--no-ff` `5f11cb0`; 215/215). `/signup` invite-acceptance (anon client;
+  the 2b.2 allowlist hook is the gate, already gate-proven), cross-linked with `/login`; middleware treats
+  `/signup` as an auth route. **⚠ Operator live-gate:** on dev, signup with a fresh ALLOWLISTED email → into the
+  app; a non-allowlisted email → "invite-only" message (the hook fails closed).
+- **NEXT (Phase 2 cont.):** Enh 8 (keyboard nav), Enh 1 (distribution chart polish), Enh 4 (binary view),
+  Enh 5 (search tags) → Phase 3 (v1-parity: delta columns, movers, populated velocity — HARD-GATED on real
+  history rows accruing from the now-live daily cron) → Phase 4 polish.
 
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
