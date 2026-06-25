@@ -7,7 +7,7 @@
 // 50% crossovers) as a horizontal range bar, plus a touch-probability table. The TRUST layer
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -77,7 +77,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
     <article className="detail-view" data-zone="detail-view" data-kind="directional_touch" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
       <header className="detail-head">
         <div>
-          <h1 className="detail-title" data-field="title">{asset.name ?? envelope?.market_id}</h1>
+          <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}

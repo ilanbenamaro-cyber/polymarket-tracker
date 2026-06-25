@@ -70,11 +70,11 @@ test('a watchlisted market with NO scan row degrades gracefully (no throw, place
   assert.equal(row.lifecycle_state, null);
 });
 
-test('falls back to market_id as title when the markets row is absent, and emits no raw record', () => {
-  const visible = [{ scope: 'personal', org_id: null, market_id: 'm1', created_at: '2026-06-20T00:00:00Z' }];
-  const latest = [{ market_id: 'm1', implied_median: 3.3, confidence_tier: 'low', lifecycle_state: 'RESOLVED', is_final: true, stale_after: null, fetched_at: '2026-06-20T00:00:00Z', record: recWithDelta('-$0.10T', 'down') }];
+test('falls back to a HUMANIZED slug as title when the markets row is absent (Bug 7), and emits no raw record', () => {
+  const visible = [{ scope: 'personal', org_id: null, market_id: 'how-many-fed-rate-cuts', created_at: '2026-06-20T00:00:00Z' }];
+  const latest = [{ market_id: 'how-many-fed-rate-cuts', implied_median: 3.3, confidence_tier: 'low', lifecycle_state: 'RESOLVED', is_final: true, stale_after: null, fetched_at: '2026-06-20T00:00:00Z', record: recWithDelta('-$0.10T', 'down') }];
   const [row] = assembleScanRows(visible, /* markets */ [], latest);
-  assert.equal(row.title, 'm1');
+  assert.equal(row.title, 'How Many Fed Rate Cuts'); // cleaned slug, not the raw id
   assert.equal(row.is_final, true);
   assert.equal(row.stale_after, null, 'final rows carry no stale_after');
   assert.ok(!('record' in row), 'the heavy record JSONB is never shipped on a light row');

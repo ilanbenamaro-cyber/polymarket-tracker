@@ -12,7 +12,7 @@ import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { readHistory, headlineValue, deriveVelocity, deriveDispersion } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '@/lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -110,7 +110,7 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
       {/* HEADER */}
       <header className="detail-head">
         <div>
-          <h1 className="detail-title" data-field="title">{asset.name ?? envelope?.market_id}</h1>
+          <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
@@ -143,7 +143,7 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
       <div className="detail-headline">
         <div className="detail-metric">
           <span className="label">Implied median</span>
-          <span className="detail-hero num" data-field="median">{fmtMoney(d.implied_median, unit)}</span>
+          <span className="detail-hero num" data-field="median">{impliedMedianLabel(d.markets, d.implied_median ?? null, unit)}</span>
           <span className="detail-band faint">{fmtRange(d.median, unit) ? `range ${fmtRange(d.median, unit)} · bid/ask` : 'point estimate'}</span>
         </div>
         <div className="detail-metric">
@@ -251,7 +251,7 @@ function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit
     return (
       <section className="detail-section">
         <h2 className="detail-h2">Market analytics <span className="tier1-tag">Tier 1 · market-derived</span></h2>
-        <div className="empty" data-field="analytics-insufficient">Analytics pending — insufficient history for this market.</div>
+        <div className="empty" data-field="analytics-insufficient">Requires history — collecting. These populate as daily snapshots accrue.</div>
       </section>
     );
   }
@@ -260,13 +260,15 @@ function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit
   const ve = analytics.velocity ?? {};
   const skew = sh.skew_bowley == null ? '—' : `${sh.skew_bowley > 0.1 ? 'right (upside)' : sh.skew_bowley < -0.1 ? 'left (downside)' : '~symmetric'} (${sh.skew_bowley.toFixed(2)})`;
   const consensus = sh.entropy == null ? '—' : `${sh.entropy < 0.5 ? 'tight' : sh.entropy < 0.78 ? 'moderate' : 'wide'} (${sh.entropy.toFixed(2)})`;
-  const disp = di.trend ? `${di.trend} · width ${di.iqr_width != null ? `$${di.iqr_width.toFixed(2)}${unit}` : '—'}` : '—';
-  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} $${unit}/yr` : '—';
+  // Dispersion trend + velocity need a history prior; until it accrues, say "collecting"
+  // (never a bare dash). Shape/consensus are computed from the single snapshot → always real.
+  const disp = di.trend ? `${di.trend} · width ${di.iqr_width != null ? `$${di.iqr_width.toFixed(2)}${unit}` : '—'}` : 'collecting';
+  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} $${unit}/yr` : null;
   const cards = [
     { l: 'Shape (skew)', v: skew, s: sh.fat_tail != null ? `fat-tail ${sh.fat_tail.toFixed(2)}×` : '' },
     { l: 'Consensus (entropy)', v: consensus, s: sh.dominant_bucket?.label ? `mass at ${sh.dominant_bucket.label}` : '' },
-    { l: 'Dispersion (25–75)', v: disp, s: di.trend === 'converging' ? 'narrowing → more certain' : di.trend === 'diverging' ? 'widening → less certain' : 'stable' },
-    { l: 'Velocity', v: ve.acceleration ?? '—', s: `median drift ${drift}` },
+    { l: 'Dispersion (25–75)', v: disp, s: di.trend === 'converging' ? 'narrowing → more certain' : di.trend === 'diverging' ? 'widening → less certain' : 'requires ≥30 days' },
+    { l: 'Velocity', v: ve.acceleration ?? 'collecting', s: drift ? `median drift ${drift}` : 'requires ≥7 days' },
   ];
   return (
     <section className="detail-section">

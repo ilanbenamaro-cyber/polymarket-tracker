@@ -8,7 +8,7 @@
 // freshness, provenance + hash-verify) is identical to every other detail. Server component;
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -83,7 +83,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
     <article className="detail-view" data-zone="detail-view" data-kind="categorical" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
       <header className="detail-head">
         <div>
-          <h1 className="detail-title" data-field="title">{asset.name ?? envelope?.market_id}</h1>
+          <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
