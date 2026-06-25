@@ -4,6 +4,7 @@
 // allowlist-gated; a signup / invite-acceptance form is the fast-follow.
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -52,7 +53,7 @@ export default function LoginPage() {
         <button className="login-btn" type="submit" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-        <div className="login-foot faint">Access is granted by your administrator.</div>
+        <div className="login-foot faint">Have an invite? <Link href="/signup">Accept it here</Link></div>
       </form>
 
       <style>{`
