@@ -30,9 +30,15 @@
   the 2b.2 allowlist hook is the gate, already gate-proven), cross-linked with `/login`; middleware treats
   `/signup` as an auth route. **⚠ Operator live-gate:** on dev, signup with a fresh ALLOWLISTED email → into the
   app; a non-allowlisted email → "invite-only" message (the hook fails closed).
-- **NEXT (Phase 2 cont.):** Enh 8 (keyboard nav), Enh 1 (distribution chart polish), Enh 4 (binary view),
-  Enh 5 (search tags) → Phase 3 (v1-parity: delta columns, movers, populated velocity — HARD-GATED on real
-  history rows accruing from the now-live daily cron) → Phase 4 polish.
+- **Enh 8 keyboard nav — MERGED** (`--no-ff` `b2430c4`; 215/215; **Playwright-green on dev :3001**, 0 console
+  errors). Client-only `kbd.ts` event bus + global `KeyboardShortcuts` (layout): J/↓ K/↑ (rail focus cursor),
+  Enter (open), R (refresh), H (verify hash), Esc (close search/deselect), ? (legend); ⌘K stays search's own.
+  Typing + modifier combos never hijacked. **NOTE for future Playwright gates: the dev session cookie on :3001
+  was already live → no password needed; `.env.local` is readable for dev creds when login IS required (never
+  commit values — a pre-commit hook blocks them).**
+- **NEXT (Phase 2 cont.):** Enh 1 (distribution chart polish: gradient/tooltips), Enh 4 (binary view quality),
+  Enh 5 (search result tags + human volume) — one bundle, off this main → Phase 3 (v1-parity: delta columns,
+  movers, populated velocity — HARD-GATED on real history rows accruing from the now-live daily cron) → Phase 4.
 
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
