@@ -145,3 +145,14 @@ test('displayTitle: prefers the stored name, falls back to a cleaned slug', () =
   // a name that is just the raw slug is treated as missing → cleaned
   assert.equal(displayTitle('wti-crude-oil', 'wti-crude-oil'), 'Wti Crude Oil');
 });
+
+// ── Enh 5: human-readable volume ────────────────────────────────────────────────
+import { fmtVolHuman } from '../lib/format-detail.mjs';
+test('fmtVolHuman: compact dollar volumes across magnitudes', () => {
+  assert.equal(fmtVolHuman(3_568_640), '$3.6M');
+  assert.equal(fmtVolHuman(820_000), '$820K');
+  assert.equal(fmtVolHuman(1_240_000_000), '$1.2B');
+  assert.equal(fmtVolHuman(42), '$42');
+  assert.equal(fmtVolHuman(null), '');
+  assert.equal(fmtVolHuman(undefined), '');
+});

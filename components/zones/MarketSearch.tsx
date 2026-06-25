@@ -9,10 +9,16 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { addMarket } from '@/app/(app)/actions';
 import { KBD } from './kbd';
-import type { SearchResult } from '@/app/api/search/route';
+import { fmtVolHuman } from '@/lib/format-detail.mjs';
+import type { SearchResult, MarketType } from '@/app/api/search/route';
 
 const DEBOUNCE_MS = 250;
 const MIN_Q = 2;
+
+// Enh 5: friendly type chips so the market shape is legible BEFORE the add attempt.
+const TYPE_LABEL: Record<MarketType, string> = {
+  binary: 'YES/NO', survival: 'LADDER', bucket_pmf: 'PMF', directional_touch: 'RANGE', categorical: 'CATEGORICAL',
+};
 
 export function MarketSearch({ orgs }: { orgs: Array<{ id: string; name: string }> }) {
   const router = useRouter();
@@ -152,7 +158,13 @@ export function MarketSearch({ orgs }: { orgs: Array<{ id: string; name: string 
             >
               <span className={`wl-dot ${r.closed ? 'state-resolved' : 'state-open'}`} aria-hidden="true" />
               <span className="search-title">{r.title}</span>
-              {r.volume != null && <span className="search-vol faint num">{`$${Math.round(r.volume / 1e6)}M`}</span>}
+              {r.type && (
+                <span className={`search-type${r.type === 'categorical' ? ' is-categorical' : ''}`} data-field="search-type">
+                  {TYPE_LABEL[r.type]}
+                </span>
+              )}
+              {r.category && <span className="search-cat faint">{r.category}</span>}
+              {r.volume != null && <span className="search-vol faint num">{fmtVolHuman(r.volume)}</span>}
             </button>
           ))}
           {pending && <div className="search-state faint" data-field="search-adding">adding…</div>}

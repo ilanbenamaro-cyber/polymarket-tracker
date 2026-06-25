@@ -33,10 +33,18 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
   const lo = markets[0].threshold;
   const hi = markets[markets.length - 1].threshold;
   const pts = markets.map((m) => `${xScale(m.threshold, lo, hi).toFixed(1)},${yScalePct(m.prob * 100).toFixed(1)}`).join(' ');
+  const baseY = VB_H - PAD.b;
+  const areaPts = `${PAD.l.toFixed(1)},${baseY.toFixed(1)} ${pts} ${(VB_W - PAD.r).toFixed(1)},${baseY.toFixed(1)}`; // Enh 1: filled area under the CDF
   const medX = impliedMedian != null ? xScale(impliedMedian, lo, hi) : null;
   const tickY = VB_H - PAD.b + 9;
   return (
     <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Cumulative probability curve" data-field="cdf">
+      <defs>
+        <linearGradient id="cdf-fill-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" className="dist-cdf-grad-top" />
+          <stop offset="100%" className="dist-cdf-grad-bot" />
+        </linearGradient>
+      </defs>
       {/* Y probability scale + hairline grid */}
       {Y_TICKS.map((g) => (
         <g key={g}>
@@ -46,9 +54,12 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
         </g>
       ))}
       <line className="dist-ref" x1={PAD.l} x2={VB_W - PAD.r} y1={yScalePct(50)} y2={yScalePct(50)} />
+      <polygon className="dist-cdf-area" points={areaPts} fill="url(#cdf-fill-grad)" /> {/* Enh 1: gradient fill */}
       <polyline className="dist-cdf-line" points={pts} fill="none" />
       {markets.map((m, i) => ( // index key: an arbitrary market's parsed thresholds aren't guaranteed unique
-        <circle key={i} className="dist-cdf-dot" cx={xScale(m.threshold, lo, hi)} cy={yScalePct(m.prob * 100)} r={2.5} />
+        <circle key={i} className="dist-cdf-dot" cx={xScale(m.threshold, lo, hi)} cy={yScalePct(m.prob * 100)} r={2.5}>
+          <title>{`${tickLabel(m.label)} · P(>) ${(m.prob * 100).toFixed(1)}%${m.volume != null ? ` · vol $${Math.round(m.volume).toLocaleString('en-US')}` : ''}`}</title>
+        </circle>
       ))}
       {/* X threshold tick label at every rung, rotated to avoid overlap */}
       <g data-field="cdf-x-labels">
@@ -60,6 +71,7 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
       {medX != null && (
         <g data-field="cdf-median-marker">
           <line className="dist-median" x1={medX} x2={medX} y1={PAD.t} y2={VB_H - PAD.b} />
+          <circle className="dist-median-dot" cx={medX} cy={yScalePct(50)} r={3.2} /> {/* Enh 1: marker on the 50% crossing */}
           <text className="dist-median-lbl" x={Math.min(medX + 4, VB_W - PAD.r - 60)} y={PAD.t + 9}>{`median $${impliedMedian?.toFixed(2)}${unit}`}</text>
         </g>
       )}
@@ -69,8 +81,8 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
 
 /** Density: P(value in each bucket). First bar is the "<lowest" complement. */
 function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; impliedMedian: number | null; unit: string }) {
-  const bars: Array<{ label: string; v: number; isMedian: boolean }> = [];
-  bars.push({ label: `<$${markets[0].threshold}${unit}`, v: Math.max(0, 1 - markets[0].adjusted_prob), isMedian: impliedMedian != null && impliedMedian < markets[0].threshold });
+  const bars: Array<{ label: string; v: number; isMedian: boolean; vol: number | null }> = [];
+  bars.push({ label: `<$${markets[0].threshold}${unit}`, v: Math.max(0, 1 - markets[0].adjusted_prob), isMedian: impliedMedian != null && impliedMedian < markets[0].threshold, vol: null });
   for (let i = 0; i < markets.length; i++) {
     const lo = markets[i].threshold;
     const hi = markets[i + 1]?.threshold ?? Infinity;
@@ -78,6 +90,7 @@ function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]
       label: markets[i + 1] ? `$${lo}–${markets[i + 1].threshold}${unit}` : `>$${lo}${unit}`,
       v: markets[i].bucket_prob,
       isMedian: impliedMedian != null && impliedMedian >= lo && impliedMedian < hi,
+      vol: markets[i].volume ?? null, // Enh 1: surface bucket volume in the hover tooltip
     });
   }
   const maxV = Math.max(0.01, ...bars.map((b) => b.v));
@@ -101,7 +114,7 @@ function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]
           return (
             <g key={i}>
               <rect className={`dist-bar${b.isMedian ? ' dist-bar-median' : ''}`} x={x} y={VB_H - PAD.b - h} width={bw * 0.76} height={Math.max(0, h)}>
-                <title>{`${b.label} · ${(b.v * 100).toFixed(1)}%`}</title>
+                <title>{`${b.label} · ${(b.v * 100).toFixed(1)}%${b.vol != null ? ` · vol $${Math.round(b.vol).toLocaleString('en-US')}` : ''}`}</title>
               </rect>
               <text className="dist-tick" transform={`rotate(-45 ${cx.toFixed(1)} ${tickY})`} x={cx.toFixed(1)} y={tickY} textAnchor="end">{b.label}</text>
             </g>
