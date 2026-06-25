@@ -8,6 +8,26 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 2 — Bug 3 + Bug 6 (NEAR SETTLEMENT) — MERGED to main (`--no-ff` `4a36229`)
+- **MERGED & PUSHED** (`4a36229`; clean topology; **209/209** on merged main; **SpaceX parity 3/3**;
+  tsc clean; pushed `9c4e4b8..4a36229`). Branch `feature/i5-confidence-near-settlement` (rebased onto the
+  post-history main, then merged).
+- **Bug 3 — NEAR SETTLEMENT** (`core/confidence.nearSettlement`: expiring ≤7d AND >50% rungs pinned ~0/~1):
+  now on BOTH the survival/bucket **ladder** path (`core/snapshot.js` computes it from the adjusted curve +
+  days-to-expiry, sets `derived.near_settlement` **omitted-when-false**) and the touch path. Amber `◐ NEAR
+  SETTLEMENT` badge on every detail view. **Confidence recalibration CONFINED to the near-settlement path**
+  (`expected = settled || nearSettled`): large monotonicity adjustments, closed rungs, last-trade legs are the
+  EXPECTED signature of a winding-down book → no longer drag a liquid market to LOW; a genuinely skipped rung
+  (no price) STILL penalizes. **Parity-safe: SpaceX (~18mo out → false) byte-identical, incl. confidence.**
+- **Bug 6 — settlement-consensus view** (`SettlementConsensus.tsx` + `format-detail.settlementZone`): near
+  settlement the ladder detail REPLACES the (signal-less 1→0 step) distribution with the converged zone (the
+  max-mass bucket) as an amber band on the strike track. TDD'd (settlementZone above/below/between/empty).
+- **NEXT (Phase 2 cont.):** Bug 5 (ladder median `< lowest`/`> highest` instead of n/a — note touch already
+  does this via `boundLabel`, and Bug 6's `settlementZoneLabel` has the pattern), Bug 7 (titles — bucket/touch/
+  categorical already get gamma titles), Bug 8 (analytics "collecting" — Phase 1 already shows it for
+  velocity/dispersion), Enh 1–8, signup form, keyboard nav → Phase 3 (v1-parity, HARD-GATED on real history
+  rows) → Phase 4 polish.
+
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
   race; **194/194** on merged main; **SpaceX parity 3/3**; tsc + next build clean; pushed `b1be34e..9e9b1b1`).
