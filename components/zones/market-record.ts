@@ -84,6 +84,7 @@ export interface Derived {
   high_series?: TouchPoint[];
   low_series?: TouchPoint[];
   unit?: string;
+  near_settlement?: boolean; // expiring soon + rungs mostly pinned → amber NEAR SETTLEMENT badge
 }
 
 export interface ResolvedLeg {
