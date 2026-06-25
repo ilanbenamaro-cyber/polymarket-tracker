@@ -22,11 +22,13 @@
 - **Bug 6 — settlement-consensus view** (`SettlementConsensus.tsx` + `format-detail.settlementZone`): near
   settlement the ladder detail REPLACES the (signal-less 1→0 step) distribution with the converged zone (the
   max-mass bucket) as an amber band on the strike track. TDD'd (settlementZone above/below/between/empty).
-- **NEXT (Phase 2 cont.):** Bug 5 (ladder median `< lowest`/`> highest` instead of n/a — note touch already
-  does this via `boundLabel`, and Bug 6's `settlementZoneLabel` has the pattern), Bug 7 (titles — bucket/touch/
-  categorical already get gamma titles), Bug 8 (analytics "collecting" — Phase 1 already shows it for
-  velocity/dispersion), Enh 1–8, signup form, keyboard nav → Phase 3 (v1-parity, HARD-GATED on real history
-  rows) → Phase 4 polish.
+- **Bug 5 + 7 + 8 — MERGED** (`--no-ff` `e674a23`; 215/215; parity 3/3; display-only). Bug 5: ladder median
+  shows `< $lowest`/`> $highest` (not n/a) when the CDF doesn't cross 50% (`format-detail.impliedMedianLabel`).
+  Bug 7: titles fall back to a humanized slug (`displayTitle`/`titleFromSlug`) across all 4 detail views + rail.
+  Bug 8: Tier-1 analytics never show bare dashes — "Requires history — collecting" + per-card collecting states.
+- **NEXT (Phase 2 cont.):** Enh 1 (distribution chart polish), Enh 4 (binary view), Enh 5 (search tags),
+  **Enh 6 signup form**, **Enh 8 keyboard nav** → Phase 3 (v1-parity: delta columns, movers, populated
+  velocity — HARD-GATED on real history rows accruing from the now-live daily cron) → Phase 4 polish.
 
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
