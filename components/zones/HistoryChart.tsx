@@ -24,9 +24,12 @@ const RANGES: { key: string; days: number | null }[] = [
 ];
 const DAY_MS = 86_400_000;
 
-/** Axis-label formatter by kind: binary → %, otherwise value + unit. */
+/** Probability-axis kinds use a 0–100% scale; value kinds use a padded data range. */
+const isPctKind = (kind: string) => kind === 'binary' || kind === 'categorical';
+
+/** Axis-label formatter by kind: probability kinds → %, otherwise value + unit. */
 function fmtVal(v: number, kind: string, unit: string): string {
-  if (kind === 'binary') return `${Math.round(v * 100)}%`;
+  if (isPctKind(kind)) return `${Math.round(v * 100)}%`;
   return `$${v.toFixed(2)}${unit}`;
 }
 
@@ -70,9 +73,9 @@ function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; un
   const xs = points.map((p) => Date.parse(`${p.date}T00:00:00Z`));
   const xLo = xs[0], xHi = xs[xs.length - 1];
   const ys = points.map((p) => p.value);
-  // Binary uses a fixed 0–100% axis; value kinds use a padded data range.
+  // Probability kinds use a fixed 0–100% axis; value kinds use a padded data range.
   let yLo: number, yHi: number;
-  if (kind === 'binary') { yLo = 0; yHi = 1; }
+  if (isPctKind(kind)) { yLo = 0; yHi = 1; }
   else {
     const min = Math.min(...ys), max = Math.max(...ys);
     const pad = (max - min) * 0.1 || Math.abs(max) * 0.05 || 1;

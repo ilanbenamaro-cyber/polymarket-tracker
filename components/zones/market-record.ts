@@ -49,10 +49,25 @@ export interface ImpliedRange {
   unit?: string;
 }
 
+export interface CategoricalOutcome {
+  label: string;
+  probability: number; // normalized (de-vigged) — sums to ~1 across outcomes
+  raw_probability?: number | null; // observed YES midpoint, pre-normalization
+  volume?: number | null;
+  midpoint_source?: string | null;
+}
+
 export interface Derived {
-  kind?: 'binary' | 'threshold_ladder' | 'directional_touch';
+  kind?: 'binary' | 'threshold_ladder' | 'directional_touch' | 'categorical';
   probability?: number; // binary: YES midpoint (the headline)
   probability_no?: number | null;
+  // categorical fields
+  outcomes?: CategoricalOutcome[];
+  dominant_outcome?: string | null;
+  dominant_prob?: number;
+  entropy?: number;
+  consensus_strength?: 'HIGH' | 'MEDIUM' | 'LOW';
+  implied_winner?: string | null;
   implied_median?: number;
   implied_mean?: number;
   median?: Range;

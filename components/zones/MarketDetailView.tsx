@@ -20,6 +20,7 @@ import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
+import { CategoricalDetailView } from './CategoricalDetailView';
 import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
 
 // Shape for the Phase 1 history rows (lib/market-history.mjs is untyped JS; this types the
@@ -62,7 +63,9 @@ export async function DetailData({ id }: { id: string }) {
   // a LEAN chart series (the heavy record JSONB never ships to the client). Additive —
   // a read failure degrades to empty, never breaking the authoritative serve.
   const dk = body.record?.snapshot?.derived?.kind;
-  const chartKind = dk === 'binary' ? 'binary' : dk === 'directional_touch' ? 'directional_touch' : 'ladder';
+  const chartKind = dk === 'binary' ? 'binary'
+    : dk === 'categorical' ? 'categorical'
+    : dk === 'directional_touch' ? 'directional_touch' : 'ladder';
   let rows: HistoryRow[] = [];
   try { rows = (await readHistory(id, 90)) as HistoryRow[]; } catch { rows = []; }
   const hist: HistoryUI = {
@@ -82,6 +85,10 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
   // Directional-touch (WTI/Silver "hit $X") markets: implied range + touch table, no CDF.
   if (record?.snapshot?.derived?.kind === 'directional_touch') {
     return <TouchDetailView record={record} envelope={envelope} hist={hist} />;
+  }
+  // Categorical (named outcomes, e.g. Fed rate cuts): outcome distribution, no CDF.
+  if (record?.snapshot?.derived?.kind === 'categorical') {
+    return <CategoricalDetailView record={record} envelope={envelope} hist={hist} />;
   }
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
