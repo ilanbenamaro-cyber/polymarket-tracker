@@ -8,6 +8,29 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 4 — LAYOUT FIXES (Bug A width-fill + Bug B touch labels) — MERGED to main (`--no-ff` `782cbed`)
+- **MERGED** (`782cbed`; **235/235** on merged main; parity 3/3; tsc + build clean). **NOT yet pushed.**
+- **Bug A — detail not filling width:** `.detail-view` was capped at `max-width: 920px`, leaving the right of
+  the `1fr` detail grid area empty on wide monitors (`.detail` itself was always full — the cap was on the
+  content). Now `width: 100%` so it fills at any width; the narrative prose keeps a `max-width: 80ch` for
+  readability. **Playwright-verified** (forcing `.terminal` width, since the MCP browser is a maximized window
+  that ignores `setViewportSize`): at 1280 → detail 1016 / view 986; at 1920 → detail 1656 / view 1626; only the
+  ~30px padding gap remains (was a ~1376px gap at 2560). `maxWidth: none`.
+- **Bug B — touch range-bar label overlap (Phase 4):** new pure `lib/touch-rangebar.rangeBarLayout` — when the
+  implied band is **< 20% of the axis** (`NARROW_FRAC`), stack the labels (hi ABOVE y=16, lo BELOW y=72, centred,
+  edge-hugging anchor at the extremes) instead of the colliding above-left/above-right; wide bands keep the
+  original layout. Unit-tested (`test/touch-rangebar.test.js`, 6 cases incl. the 20% boundary). **Playwright-
+  verified on two real narrow markets** — WTI `$67.24–$90.00` + Silver `$56.00–$80.00`, both `data-narrow="true"`,
+  hi/lo bounding boxes do NOT overlap. (Both live touch markets happen to be narrow — exactly why the overlap
+  showed in screenshots; the wide path is the unchanged original layout, covered by the unit tests.) 0 app
+  console errors.
+- **⚠ The two-`next dev`-on-one-`.next` trap RECURRED** (two server pairs running → :3001 hung, curl 000). Fixed
+  per the [[gotchas]] entry: killed all `next` procs, `rm -rf .next`, started ONE on :3001. **Keep a single dev
+  server.** (A clean single server is running now, PID pair `next dev`+worker.)
+- **NEXT:** **operator wants to DISCUSS the history-backfill architecture before any further build.** Do not start
+  Phase 3-real-data or anything new until that conversation. Also still pending: **push `main` to origin**
+  (4+ commits unpushed: Phase 3 + its docs + these layout fixes).
+
 ## ⮕ DIRECTION (2026-06-25): Phase 3 — HISTORY ANALYTICS — MERGED to main (`--no-ff` `7d0485c`); live gate GREEN
 - **MERGED** (`7d0485c`; clean topology — main was an ancestor of `feature/phase3-history-analytics`, no cron
   race; **229/229** on merged main; **SpaceX parity 3/3**; tsc + build clean). **NOT yet pushed to origin.**
