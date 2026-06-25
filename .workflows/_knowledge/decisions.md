@@ -5,6 +5,68 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Near-settlement state + confidence recalibration CONFINED to that path (Bug 3)
+**Decided (2026-06-25):** A market is NEAR SETTLEMENT when it expires within 7 days AND a
+majority (>50%) of rungs are pinned to ~0/~1 (`core/confidence.nearSettlement(markets,
+daysToExpiry)`). For such a market the large monotonicity adjustments, closed rungs, and
+last-trade-priced legs are the EXPECTED signature of a winding-down book, not data-quality
+problems — so `scoreConfidence`/`scoreTouchConfidence` STOP penalizing them (gated on
+`expected = settled || nearSettled`), letting a liquid converged market read MEDIUM/HIGH
+instead of LOW. A genuinely missing price (`skippedCount`) STILL penalizes — that's a real CDF
+hole, not an expected artifact. The state drives an amber `◐ NEAR SETTLEMENT` badge on every
+detail view and (Bug 6) swaps the signal-less 1→0 distribution for a settlement-consensus view
+(`SettlementConsensus.tsx` + `format-detail.settlementZone` = the max-mass bucket).
+**Why:** active liquid markets near expiry were scoring LOW because the pipeline read the
+artifacts of convergence as noise — the opposite of the truth (a converged market's number is
+MORE reliable, not less). The number a fund acts on must not be flagged untrustworthy precisely
+when it's most certain.
+**Constrains — THE PARITY GUARD:** the recalibration is gated ENTIRELY on `nearSettled`, and
+`derived.near_settlement` is OMITTED when false, so a normal market (incl. frozen SpaceX,
+~18 months to expiry → `nearSettled` false) is byte-identical — `phase1-spacex-parity.test.js`
+Gate 2 (full derived deep-equal, INCLUDING confidence) stays green. NEVER widen the carve-out to
+the general scoring path (that would move SpaceX's frozen confidence). The history path passes no
+`daysToExpiry` → `nearSettled` false → Gate 3 unaffected. See [[gotchas]] "Adding a field to derived[]".
+
+## Categorical markets compute (de-vig for DISPLAY, raw midpoints in the hash) — Phase 1b
+**Decided (2026-06-25):** Categorical events (named mutually-exclusive outcomes, e.g. "How many
+Fed rate cuts in 2026?") now COMPUTE (`core/categorical.js` + `fetchCategorical*` +
+`computeCategoricalRecord`) instead of the friendly-422 gate. Each leg's YES midpoint is P(outcome);
+the legs form a PMF that is NORMALIZED to sum to 1 for display (de-vig — the market-maker overround
+removed), yielding `{ kind:'categorical', outcomes[], dominant_outcome, dominant_prob, entropy
+(normalized Shannon), consensus_strength, implied_winner }`. New `kind='categorical'` (migration
+0007 + schema `allOf` branch + `validate.js` skip). Live-verified on the real Fed market (13
+outcomes sum 1.0, dominant 80%).
+**Why:** categorical markets have real, valuable structure (a distribution over outcomes); gating
+them as "unsupported" left a whole Polymarket market class unserved. Normalization makes the
+distribution legible without distorting provenance.
+**Constrains:** the de-vig is a DISPLAY transform — the RAW observed YES midpoints stay in
+`raw_inputs` (synthetic `threshold` = leg index, a stable canonical sort key, mirroring binary's
+1=YES/0=NO), so `canonicalizeRawInputs` and the hash recipe are UNCHANGED (constraint #2: the hash
+is over truth, not presentation). Documented in `methodology.json` `metrics.categorical`. Same
+freeze/compute lifecycle pattern as binary/touch. This is the 5th routed shape — see the taxonomy
+entry below; the "5 shapes" framing now means all five COMPUTE.
+
+## Per-market history system — additive daily cron + cache table (Phase 1, the v1-parity unlock)
+**Decided (2026-06-25):** The product computed on demand and cached ONE snapshot, so every
+velocity/dispersion/trend card was empty (v1 SpaceX showed them from a stored daily series). Phase 1
+adds `market_history` (migration 0006: one row/market/UTC day, upsert on `(market_id,snapshot_date)`)
+written by a daily Vercel Cron (`app/api/snapshot`, `0 2 * * *`) that runs the SAME authoritative
+`serveMarket` pipeline for every watched market. `lib/market-history.mjs` derives velocity (≥7d),
+dispersion (≥30d), per-threshold deltas, and biggest movers; the detail view renders a Trend &
+history section (`HistoryChart` + cards).
+**Why:** history is the foundation the entire Phase-3 v1-parity roadmap (delta columns, movers,
+populated analytics) is gated on — none of it is possible from a single cached snapshot. Built
+additively so it touches NO compute path (SpaceX parity intact).
+**Constrains:** (1) **RLS deny-all, MIRRORING `market_snapshots`** — the service role is the only
+reader (bounded to a single `market_id` per `readHistory`, same per-market trust as the public
+`/api/market`); we deliberately did NOT add an authenticated-SELECT policy (operator-confirmed —
+the prompt's spec self-contradicted). (2) **`/api/snapshot` is CRON_SECRET-bearer-authed and FAILS
+CLOSED** (timing-safe compare, 401 if the secret is unset) — and it must be EXCLUDED from the
+session-auth middleware (see [[gotchas]]). (3) **Sub-minimum series return an explicit
+`{status:'collecting', N/min}` — NEVER dashes or a fabricated number** (the trust rule; carried into
+Bug 8's analytics cards). (4) One failure never stops the batch; RESOLVED markets are skipped
+(frozen). PROD-STANDUP now also needs 0006+0007 applied + `CRON_SECRET` set.
+
 ## Market shape taxonomy — 5 types, shape-aware routing (not "any multi-leg $ = ladder")
 **Decided (2026-06-24):** `computeMarketRecord` (`lib/compute.mjs`) routes on a FINE market
 shape — `binary | survival | bucket_pmf | directional_touch | categorical`

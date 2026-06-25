@@ -5,6 +5,51 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A bearer-authed API route gets session-redirected to /login by the auth middleware
+**Symptom:** the new `/api/snapshot` cron route's own auth worked (401 without the bearer, 200
+with it in isolation), but the actual batch never ran — a correct-bearer call returned the
+**login page HTML** instead of the batch JSON, so `res.json()` blew up in the verify script.
+Caught by the Phase 1 live gate (`scripts/verify-history.mjs`), not by any offline test.
+**Reality:** `middleware.ts`'s matcher runs on `/api/snapshot`, and the public exception was
+`pathname.startsWith('/api/market')` ONLY. The cron route is authenticated by a **CRON_SECRET
+bearer, not a Supabase session cookie** — so to the session-auth middleware it looked
+unauthenticated → `NextResponse.redirect('/login')`. `fetch` follows the redirect → the caller
+gets login HTML with a 200. The route handler never executed; its own bearer check never ran.
+**Lesson:** any route whose auth is NOT the session cookie (a bearer-authed cron, a public
+no-store data route) must be EXCLUDED from the session-auth middleware — extend the exception
+(`isNonSessionApi = startsWith('/api/market') || startsWith('/api/snapshot')`). The route's own
+guard is then the gate. This is the same family as the prod-only failure modes the live gates
+exist to catch — an offline build/tsc is green while the deployed/served behavior is broken;
+run the live gate before declaring a cron route done. (`/signup` had the mirror-image need: it
+must be treated as an AUTH route so an unauthenticated invitee can reach it.)
+
+## Adding a field to derived[] breaks the frozen SpaceX parity gate (deep-equal) — omit-when-false
+**Symptom:** (anticipated + avoided) adding `derived.near_settlement` to the ladder record would
+have failed `phase1-spacex-parity.test.js` Gate 2 — it `deepEqual`s the ENTIRE derived block
+(incl. confidence) against the frozen oracle, so an extra `near_settlement: false` key on SpaceX
+is a diff, even though no value changed.
+**Reality:** the parity gate is byte/structure-exact, not "values that exist match". A NEW additive
+field on `derived` is still a structural change to SpaceX's frozen block. (This is why `lifecycle`
+lives OUTSIDE `derived`, and why `market_shape` was only set for bucket markets.)
+**Lesson:** when adding a `derived` field that only applies to SOME markets, **set it only when
+truthy/relevant and OMIT it otherwise** (`if (_nearSettled) derived.near_settlement = true;`), so
+the frozen-record shape is unchanged. Equally, any change to a SCORING formula (confidence) must be
+gated so SpaceX's specific inputs don't trigger it (SpaceX is ~18mo from expiry → never
+near-settled → carve-out never fires). Re-run the parity gate after ANY `core/snapshot.js` or
+`core/confidence.js` change — it's the load-bearing guard, not a formality. See [[decisions]]
+"Near-settlement … CONFINED to that path".
+
+## TypeScript drops a narrowing inside a closure over a MUTABLE object property
+**Symptom:** `next build` failed (tsc) on `HistoryChart.tsx`: `'sel.days' is possibly 'null'`
+inside a `.filter(...)` callback, even though the line was `sel.days == null ? A : B` and the
+closure was in the `B` (non-null) branch.
+**Reality:** `sel.days` is a mutable property (`{days: number|null}[]`), and TS conservatively
+drops a property narrowing when it's read inside a CLOSURE (the callback could run later, after the
+property changed). Narrowing a `const` local persists; narrowing a mutable property access does not.
+**Lesson:** hoist the narrowed value to a `const` BEFORE the closure (`const days = sel.days; …
+days == null ? A : days * X`) — then the narrowing holds inside the callback. (tsc caught this at
+build, not in `next dev`/the editor — run `next build` or `tsc --noEmit` before declaring UI done.)
+
 ## The survival pipeline silently mis-modeled non-survival markets (plausible-but-WRONG numbers)
 **Symptom:** Bitcoin's detail showed "$53.58T" (should be $K); Anthropic showed median $1.84T
 with mean $54.25T (a 30× ratio that screams "the math is broken"); WTI/Silver showed duplicate
