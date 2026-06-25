@@ -36,9 +36,19 @@
   Typing + modifier combos never hijacked. **NOTE for future Playwright gates: the dev session cookie on :3001
   was already live → no password needed; `.env.local` is readable for dev creds when login IS required (never
   commit values — a pre-commit hook blocks them).**
-- **NEXT (Phase 2 cont.):** Enh 1 (distribution chart polish: gradient/tooltips), Enh 4 (binary view quality),
-  Enh 5 (search result tags + human volume) — one bundle, off this main → Phase 3 (v1-parity: delta columns,
-  movers, populated velocity — HARD-GATED on real history rows accruing from the now-live daily cron) → Phase 4.
+- **Enh 1 + 4 + 5 — MERGED** (`--no-ff` `13512b9`; 216/216; parity 3/3; presentation-only). Enh 1: CDF gradient
+  fill + median-crossing dot + hover tooltips (CDF dots + density bars incl. volume). Enh 4: binary YES
+  probability meter + spread indicator + prominent resolves date + strong-consensus read. Enh 5: search proxy
+  classifies each result's TYPE server-side (same `marketShapeFromMarkets`) + category tag + human volume
+  (`fmtVolHuman`) → shape legible before add, categorical distinguished.
+  **⚠ Visual Playwright spot-check still OPEN for Enh 1/4/5** (offline gates green + next build clean, but the
+  live smoke was skipped — TWO `next dev` were running on one `.next` (:3000 stale-asset 404s, :3001 hung), the
+  documented stale-artifact gotcha. To verify: stop both, `rm -rf .next && npm run dev` (single server), then
+  check search type chips/categorical-amber, the CDF gradient+tooltips, and the binary meter render. 0 console errors.)
+- **NEXT (Phase 2 leftovers):** Enh 2 (rail row polish: volume tint, conf icon, near-settlement clock, binary
+  YES/NO label), Enh 3 (detail info-hierarchy reorder), Enh 7 (loading-state copy + progress). Then **Phase 3**
+  (v1-parity: delta columns, biggest movers, populated velocity/dispersion — HARD-GATED on real history rows
+  from the live daily cron; seed fixture rows to demo sooner) → **Phase 4** polish.
 
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
