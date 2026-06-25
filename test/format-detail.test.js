@@ -156,3 +156,24 @@ test('fmtVolHuman: compact dollar volumes across magnitudes', () => {
   assert.equal(fmtVolHuman(null), '');
   assert.equal(fmtVolHuman(undefined), '');
 });
+
+// ── Phase 3: per-threshold delta formatting (Δ columns + biggest movers) ─────────
+import { fmtDeltaPp, deltaSign } from '../lib/format-detail.mjs';
+test('fmtDeltaPp: a P(>X) change renders as signed percentage points', () => {
+  assert.equal(fmtDeltaPp(0.07), '+7.0');     // +7 percentage points
+  assert.equal(fmtDeltaPp(-0.203), '-20.3');  // the minus comes from the number
+  assert.equal(fmtDeltaPp(0.004), '+0.4');
+  assert.equal(fmtDeltaPp(0), '0.0');         // exact zero is neutral, no sign
+});
+test('fmtDeltaPp: a missing horizon is an em dash, never a fabricated 0', () => {
+  assert.equal(fmtDeltaPp(null), '—');
+  assert.equal(fmtDeltaPp(undefined), '—');
+  assert.equal(fmtDeltaPp(NaN), '—');
+});
+test('deltaSign: classes direction with a sub-0.1pp deadband', () => {
+  assert.equal(deltaSign(0.05), 'is-up');
+  assert.equal(deltaSign(-0.02), 'is-down');
+  assert.equal(deltaSign(0.0003), '');   // <0.05pp → neutral, no colour
+  assert.equal(deltaSign(null), '');
+  assert.equal(deltaSign(undefined), '');
+});

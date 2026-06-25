@@ -11,8 +11,8 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle } from '@/lib/format-detail.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves } from '@/lib/market-history.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -22,7 +22,7 @@ import { RefreshButton } from './RefreshButton';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import { CategoricalDetailView } from './CategoricalDetailView';
-import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow } from './market-record';
+import type { MarketRecord, ServeBody, Analytics, ResolvedLeg, LadderRow, ThresholdDelta, BiggestMoves, Mover } from './market-record';
 
 // Shape for the Phase 1 history rows (lib/market-history.mjs is untyped JS; this types the
 // boundary readHistory returns). The derived velocity/dispersion/UI types live in TrendHistory.
@@ -75,10 +75,18 @@ export async function DetailData({ id }: { id: string }) {
     points: rows.map((r) => ({ date: r.snapshot_date, value: headlineValue(r) as number })).filter((p) => p.value != null),
     kind: chartKind,
   };
-  return <MarketDetailView record={body.record} envelope={body} hist={hist} />;
+  // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
+  // Survival/PMF only (the ladder view owns the threshold table); the binary/touch/categorical
+  // views ignore these props. Thresholds come from the current served record so the Δ rows
+  // align 1:1 with the table; a horizon with no matching day stays null (rendered as "—").
+  const thresholds = (body.record?.snapshot?.derived?.markets ?? []).map((m) => m.threshold);
+  const deltas = deriveDeltas(rows, thresholds) as ThresholdDelta[];
+  const movers = deriveBiggestMoves(rows, 30) as BiggestMoves;
+  return <MarketDetailView record={body.record} envelope={body} hist={hist} deltas={deltas} movers={movers} />;
 }
 
-function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; envelope: ServeBody; hist: HistoryUI }) {
+function MarketDetailView({ record, envelope, hist, deltas, movers }:
+  { record: MarketRecord; envelope: ServeBody; hist: HistoryUI; deltas: ThresholdDelta[]; movers: BiggestMoves }) {
   // Binary (Yes/No) markets get a distinct, simpler layout — no CDF/ladder/analytics.
   if (record?.snapshot?.derived?.kind === 'binary') {
     return <BinaryDetailView record={record} envelope={envelope} hist={hist} />;
@@ -208,21 +216,36 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
           explicit insufficient-data state); never silently absent. */}
       <AnalyticsCards analytics={analytics} unit={unit} />
 
-      {/* ALL THRESHOLDS (current columns only — no history in /api/market) */}
+      {/* BIGGEST MOVERS (Phase 3) — the thresholds whose P(>X) shifted most over 30 days,
+          from the daily history series. Collecting until ≥2 snapshots exist; never blank. */}
+      {Array.isArray(d.markets) && d.markets.length > 0 && (
+        <BiggestMoversSection movers={movers} unit={unit} />
+      )}
+
+      {/* ALL THRESHOLDS — current snapshot + per-threshold Δ over 24h / 7d / 30d (Phase 3).
+          The Δ columns read the daily history series; a horizon with no matching day shows
+          "—" (never a fabricated 0). They populate automatically as the cron accrues days. */}
       {Array.isArray(d.markets) && d.markets.length > 0 && (
         <section className="detail-section">
-          <h2 className="detail-h2">All thresholds <span className="faint">· current snapshot</span></h2>
+          <h2 className="detail-h2">All thresholds <span className="faint">· current snapshot + history Δ</span></h2>
           <div className="detail-table-wrap">
             <table className="detail-table num" data-field="ladder">
-              <thead><tr><th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th><th>All-time volume</th></tr></thead>
+              <thead><tr>
+                <th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th>
+                <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th>All-time volume</th>
+              </tr></thead>
               <tbody>
                 {d.markets.map((m: LadderRow, i: number) => {
                   const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
+                  const dl = deltaFor(deltas, m.threshold);
                   return (
                     <tr key={`${m.threshold}-${i}`} className={m.volume_tier === 'low' ? 'thin' : ''}>
                       <td className="tl">{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
                       <td>{pct(m.prob)}</td>
                       <td>{pct1(m.bucket_prob)}</td>
+                      <DeltaCell delta={dl?.d1 ?? null} />
+                      <DeltaCell delta={dl?.d7 ?? null} />
+                      <DeltaCell delta={dl?.d30 ?? null} />
                       <td><span className={`vdot v-${m.volume_tier ?? 'na'}`} />{fmtVol(m.volume)}</td>
                     </tr>
                   );
@@ -244,6 +267,51 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
         </ul>
       </details>
     </article>
+  );
+}
+
+/** Look up the Δ row for one threshold (exact match; null when the history has no series). */
+function deltaFor(deltas: ThresholdDelta[], threshold: number): ThresholdDelta | undefined {
+  return deltas?.find((x) => x.threshold === threshold);
+}
+
+/** One Δ cell: signed percentage points, coloured up/down (neutral inside the deadband), with
+ *  a "pp" suffix on hover. A null horizon renders as a faint em dash — never a fake 0. */
+function DeltaCell({ delta }: { delta: number | null }) {
+  const cls = deltaSign(delta);
+  const txt = fmtDeltaPp(delta);
+  return (
+    <td className={`delta-cell ${cls}${txt === '—' ? ' faint' : ''}`} title={txt === '—' ? 'no snapshot at this horizon yet' : `${txt} percentage points`}>
+      {txt}
+    </td>
+  );
+}
+
+/** Biggest movers (30d): top thresholds by |ΔP(>X)| from the daily series. Below 2 snapshots
+ *  the movers list is empty → an explicit collecting state (never a blank section). */
+function BiggestMoversSection({ movers, unit }: { movers: BiggestMoves; unit: string }) {
+  const list: Mover[] = Array.isArray(movers?.movers) ? movers.movers : [];
+  return (
+    <section className="detail-section" data-field="biggest-movers">
+      <h2 className="detail-h2">Biggest movers <span className="faint">· {movers?.period ?? '30d'} · P(&gt;X)</span></h2>
+      {list.length === 0 ? (
+        <div className="empty" data-field="movers-collecting">Collecting — biggest movers populate once 2+ daily snapshots exist.</div>
+      ) : (
+        <div className="detail-analytics" data-field="movers">
+          {list.map((mv, i) => {
+            const cls = deltaSign(mv.change);
+            const arrow = mv.direction === 'up' ? '▲' : mv.direction === 'down' ? '▼' : '◆';
+            return (
+              <div key={`${mv.threshold}-${i}`} className="acard mover-card">
+                <div className="label">&gt;${mv.threshold}{unit}</div>
+                <div className={`acard-v ${cls}`}>{arrow} {fmtDeltaPp(mv.change)}<span className="mover-pp faint"> pp</span></div>
+                <div className="acard-s faint">{pct(mv.start)} → {pct(mv.end)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

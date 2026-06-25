@@ -92,6 +92,30 @@ export interface ResolvedLeg {
   outcome: string;
 }
 
+// Phase 3: per-threshold P(>X) change over the daily history series (deriveDeltas), and the
+// top thresholds by 30d movement (deriveBiggestMoves). Each horizon is null when the series
+// has no matching day — never a fabricated 0.
+export interface ThresholdDelta {
+  threshold: number;
+  d1: number | null;
+  d7: number | null;
+  d30: number | null;
+}
+
+export interface Mover {
+  threshold: number;
+  start: number | null;
+  end: number | null;
+  change: number | null;
+  direction: 'up' | 'down' | 'flat';
+}
+
+export interface BiggestMoves {
+  kind: string | null;
+  movers?: Mover[];
+  period?: string;
+}
+
 export interface Snapshot {
   fetched_at?: string;
   source?: { raw_sha256?: string };
