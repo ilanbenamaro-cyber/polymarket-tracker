@@ -41,14 +41,20 @@
   probability meter + spread indicator + prominent resolves date + strong-consensus read. Enh 5: search proxy
   classifies each result's TYPE server-side (same `marketShapeFromMarkets`) + category tag + human volume
   (`fmtVolHuman`) → shape legible before add, categorical distinguished.
-  **⚠ Visual Playwright spot-check still OPEN for Enh 1/4/5** (offline gates green + next build clean, but the
-  live smoke was skipped — TWO `next dev` were running on one `.next` (:3000 stale-asset 404s, :3001 hung), the
-  documented stale-artifact gotcha. To verify: stop both, `rm -rf .next && npm run dev` (single server), then
-  check search type chips/categorical-amber, the CDF gradient+tooltips, and the binary meter render. 0 console errors.)
-- **NEXT (Phase 2 leftovers):** Enh 2 (rail row polish: volume tint, conf icon, near-settlement clock, binary
-  YES/NO label), Enh 3 (detail info-hierarchy reorder), Enh 7 (loading-state copy + progress). Then **Phase 3**
-  (v1-parity: delta columns, biggest movers, populated velocity/dispersion — HARD-GATED on real history rows
-  from the live daily cron; seed fixture rows to demo sooner) → **Phase 4** polish.
+  **Visual Playwright spot-check DONE** (2026-06-25, clean single `:3000`): search type chips + categorical-amber +
+  human volume ✓; CDF gradient + 14 dot / 15 bar tooltips ✓; binary meter + spread + consensus ✓. 0 console errors.
+- **Enh 2 + 3 + 7 — MERGED** (`--no-ff` `f1b9596`; 216/216; **Playwright-green** on clean `:3000`). Enh 2: rail
+  volume tint + confidence circle dots + near-settlement clock + binary Y/N chip (market-scan surfaces volume +
+  near_settlement). Enh 3: narrative moved AFTER the distribution (header→headline→trust→distribution→narrative→
+  analytics). Enh 7: loading state names the verified-pipeline work + indeterminate progress bar.
+- **✅ PHASE 2 COMPLETE** — Bugs 3/5/6/7/8 + Enh 1–8 all merged to main. Suite 163 → 216, every step parity-gated.
+- **⚠ DEV ENV:** there were TWO `next dev` sharing one `.next` (→ webpack-runtime 500 + stale-404 corruption, the
+  documented gotcha). Cleaned up: killed both, `rm -rf .next`, started ONE clean server on :3000 (still running).
+  Going forward keep a SINGLE dev server.
+- **NEXT: Phase 3 — v1-parity** (delta columns in the threshold table, biggest movers, POPULATED velocity/
+  dispersion) — **HARD-GATED on real history rows accruing** from the daily cron (02:00 UTC; velocity ≥7d,
+  dispersion ≥30d). To build/demo before then, write `scripts/seed-history-dev.mjs` to seed fixture
+  market_history rows. Then **Phase 4** polish. (Touch range-bar label overlap on narrow bands still pending.)
 
 ## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
 - **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
