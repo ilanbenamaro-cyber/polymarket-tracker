@@ -49,7 +49,8 @@ export async function middleware(request: NextRequest) {
   // local getSession() for an authorization decision).
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
-  const isAuthRoute = pathname === '/login' || pathname.startsWith('/login/');
+  const isAuthRoute = pathname === '/login' || pathname.startsWith('/login/')
+    || pathname === '/signup' || pathname.startsWith('/signup/'); // invite-acceptance (Enh 6)
   // Routes whose OWN auth governs them (not the session cookie) — never session-redirect:
   //   /api/market   = public verified market data (no-store);
   //   /api/snapshot = the cron job, gated by CRON_SECRET bearer in the route handler.
