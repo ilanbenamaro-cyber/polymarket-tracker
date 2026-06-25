@@ -18,7 +18,7 @@ import { KBD } from './kbd';
 export interface ScanRow {
   market_id: string;
   title: string;
-  kind: 'binary' | 'threshold_ladder';
+  kind: 'binary' | 'threshold_ladder' | 'directional_touch' | 'categorical';
   scopes: Array<'personal' | 'org'>;
   personal: boolean;
   org_id: string | null;
@@ -30,6 +30,8 @@ export interface ScanRow {
   fetched_at: string | null;
   delta_display: string | null;
   delta_dir: 'up' | 'down' | 'flat';
+  volume: number | null; // Enh 2: drives the volume tint
+  near_settlement: boolean; // Enh 2: near-settlement clock
   has_scan: boolean;
 }
 
@@ -117,6 +119,7 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
     startRemove(async () => { await removeMarket(r.market_id, orgId); });
   }
 
+  const maxVol = Math.max(1, ...rows.map((r) => r.volume ?? 0)); // Enh 2: normalize the volume tint
   return (
     <ul className="wl-list" data-zone="rail-list">
       {rows.map((r, i) => {
@@ -124,12 +127,14 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
         const isFocus = i === focus;
         const confClass = r.confidence_tier ? CONF_CLASS[r.confidence_tier] : '';
         const lifeClass = r.lifecycle_state ? LIFECYCLE_CLASS[r.lifecycle_state] : 'is-flat';
+        const volTint = (r.volume ?? 0) / maxVol; // 0..1 relative liquidity
         return (
           <li key={r.market_id} className="wl-li">
             <Link
               href={`/?m=${encodeURIComponent(r.market_id)}`}
               scroll={false}
               className={`wl-row${isSel ? ' wl-selected' : ''}${isFocus ? ' wl-focused' : ''}`}
+              style={{ ['--vol-tint' as string]: volTint.toFixed(3) }}
               aria-current={isSel ? 'true' : undefined}
               data-market-id={r.market_id}
               data-selected={isSel ? 'true' : undefined}
@@ -137,7 +142,9 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
             >
               <div className="wl-row-top">
                 <span className={`wl-dot ${lifeClass}`} title={r.lifecycle_state ?? 'unknown'} aria-hidden="true" />
+                {r.near_settlement && <span className="wl-near" title="near settlement" aria-label="near settlement">◐</span>}
                 <span className="wl-title" title={r.title}>{r.title}</span>
+                {r.kind === 'binary' && <span className="wl-chip wl-chip-kind label" title="binary (Yes/No) market">Y/N</span>}
                 {r.scopes.includes('org') && <span className="wl-chip label" title="shared org watchlist">ORG</span>}
               </div>
               <div className="wl-row-data num">
@@ -145,7 +152,7 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
                 <span className={`wl-delta is-${r.delta_dir}`} data-field="delta">{r.delta_display ?? '—'}</span>
                 {r.confidence_tier && (
                   <span className={`wl-conf ${confClass}`} data-field="confidence" title={`confidence ${r.confidence_tier}`}>
-                    {CONF_LABEL[r.confidence_tier]}
+                    <span className={`wl-conf-dot ${confClass}`} aria-hidden="true" />{CONF_LABEL[r.confidence_tier]}
                   </span>
                 )}
                 <Freshness staleAfter={r.stale_after} fetchedAt={r.fetched_at} isFinal={r.is_final} />
