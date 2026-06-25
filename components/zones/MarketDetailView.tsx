@@ -14,6 +14,7 @@ import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { readHistory, headlineValue, deriveVelocity, deriveDispersion } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
+import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -102,6 +103,7 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
   const rawSha: string = s?.source?.raw_sha256 ?? '';
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
   const band = resolvedBand(s?.lifecycle?.resolved_outcome, unit);
+  const near = d.near_settlement === true && lifecycleState === 'OPEN'; // amber NEAR SETTLEMENT (Bug 3)
 
   return (
     <article className="detail-view" data-zone="detail-view" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -116,9 +118,15 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
         </div>
         <div className="detail-head-actions">
           {envelope?.market_id && <RefreshButton slug={envelope.market_id} />}
-          <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
-            ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
-          </span>
+          {near ? (
+            <span className="detail-lifecycle state-pending" data-field="lifecycle" data-near-settlement="true">
+              ◐ NEAR SETTLEMENT
+            </span>
+          ) : (
+            <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+              ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+            </span>
+          )}
         </div>
       </header>
 
@@ -182,10 +190,13 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
       {/* NARRATIVE */}
       {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
 
-      {/* DISTRIBUTION — the analytical centerpiece */}
+      {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
+          1→0 with no remaining signal, so swap it for the settlement-consensus view (Bug 6). */}
       <section className="detail-section">
-        <h2 className="detail-h2">Distribution</h2>
-        <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />
+        <h2 className="detail-h2">{near ? 'Settlement consensus' : 'Distribution'}</h2>
+        {near
+          ? <SettlementConsensus markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />
+          : <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />}
       </section>
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit

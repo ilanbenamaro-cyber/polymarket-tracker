@@ -64,6 +64,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
   const low = (d.low_series ?? []) as TouchPoint[];
   const rawSha: string = s?.source?.raw_sha256 ?? '';
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
+  const near = d.near_settlement === true && lifecycleState === 'OPEN'; // amber NEAR SETTLEMENT
 
   // Merge HIGH/LOW into one table keyed by level (descending — top of the range first).
   const byLevel = new Map<number, { level: number; high?: number; low?: number; vol?: number }>();
@@ -85,9 +86,15 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
         </div>
         <div className="detail-head-actions">
           {envelope?.market_id && <RefreshButton slug={envelope.market_id} />}
-          <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
-            ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
-          </span>
+          {near ? (
+            <span className="detail-lifecycle state-pending" data-field="lifecycle" data-near-settlement="true">
+              ◐ NEAR SETTLEMENT
+            </span>
+          ) : (
+            <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+              ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+            </span>
+          )}
         </div>
       </header>
 

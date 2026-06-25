@@ -13,3 +13,6 @@ polymarket.db-wal
 
 # throwaway gate screenshots (root-level)
 /*.png
+verify-*.png
+*-console-current.txt
+ns-console.txt

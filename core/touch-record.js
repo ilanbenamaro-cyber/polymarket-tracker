@@ -9,6 +9,15 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
+import { nearSettlement } from './confidence.js';
+
+/** Whole days from `fromIso` to a `YYYY-MM-DD` resolution date, or null if unknown. */
+function daysUntil(resolves, fromIso) {
+  if (!resolves) return null;
+  const end = Date.parse(resolves), from = Date.parse(fromIso);
+  if (!Number.isFinite(end) || !Number.isFinite(from)) return null;
+  return (end - from) / 86_400_000;
+}
 
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder/binary spread thresholds (4pp / 8pp)
@@ -28,7 +37,7 @@ function meanSpread(rawInputs) {
  * Score a touch snapshot — worst of spread, volume, midpoint-fallback, lifecycle. The spread
  * reason carries the MEASURED value (Bug 3 language). Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null }) {
+export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, nearSettled = false }) {
   const reasons = [];
   const tiers = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
@@ -55,8 +64,13 @@ export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback 
 
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
-      tiers.push(settled ? 'medium' : 'medium');
-      reasons.push(`${midpointFallback.lastTradeCount} ${settled ? 'settled ' : ''}leg(s) priced from last trade (no live book)`);
+      // A leg off the live book is EXPECTED for a settled/near-settled market (the book is
+      // winding down), not a data-quality red flag — so say "settled", don't read as illiquid.
+      const expected = settled || nearSettled;
+      tiers.push('medium');
+      reasons.push(expected
+        ? `${midpointFallback.lastTradeCount} settled leg(s) (priced from last trade)`
+        : `${midpointFallback.lastTradeCount} leg(s) priced from last trade (no live book)`);
     }
     if (midpointFallback.skippedCount > 0) { tiers.push('low'); reasons.push(`${midpointFallback.skippedCount} leg(s) had no price`); }
   }
@@ -91,9 +105,11 @@ function buildTouchNarrative(name, rangeLabelLow, rangeLabelHigh, confidence) {
 export function buildTouchRecord(live, methodologyVersion, config, lifecycle = null, freshnessThresholdHours = undefined) {
   if (!config) throw new Error('buildTouchRecord: a MarketConfig is required');
   const unit = live.unit ?? '';
+  const daysToExpiry = daysUntil(config.resolves, live.fetched_at);
+  const near_settlement = nearSettlement([...(live.high_series ?? []), ...(live.low_series ?? [])], daysToExpiry);
   const confidence = scoreTouchConfidence({
     rawInputs: live.raw_inputs, totalVolume: live.total_volume,
-    midpointFallback: live.midpoint_fallback ?? null, lifecycle,
+    midpointFallback: live.midpoint_fallback ?? null, lifecycle, nearSettled: near_settlement,
   });
 
   const r = live.implied_range ?? { low: null, high: null, confidence: 0.5 };
@@ -102,6 +118,7 @@ export function buildTouchRecord(live, methodologyVersion, config, lifecycle = n
 
   const derived = {
     kind: 'directional_touch',
+    near_settlement,
     implied_range: { low: r.low ?? null, high: r.high ?? null, confidence: r.confidence ?? 0.5, low_label, high_label, unit },
     high_series: live.high_series ?? [],
     low_series: live.low_series ?? [],

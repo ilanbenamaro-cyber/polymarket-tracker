@@ -12,7 +12,7 @@ import {
   computeDensity,
 } from './metrics.js';
 import { adjustSnapshot, medianBand, meanSensitivity } from './stats.js';
-import { scoreConfidence } from './confidence.js';
+import { scoreConfidence, nearSettlement } from './confidence.js';
 import { buildNarrative } from './narrative.js';
 import { buildAnalytics } from './analytics.js';
 import { buildScenarios } from './scenarios.js';
@@ -61,6 +61,14 @@ function densityLabels(config) {
 function totalVolume(markets) {
   return markets.reduce((sum, m) => sum + (m.volume ?? 0), 0);
 }
+/** Whole-ish days from `fromIso` to a 'YYYY-MM-DD' resolution date, or null if unknown.
+ *  Drives near-settlement detection (Bug 3) for the ladder path. */
+function daysUntil(resolves, fromIso) {
+  if (!resolves || !fromIso) return null;
+  const end = Date.parse(resolves), from = Date.parse(fromIso);
+  if (!Number.isFinite(end) || !Number.isFinite(from)) return null;
+  return (end - from) / 86_400_000;
+}
 function probAt(markets, threshold) {
   const row = markets.find((m) => m.threshold === threshold);
   return row ? row.prob : null;
@@ -71,11 +79,14 @@ function probAt(markets, threshold) {
  * all metrics from the adjusted curve + confidence. `context` carries optional
  * anomaly inputs for confidence.
  */
-function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null }) {
+function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null }) {
   const adj = adjustSnapshot(markets, floorOpts(config)); // markets carry raw_prob + adjusted_prob + bucket_prob>=0
   const adjusted = adj.markets;
   const impliedMedian = computeImpliedMedian(adjusted);
   const impliedMean = computeImpliedMean(adjusted, meanOpts(config)); // central / base case
+  // Bug 3: near-settlement is computed from the ADJUSTED curve + days-to-expiry. The history
+  // path passes no daysToExpiry → null → false → confidence + derived byte-identical (Gate 3).
+  const nearSettled = nearSettlement(adjusted, daysToExpiry);
   const confidence = scoreConfidence({
     markets: adjusted,
     rawInputs,
@@ -85,6 +96,7 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     anomalies,
     lifecycle,
     midpointFallback,
+    nearSettled,
     ...confidenceOpts(config),
   });
   return {
@@ -99,16 +111,20 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     confidence,
     markets: adjusted,
     _adj: adj, // internal: not serialized at call sites that omit it
+    _nearSettled: nearSettled, // internal: surfaced as derived.near_settlement only when true
   };
 }
 
 /** Full "current" derived block: core + spread-implied median band + mean sensitivity. */
-export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null }) {
-  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle, midpointFallback });
+export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null }) {
+  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle, midpointFallback, daysToExpiry });
   const median = medianBand(rawInputs, core.implied_median);
   const mean = meanSensitivity(core.markets, sensitivityOpts(config));
-  const { _adj, ...clean } = core;
-  return { ...clean, median, mean };
+  const { _adj, _nearSettled, ...clean } = core;
+  const derived = { ...clean, median, mean };
+  // OMIT when false so a normal ladder's derived block is byte-identical (SpaceX parity Gate 2).
+  if (_nearSettled) derived.near_settlement = true;
+  return derived;
 }
 
 /**
@@ -125,6 +141,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, 
     config,
     lifecycle,
     midpointFallback: live.midpoint_fallback ?? null, // absent on history/frozen paths → no-op (SpaceX byte-identical)
+    daysToExpiry: daysUntil(config.resolves, live.fetched_at), // Bug 3 near-settlement (SpaceX ~18mo out → false)
   });
   // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + a
   // threshold. The cron path passes nothing → the schedule-derived 17h (SpaceX
