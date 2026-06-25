@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { CommandBar } from '@/components/zones/CommandBar';
 import { WatchlistRail } from '@/components/zones/WatchlistRail';
+import { KeyboardShortcuts } from '@/components/zones/KeyboardShortcuts';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="terminal">
+      <KeyboardShortcuts />
       <CommandBar userEmail={user.email ?? ''} orgs={orgs} />
       <WatchlistRail />
       <main className="detail" data-zone="detail">{children}</main>

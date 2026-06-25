@@ -8,7 +8,8 @@
 // check is honest (published_hash === sha256(core-canonical(raw_inputs))) without
 // duplicating the recipe or touching the verified backend.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { KBD } from './kbd';
 
 type State = 'idle' | 'verifying' | 'ok' | 'bad' | 'error';
 
@@ -29,6 +30,15 @@ export function HashVerify({ canonical, publishedHash }: { canonical: string; pu
       setState('error'); // crypto.subtle requires a secure context; surface, don't swallow
     }
   }
+
+  // Enh 8: the global 'H' shortcut runs the in-browser hash verification for the current
+  // market (one HashVerify per detail). Ignored while a verify is already in flight.
+  useEffect(() => {
+    function onKbd() { if (state !== 'verifying') onVerify(); }
+    window.addEventListener(KBD.hash, onKbd);
+    return () => window.removeEventListener(KBD.hash, onKbd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, canonical, publishedHash]);
 
   return (
     <span className="hashverify">
