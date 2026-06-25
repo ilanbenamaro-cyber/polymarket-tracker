@@ -8,6 +8,7 @@
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
+import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -27,23 +28,22 @@ const fmtLevel = (lvl: number, unit: string) => `$${lvl.toFixed(unit ? 2 : 2)}${
 function RangeBar({ low, high, lowLabel, highLabel, levels }: {
   low: number | null; high: number | null; lowLabel: string; highLabel: string; levels: number[];
 }) {
-  if (levels.length === 0) return null;
-  const min = Math.min(...levels), max = Math.max(...levels);
-  const span = max - min || 1;
-  const W = 1000, x = (lvl: number) => ((lvl - min) / span) * W;
-  const bandL = low != null ? x(low) : 0;
-  const bandR = high != null ? x(high) : W;
+  const layout = rangeBarLayout(low, high, levels);
+  if (!layout) return null;
+  const { min, max, W, bandL, bandR, narrow, lo, hi } = layout;
   return (
-    <svg className="touch-rangebar" viewBox="0 0 1000 80" preserveAspectRatio="none" role="img" aria-label="implied trading range" data-field="range-bar">
+    <svg className="touch-rangebar" viewBox="0 0 1000 80" preserveAspectRatio="none" role="img" aria-label="implied trading range" data-field="range-bar" data-narrow={narrow ? 'true' : 'false'}>
       {/* full strike track */}
       <line x1={0} y1={40} x2={W} y2={40} className="touch-track" />
       {/* implied band */}
       <rect x={Math.max(0, bandL)} y={28} width={Math.max(2, bandR - bandL)} height={24} className="touch-band" />
       {/* bound markers */}
-      {low != null && <line x1={x(low)} y1={20} x2={x(low)} y2={60} className="touch-mark" />}
-      {high != null && <line x1={x(high)} y1={20} x2={x(high)} y2={60} className="touch-mark" />}
-      <text x={Math.max(0, bandL)} y={16} className="touch-axislabel" textAnchor="start">{lowLabel}</text>
-      <text x={Math.min(W, bandR)} y={16} className="touch-axislabel" textAnchor="end">{highLabel}</text>
+      {low != null && <line x1={bandL} y1={20} x2={bandL} y2={60} className="touch-mark" />}
+      {high != null && <line x1={bandR} y1={20} x2={bandR} y2={60} className="touch-mark" />}
+      {/* bound labels — above-left/above-right when the band is wide; stacked hi-above/lo-below
+          (centred on the band) when narrow, so they never overlap (Bug B). */}
+      <text x={lo.x} y={lo.y} className="touch-axislabel" textAnchor={lo.anchor as 'start' | 'end' | 'middle'} data-field="range-lo-label">{lowLabel}</text>
+      <text x={hi.x} y={hi.y} className="touch-axislabel" textAnchor={hi.anchor as 'start' | 'end' | 'middle'} data-field="range-hi-label">{highLabel}</text>
       <text x={0} y={74} className="touch-axisend" textAnchor="start">{`$${min}`}</text>
       <text x={W} y={74} className="touch-axisend" textAnchor="end">{`$${max}`}</text>
     </svg>
