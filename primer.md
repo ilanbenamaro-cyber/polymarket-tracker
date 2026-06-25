@@ -8,7 +8,17 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-25): Phase 3 — HISTORY ANALYTICS — CODE DONE on `feature/phase3-history-analytics` (live gate pending operator)
+## ⮕ DIRECTION (2026-06-25): Phase 3 — HISTORY ANALYTICS — MERGED to main (`--no-ff` `7d0485c`); live gate GREEN
+- **MERGED** (`7d0485c`; clean topology — main was an ancestor of `feature/phase3-history-analytics`, no cron
+  race; **229/229** on merged main; **SpaceX parity 3/3**; tsc + build clean). **NOT yet pushed to origin.**
+- **✅ PLAYWRIGHT LIVE GATE GREEN** (operator seeded + clean single dev `:3001`; I drove the browser): all four
+  fixtures render their exact state — FULL ladder velocity `rising` + dispersion `converging −40%` + Δ columns
+  (>$2T row **+1.0 / +7.0 / +30.0**) + Biggest Movers **>$2T/+30, >$2.5T/+24, >$3T/+15** (ranges 40→70 / 21→45 /
+  5→20); VELOCITY-ONLY (18d) dispersion `Collecting 18/30` + Δ30d **"—"**; COLLECTING (4d) both cards collecting +
+  Δ7d/Δ30d **"—"**; BINARY velocity `rising +6.0pp` + dispersion `n/a` + no ladder/movers; the 7D/30D/90D/ALL
+  toggle re-renders (7D→8 pts, 30D/90D/ALL→31). **0 app console errors** (the only console errors were external
+  noise from other tabs — google.com / polymarket.com / gamma-api 401 / cloudflareinsights CSP — none from
+  `localhost:3001`). Screenshot `phase3-full-ladder-detail.png`.
 - **What (commit `ae970ae`):** wired the already-tested `deriveDeltas`/`deriveBiggestMoves` (pure, in
   `lib/market-history.mjs` since Phase 1) into the **ladder detail** + a **dev history seeder**, so the
   Phase 3 analytics render NOW instead of waiting weeks for the daily cron. **The UI switches to real cron
@@ -29,16 +39,14 @@
   the seed's EXACT rows through the real derive fns → the Δ/mover/state values the Playwright gate asserts are
   proven with no DB), **tsc clean**, **next build clean**. **No core/ change → frozen SpaceX parity 3/3
   byte-identical.** Markets without seeded history degrade to "—" Δ + collecting movers (verified).
-- **⚠ OPERATOR LIVE GATE (the part I can't run — dev Supabase service key isn't in this env; `.env.local`
-  lacks it, per the standing warning):** (1) `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node
-  scripts/seed-history-dev.mjs` (or rely on its `.env.local` auto-load if the key is there); (2) **single**
-  clean dev server (`rm -rf .next && npm run dev`; the two-servers-one-`.next` 500 trap); (3) Playwright the 4
-  fixtures: **collecting / velocity-only / full** velocity+dispersion cards render correctly, the Δ columns
-  show the fixture values (>$2T row → **+1.0 / +7.0 / +30.0**), Biggest Movers lists **>$2T, >$2.5T, >$3T**,
-  the HistoryChart renders across 7D/30D/90D/ALL, **0 console errors**. Then **merge `--no-ff` to main**.
-- **NEXT (after the live gate + merge):** Phase 4 polish (the only standing UI nit: touch range-bar label
-  overlap on narrow bands). Real cron history accrues from 02:00 UTC → the same sections light up for live OPEN
-  markets with no further work; verify once ≥7 real days exist (velocity) then ≥30 (dispersion).
+- **✅ LIVE GATE — DONE (steps kept for re-run; the seed is operator-run, dev service key isn't in Claude's env):**
+  (1) `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed-history-dev.mjs` (auto-loads `.env.local`);
+  (2) **single** clean dev server (`rm -rf .next && npm run dev`; the two-servers-one-`.next` 500 trap);
+  (3) Playwright the 4 fixtures (`/?m=dev-hist-{ladder-full,binary-full,ladder-vel,ladder-coll}`). All green —
+  see the ✅ bullet at the top of this entry.
+- **NEXT:** **push `main` to origin** (not yet done), then **Phase 4 polish** (the only standing UI nit: touch
+  range-bar label overlap on narrow bands). Real cron history accrues from 02:00 UTC → the same sections light
+  up for live OPEN markets with no further work; verify once ≥7 real days exist (velocity) then ≥30 (dispersion).
 
 ## ⮕ DIRECTION (2026-06-25): Phase 2 — Bug 3 + Bug 6 (NEAR SETTLEMENT) — MERGED to main (`--no-ff` `4a36229`)
 - **MERGED & PUSHED** (`4a36229`; clean topology; **209/209** on merged main; **SpaceX parity 3/3**;
