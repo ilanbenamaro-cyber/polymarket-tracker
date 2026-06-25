@@ -8,6 +8,25 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 1 + 1b — HISTORY SYSTEM + CATEGORICAL — MERGED to main (`--no-ff` `9e9b1b1`)
+- **MERGED & PUSHED** (`9e9b1b1`; clean topology — main was an ancestor of `feature/history-system`, no cron
+  race; **194/194** on merged main; **SpaceX parity 3/3**; tsc + next build clean; pushed `b1be34e..9e9b1b1`).
+- **Phase 1 LIVE-GATE GREEN** (operator ran `verify-history.mjs`): NEG 401s, POS batch ran **5/5 markets
+  success, 0 failed**, history rows landed + re-hash, collecting state shown, **anon RLS = 0 rows**. Migrations
+  **0006** (market_history) + **0007** (categorical kind) APPLIED to dev. **PROD-STANDUP now needs 0001–0007 +
+  CRON_SECRET** (Vercel Preview+Production).
+- **⚠ Live-gate bug found + fixed (`ef723ff`):** the auth middleware matcher caught `/api/snapshot` and only
+  excluded `/api/market`, so the bearer-authed cron route was being session-redirected to /login (returned login
+  HTML, not batch JSON). Fixed: `/api/snapshot` joins `/api/market` as a non-session API (its CRON_SECRET bearer
+  is the gate). **This is exactly why the live gate exists** — it would have silently broken every prod cron run.
+- **Phase 3 is now UNBLOCKED once real history accrues** (the daily cron at 02:00 UTC writes rows; velocity
+  populates after 7 days, dispersion after 30, trends chart as data grows). To demo the populated UI before then,
+  seed fixture `market_history` rows.
+- **NEXT: Phase 2 — Bug 3 (NEAR SETTLEMENT) FIRST, on its own branch** (work already started on
+  `feature/i5-confidence-near-settlement` — reconcile/continue there or branch fresh off the new main). Then
+  Bug 5 (median `<lowest`/`>highest`), Bug 6 (settlement view), Bug 7 (titles), Bug 8 (analytics collecting),
+  Enh 1–8, signup form, keyboard nav → Phase 3 (v1-parity, history-gated) → Phase 4 polish.
+
 ## ⮕ DIRECTION (2026-06-25): Phase 1b — CATEGORICAL MODEL — DONE on `feature/history-system` (live-verified)
 - **Categorical markets now COMPUTE** (was a 422 gate). `core/categorical.js` (de-vig
   `normalizeProbabilities`, `shannonEntropy`, `consensusStrength`, `scoreCategoricalConfidence`,
