@@ -655,6 +655,109 @@ export async function fetchTouchSnapshot(config) {
   };
 }
 
+// ── CATEGORICAL (named-outcome) market support ───────────────────────────────
+// A categorical event ("How many Fed rate cuts in 2026?", "Next Chancellor") is N
+// mutually-exclusive Yes/No legs whose YES midpoints form a PMF over NAMED outcomes —
+// no numeric ordering, no CDF (forcing a threshold parse here is exactly what the 422 gate
+// avoided). We resolve each leg's YES midpoint (Phase-1 fallback chain), keep the OBSERVED
+// midpoints in raw_inputs (threshold = leg index, a stable canonical sort key — same hash
+// recipe), and hand the leg distribution to core/categorical for de-vig + entropy + dominant.
+
+/** Gamma event → { title, end_date, legs[] } where each leg = a named outcome (label from
+ *  groupItemTitle, else the question) with its YES token + resolution signals. */
+async function fetchCategoricalMeta(config) {
+  const events = await fetchJson(gammaUrl(config.event_slug));
+  if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
+  const ev = events[0];
+  const all = Array.isArray(ev.markets) ? ev.markets : [];
+  if (all.length < 2) throw new Error(`Categorical event ${config.event_slug} has <2 outcomes`);
+  const legs = all.map((m) => {
+    const ids = typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds;
+    return {
+      label: (m.groupItemTitle != null && String(m.groupItemTitle).trim()) || m.question,
+      token_id: ids[0], // YES
+      volume: m.volume != null ? Number(m.volume) : null,
+      closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
+      uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
+    };
+  });
+  return { title: ev.title ?? config.event_slug, end_date: ev.endDate ?? null, legs };
+}
+
+/** Gamma-only lifecycle signal for a categorical market (no CLOB; threshold = leg index). */
+export async function fetchCategoricalStatus(config) {
+  const meta = await fetchCategoricalMeta(config);
+  return meta.legs.map((l, i) => ({
+    threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+    umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+  }));
+}
+
+/**
+ * Live categorical snapshot. Resolves each outcome's YES midpoint (Phase-1 fallback chain,
+ * incl. last_trade), keeping the OBSERVED midpoint in raw_inputs (threshold = leg index) so
+ * canonicalizeRawInputs — and the hash recipe — are reused UNCHANGED. De-vig/entropy happen
+ * downstream in core/categorical (the RAW midpoints are never normalized into raw_inputs).
+ */
+export async function fetchCategoricalSnapshot(config) {
+  const fetchedAt = new Date().toISOString();
+  const meta = await fetchCategoricalMeta(config);
+  const tokens = meta.legs.map((l) => l.token_id);
+
+  const midRaw = await fetchJson(ENDPOINTS.midpoints, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.map((t) => ({ token_id: t }))),
+  });
+  if (midRaw && midRaw.error) throw new Error(`CLOB midpoints: ${midRaw.error}`);
+  const priceRaw = await fetchJson(ENDPOINTS.prices, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tokens.flatMap((t) => [{ token_id: t, side: 'BUY' }, { token_id: t, side: 'SELL' }])),
+  });
+
+  const resolved = meta.legs.map((l) => ({ l, ...resolveFromBook(midRaw[l.token_id], priceRaw[l.token_id] || {}) }));
+  const needers = resolved.filter((r) => r.needsLastTrade);
+  const lastTradeBy = new Map(await Promise.all(needers.map(async (r) => [r.l.token_id, await fetchLastTradePrice(r.l.token_id)])));
+
+  const lastTradeThresholds = [];
+  const skippedThresholds = [];
+  const raw_inputs = [];
+  const outcomes = [];
+  resolved.forEach((r, i) => {
+    let midpoint = r.midpoint, source = r.midpoint_source, best_bid = r.best_bid ?? null, best_ask = r.best_ask ?? null;
+    let last_trade_price;
+    if (r.needsLastTrade) {
+      midpoint = lastTradeBy.get(r.l.token_id);
+      if (midpoint == null) { skippedThresholds.push(i); return; }
+      source = 'last_trade'; last_trade_price = midpoint; lastTradeThresholds.push(i);
+    }
+    raw_inputs.push({
+      token_id: r.l.token_id, threshold: i, midpoint, best_bid, best_ask, volume: r.l.volume,
+      midpoint_source: source, ...(last_trade_price != null ? { last_trade_price } : {}),
+    });
+    outcomes.push({ label: r.l.label, prob: parseFloat(midpoint), volume: r.l.volume, midpoint_source: source, best_bid, best_ask });
+  });
+  if (outcomes.length < 2) throw new Error(`No usable prices for categorical event ${config.event_slug}`);
+
+  return {
+    fetched_at: fetchedAt,
+    endpoints: [gammaUrl(config.event_slug), ENDPOINTS.midpoints, ENDPOINTS.prices],
+    raw_inputs,
+    raw_sha256: hashRawInputs(raw_inputs),
+    outcomes,
+    total_volume: meta.legs.reduce((s, l) => s + (l.volume ?? 0), 0),
+    title: meta.title,
+    end_date: meta.end_date,
+    status: meta.legs.map((l, i) => ({
+      threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
+      umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
+    })),
+    midpoint_fallback: {
+      lastTradeCount: lastTradeThresholds.length, lastTradeThresholds,
+      skippedCount: skippedThresholds.length, skippedThresholds,
+    },
+  };
+}
+
 /**
  * Gamma-only per-rung lifecycle signals (no CLOB). Safe to call on a RESOLVED
  * market, which returns no midpoints — so classification must happen from THIS,

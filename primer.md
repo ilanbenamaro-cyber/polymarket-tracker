@@ -8,6 +8,59 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 1b — CATEGORICAL MODEL — DONE on `feature/history-system` (live-verified)
+- **Categorical markets now COMPUTE** (was a 422 gate). `core/categorical.js` (de-vig
+  `normalizeProbabilities`, `shannonEntropy`, `consensusStrength`, `scoreCategoricalConfidence`,
+  `buildCategoricalRecord`) + `core/fetch.js` `fetchCategoricalMeta/Status/Snapshot` (YES-leg PMF
+  via the shared Phase-1 fallback chain) + `computeCategoricalRecord` (route in `compute.mjs`,
+  replacing the 422). **RAW observed midpoints stay in raw_inputs (threshold=leg index); de-vig is
+  display-only → hash recipe UNCHANGED** (constraint #2). schema.json categorical `allOf` branch +
+  `validate.js` skip + **migration 0007** (kind check) + methodology.json recipe doc.
+- **`CategoricalDetailView.tsx`** (dominant headline + entropy consensus meter + SVG outcome bars +
+  volume table + trust/hash-verify + trend chart), routed in MarketDetailView; HistoryChart treats
+  categorical as a 0–100% dominant-prob axis. `market-history` fineKind/headlineValue/dispersion updated.
+- **LIVE-VERIFIED** (`node scripts/verify-categorical.mjs`, network-only, no DB): `how-many-fed-rate-cuts-in-2026`
+  → 13 outcomes sum 1.0, dominant "0 (0 bps)" 80%, entropy 0.291→HIGH, hash re-verifies. **SpaceX parity 3/3.**
+  node --test **194/194** (+13), tsc clean, next build clean. Commit `e916207`.
+- **⚠ OPERATOR:** apply **migration 0007** to DEV (+ PROD at standup). Categorical adds to watchlist via
+  search now (no error). `scripts/verify-categorical.mjs` runnable anytime (no creds).
+- **NEXT:** Phase 2 (I5+ bug cluster: Bug 3 NEAR SETTLEMENT [started on `feature/i5-confidence-near-settlement`],
+  Bug 5 median labels, Bug 6, Bug 7 titles, Bug 8 analytics-collecting, Enh 1–8, signup, keyboard) → Phase 3
+  (v1-parity, HARD-GATED on real history rows) → Phase 4 polish.
+
+## ⮕ DIRECTION (2026-06-25): Phase 1 — HISTORY SYSTEM — CODE DONE on `feature/history-system` (live gate pending operator)
+- **Why:** the multi-market product computes on demand + caches ONE snapshot, so every
+  velocity/dispersion/trend card was empty (v1 SpaceX showed them from a stored daily series).
+  This is the foundational unlock for the whole Phase-3 v1-parity roadmap. **Branch off `main`**
+  (independent of + sequenced before the in-flight Bug 3 work on `feature/i5-confidence-near-settlement`).
+- **Backend (`deb0e8b`):** migration **0006** `market_history` (one row/market/UTC day, upsert on
+  `(market_id,snapshot_date)`); **RLS deny-all, MIRRORS market_snapshots** — service role is the only
+  reader (operator-confirmed choice; NOT the prompt's authenticated-policy variant — the prompt
+  self-contradicted, see the AskUserQuestion decision). `lib/market-history.mjs`: pure derive fns
+  (`linregSlope`, `deriveVelocity` ≥7d, `deriveDispersion` ≥30d, `deriveDeltas`, `deriveBiggestMoves`)
+  + server-only I/O (`allWatchedMarketIds`, `writeHistory`, `readHistory`, `marketsSnapshottedOn`).
+  **Sub-minimum series → explicit `{status:'collecting'}`, never dashes/fabrication.** `app/api/snapshot`
+  cron route: **TIMING-SAFE CRON_SECRET Bearer** (Vercel dispatcher pattern, Context7-verified), **FAILS
+  CLOSED** if secret unset; one bad market never stops the batch; RESOLVED skipped (frozen); dedup guard.
+  `vercel.json` crons `0 2 * * *`. `scripts/verify-history.mjs` = the live-gate harness.
+- **UI (`75dc227`):** `HistoryChart.tsx` (client island, hand-rolled SVG, 7D/30D/90D/ALL toggle, binary
+  0–100% axis vs value-range axis, <2 pts → "Collecting history") + `TrendHistory.tsx` (shared section
+  — extracted to break the MarketDetailView⇄Binary/Touch import cycle — velocity+dispersion cards with
+  collecting states) rendered on **all three** detail views. `readHistory` wired into the detail Server
+  Component; lean `{date,value}` series only — heavy record JSONB never ships to client.
+- **Additive — touches NO compute path. SpaceX `raw_sha256` byte-identical (parity 3/3).** Offline gates
+  ALL GREEN: **node --test 181/181** (+18 new `test/market-history.test.js`), **tsc clean**, **next build clean**.
+- **⚠ OPERATOR LIVE GATE (the "done" criteria I can't run — needs the console + dev creds):**
+  (1) apply **migration 0006** to DEV Supabase (`dxoyxjxcfbgygvjvrrfk`); (2) set **CRON_SECRET** in
+  `.env.local` (and Vercel Preview+Production at standup); (3) `rm -rf .next && npm run dev` (:3001);
+  (4) run `BASE_URL=http://localhost:3001 CRON_SECRET=… SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=…
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=… node scripts/verify-history.mjs` → expect NEG 401s, POS batch summary,
+  rows in `market_history`, anon-RLS 0 rows, deriveVelocity 'collecting'. To prove the chart/cards
+  DISPLAY before 7 real days exist, seed fixture history rows. **PROD-STANDUP now also needs 0006 + CRON_SECRET.**
+- **NEXT (sequenced):** Phase 1b categorical model → Phase 2 (I5+ bug cluster, incl. the Bug 3 NEAR
+  SETTLEMENT work already started on `feature/i5-confidence-near-settlement`) → Phase 3 v1-parity
+  features (**HARD-GATED on real history rows existing**) → Phase 4 polish. Full roadmap in the session prompt.
+
 ## ⮕ DIRECTION (2026-06-24): Market-type redesign — 5 shapes routed correctly — MERGED to main
 - **MERGED** (`--no-ff` `8db0251`; clean topology, no cron race; **163/163** on merged main; SpaceX
   `raw_sha256` byte-identical — parity GATE 1 green). The P0 cluster (Bugs 1/2/4) is fixed AT THE ROOT:

@@ -61,6 +61,12 @@
       "assumptions": ["Consumers re-serialize the stored raw_inputs identically to reproduce the hash."],
       "sensitivity_note": "Provenance check: proves derived numbers came from the stored, unaltered inputs. Status flags (closed/active) are deliberately excluded from the hashed inputs."
     },
+    "categorical": {
+      "method": "A categorical event (named mutually-exclusive outcomes, e.g. 'How many Fed rate cuts in 2026?') is N Yes/No legs whose YES midpoints form a PMF. Each outcome's displayed probability is the leg's YES midpoint NORMALIZED so the distribution sums to 1 (de-vig: the market-maker overround is removed). Consensus = normalized Shannon entropy over the outcomes (0 = one outcome certain, 1 = uniform). Dominant outcome = the largest normalized probability.",
+      "robust": true,
+      "assumptions": ["Legs are mutually exclusive and collectively exhaustive (a valid PMF)."],
+      "sensitivity_note": "HASH RECIPE (same as every kind): raw_sha256 is over the RAW observed YES midpoints in raw_inputs (synthetic threshold = leg index for a stable canonical sort), NOT the normalized probabilities. Normalization is a display transform only — the hash is over truth, not presentation."
+    },
     "narrative": {
       "method": "Deterministic, template-based reading composed only from stored fields (median vs 7d/30d-ago, divergence, dominant bucket, shape, dispersion trend, confidence caveat). No language model in the data path; reproducible from narrative_components. Trend claims are suppressed on low-confidence days.",
       "robust": true,

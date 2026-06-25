@@ -465,7 +465,8 @@
               "enum": [
                 "binary",
                 "threshold_ladder",
-                "directional_touch"
+                "directional_touch",
+                "categorical"
               ]
             },
             "probability": {
@@ -491,7 +492,11 @@
               "then": { "required": ["kind", "implied_range", "high_series", "low_series", "confidence", "total_volume", "freshness"] }
             },
             {
-              "if": { "properties": { "kind": { "not": { "enum": ["binary", "directional_touch"] } } } },
+              "if": { "properties": { "kind": { "const": "categorical" } }, "required": ["kind"] },
+              "then": { "required": ["kind", "outcomes", "dominant_outcome", "dominant_prob", "entropy", "consensus_strength", "confidence", "total_volume", "freshness"] }
+            },
+            {
+              "if": { "properties": { "kind": { "not": { "enum": ["binary", "directional_touch", "categorical"] } } } },
               "then": {
                 "required": [
                   "implied_median",

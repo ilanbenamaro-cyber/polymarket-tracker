@@ -10,6 +10,7 @@ import { fmtEastern } from '@/lib/format-detail.mjs';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
+import { TrendHistorySection, type HistoryUI } from './TrendHistory';
 import type { MarketRecord, ServeBody, ResolvedLeg } from './market-record';
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
@@ -26,7 +27,7 @@ function binaryOutcome(outcome: ResolvedLeg[] | undefined): string | null {
   return yes ? `resolved ${yes.outcome.toUpperCase()}` : null;
 }
 
-export function BinaryDetailView({ record, envelope }: { record: MarketRecord; envelope: ServeBody }) {
+export function BinaryDetailView({ record, envelope, hist }: { record: MarketRecord; envelope: ServeBody; hist?: HistoryUI }) {
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
   const asset = record?.asset ?? {};
@@ -109,6 +110,9 @@ export function BinaryDetailView({ record, envelope }: { record: MarketRecord; e
       </div>
 
       {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+
+      {/* TREND & HISTORY — YES-probability series (Phase 1); collecting until 7 days accrue */}
+      {hist && <TrendHistorySection hist={hist} unit="" label="YES probability" />}
     </article>
   );
 }

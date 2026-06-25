@@ -158,9 +158,10 @@ export function validateRecord(record) {
   }
 
   const d = record?.snapshot?.derived;
-  // Ladder-only invariant: binary + directional-touch records have no CDF/markets[] (the
-  // schema's allOf enforces each shape). Skip the bucket checks for those kinds.
-  if (d && d.kind !== 'binary' && d.kind !== 'directional_touch') errors.push(...bucketErrors(d.markets, 'derived'));
+  // Ladder-only invariant: binary, directional-touch, and categorical records have no
+  // CDF/markets[] (the schema's allOf enforces each shape). Skip the bucket checks for those.
+  const NON_LADDER = new Set(['binary', 'directional_touch', 'categorical']);
+  if (d && !NON_LADDER.has(d.kind)) errors.push(...bucketErrors(d.markets, 'derived'));
   errors.push(...firewallErrors(record));
   errors.push(...lifecycleErrors(record));
 
