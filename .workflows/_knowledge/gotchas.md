@@ -5,6 +5,26 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A synthetic OPEN fixture market can't be served live — anchor cached_at/last_checked_at in the FUTURE
+**Symptom:** the detail view runs the AUTHORITATIVE `serveMarket()` (not the rail's plain cache
+read), which for an OPEN market either PROBEs gamma (within TTL, not probed in 60s) or RECOMPUTEs
+(past the 15min TTL). A synthetic `dev-*` id has no live gamma event → the probe/recompute 502/404s
+→ the detail won't render. So a dev fixture market that's OPEN appears to work for ~60s after
+seeding (SERVE_FRESH while `last_checked_at` is recent) and then breaks — too fragile for a gate.
+**Reality (`decide-cache-action.decideBeforeProbe`):** the ONLY no-network serve paths are
+(1) `RESOLVED` → SERVE_FINAL forever, and (2) OPEN with `age = now − cached_at < TTL` AND
+`now − last_checked_at < PROBE_TTL(60s)` → SERVE_FRESH. Setting BOTH `market_snapshots.cached_at`
+and `markets.last_checked_at` to a FAR-FUTURE timestamp makes `age` and the probe-age permanently
+NEGATIVE (< their thresholds) → SERVE_FRESH every time, zero network, while the market stays
+semantically OPEN (the real Phase-3 "accruing history" scenario). RESOLVED would also avoid the
+network but a "resolved" market that's "collecting history" is self-contradictory.
+**Lesson:** to seed a serveable OPEN fixture, `writeRecord` it then UPDATE those two timestamps to
+the future (`scripts/seed-history-dev.mjs`). Keep the fixture's PURE generators exported + guard the
+`run()`/DB side with `import.meta.url === pathToFileURL(process.argv[1]).href`, so a unit test can
+import the exact rows the seed inserts and prove the derived values offline (no DB) — the gate
+numbers can't drift from the fixture. (`.env.local` is NOT reliable for the service-role key across
+machines — the seed/Playwright stay an OPERATOR live gate, same as the Phase-1 history gate.)
+
 ## A bearer-authed API route gets session-redirected to /login by the auth middleware
 **Symptom:** the new `/api/snapshot` cron route's own auth worked (401 without the bearer, 200
 with it in isolation), but the actual batch never ran — a correct-bearer call returned the

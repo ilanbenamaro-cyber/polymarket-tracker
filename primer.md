@@ -8,6 +8,38 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 3 — HISTORY ANALYTICS — CODE DONE on `feature/phase3-history-analytics` (live gate pending operator)
+- **What (commit `ae970ae`):** wired the already-tested `deriveDeltas`/`deriveBiggestMoves` (pure, in
+  `lib/market-history.mjs` since Phase 1) into the **ladder detail** + a **dev history seeder**, so the
+  Phase 3 analytics render NOW instead of waiting weeks for the daily cron. **The UI switches to real cron
+  data automatically once rows accrue — no code change at that point** (the detail already reads `readHistory`).
+- **UI (`MarketDetailView.tsx`):** the "All thresholds" table gains **24h/7d/30d Δ columns** (`DeltaCell` →
+  signed percentage points, `is-up`/`is-down` colour, **"—" for a horizon with no matching day — never a fake
+  0**) + a **Biggest Movers** section (top-3 thresholds by |ΔP(>X)| over 30d, explicit collecting state < 2
+  days). **Survival/PMF only** — binary/touch/categorical views ignore the new props. Velocity/dispersion
+  cards + the 7D/30D/90D/ALL `HistoryChart` were ALREADY wired in Phase 1 → they populate from the same
+  seeded series with no new code. New pure formatters `fmtDeltaPp`/`deltaSign` in `format-detail.mjs`.
+- **Seeder (`scripts/seed-history-dev.mjs`):** 4 fixtures exercising ALL three display states — **full ladder
+  (31d)** = velocity ok + dispersion ok (converging) + Δ all horizons + movers; **binary (31d)** = velocity ok,
+  dispersion n/a; **velocity-only ladder (18d)** = velocity ok, dispersion collecting, Δ30d "—"; **collecting
+  ladder (4d)** = both collecting, only Δ24h. **⚠ Kept OPEN but with `cached_at`/`last_checked_at` anchored to
+  the FUTURE** so `serveMarket` SERVE_FRESHes from cache with ZERO network (synthetic ids have no live gamma) —
+  see the new [[gotchas]] entry. Pure generators exported + `run()` guarded → importing is side-effect-free.
+- **OFFLINE GATES GREEN:** node --test **229/229** (+13: 3 formatter, 10 `test/seed-history-fixture.js` that feed
+  the seed's EXACT rows through the real derive fns → the Δ/mover/state values the Playwright gate asserts are
+  proven with no DB), **tsc clean**, **next build clean**. **No core/ change → frozen SpaceX parity 3/3
+  byte-identical.** Markets without seeded history degrade to "—" Δ + collecting movers (verified).
+- **⚠ OPERATOR LIVE GATE (the part I can't run — dev Supabase service key isn't in this env; `.env.local`
+  lacks it, per the standing warning):** (1) `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node
+  scripts/seed-history-dev.mjs` (or rely on its `.env.local` auto-load if the key is there); (2) **single**
+  clean dev server (`rm -rf .next && npm run dev`; the two-servers-one-`.next` 500 trap); (3) Playwright the 4
+  fixtures: **collecting / velocity-only / full** velocity+dispersion cards render correctly, the Δ columns
+  show the fixture values (>$2T row → **+1.0 / +7.0 / +30.0**), Biggest Movers lists **>$2T, >$2.5T, >$3T**,
+  the HistoryChart renders across 7D/30D/90D/ALL, **0 console errors**. Then **merge `--no-ff` to main**.
+- **NEXT (after the live gate + merge):** Phase 4 polish (the only standing UI nit: touch range-bar label
+  overlap on narrow bands). Real cron history accrues from 02:00 UTC → the same sections light up for live OPEN
+  markets with no further work; verify once ≥7 real days exist (velocity) then ≥30 (dispersion).
+
 ## ⮕ DIRECTION (2026-06-25): Phase 2 — Bug 3 + Bug 6 (NEAR SETTLEMENT) — MERGED to main (`--no-ff` `4a36229`)
 - **MERGED & PUSHED** (`4a36229`; clean topology; **209/209** on merged main; **SpaceX parity 3/3**;
   tsc clean; pushed `9c4e4b8..4a36229`). Branch `feature/i5-confidence-near-settlement` (rebased onto the
