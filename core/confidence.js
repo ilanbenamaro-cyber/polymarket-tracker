@@ -70,6 +70,7 @@ export function scoreConfidence({
   countMedium = MIN_THRESHOLDS_MEDIUM,
   ladderSize = 16,
   lifecycle = null,
+  nearSettled = false,
 }) {
   const reasons = [];
   const tiers = [];
@@ -79,6 +80,14 @@ export function scoreConfidence({
   // A non-OPEN market's "closed" rungs are its expected terminal condition, not a
   // data-quality anomaly — don't let them drag the tier (SpaceX is OPEN → no effect).
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
+  // Bug 3 recalibration (CONFINED to the near-settlement path): once the outcome is decided
+  // (expiring ≤7d, rungs pinned to ~0/~1), the large monotonicity adjustments, closed rungs,
+  // and last-trade-priced legs are the EXPECTED signature of a winding-down book, not
+  // data-quality red flags — so they must not drag a liquid market to LOW. `expected` gates
+  // every carve-out; a normal market (incl. frozen SpaceX, ~18mo out → nearSettled false) is
+  // byte-identical. A genuinely missing price (skippedCount) is still a real CDF hole and
+  // still penalizes, even near settlement.
+  const expected = settled || nearSettled;
 
   // 1) Threshold count — resolution of the CDF.
   if (count >= countHigh) tiers.push('high');
@@ -97,6 +106,11 @@ export function scoreConfidence({
   const adjStr = adjPct < 0.05 ? '<0.05%' : `${adjPct.toFixed(1)}%`;
   if (rawViolations === 0) {
     tiers.push('high');
+  } else if (nearSettled) {
+    // Near settlement, rungs pinning to 0/1 manufacture large apparent violations — structural,
+    // not noisy quotes. Don't penalize (let an otherwise-clean converged ladder reach HIGH).
+    tiers.push('high');
+    reasons.push(`${rawViolations} monotonicity adjustment(s) (max ${adjStr}) — expected near settlement`);
   } else if (maxAdjustment < MATERIAL_ADJUSTMENT) {
     tiers.push('high');
     reasons.push(`${rawViolations} negligible monotonicity tweak(s) (max ${adjStr})`);
@@ -139,7 +153,7 @@ export function scoreConfidence({
       tiers.push('medium');
       reasons.push('inputs identical to prior snapshot (possible stale feed)');
     }
-    if (anomalies.closedCount > 0 && !settled) {
+    if (anomalies.closedCount > 0 && !expected) {
       tiers.push(anomalies.closedCount > 2 ? 'low' : 'medium');
       reasons.push(`${anomalies.closedCount} market(s) closed / not accepting orders`);
     }
@@ -157,10 +171,15 @@ export function scoreConfidence({
   //    effect (SpaceX has none → frozen confidence unchanged).
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
-      tiers.push('medium');
-      reasons.push(`${midpointFallback.lastTradeCount} rung(s) priced from last trade (no live book)`);
+      // A leg off the live book is EXPECTED for a settled/near-settled market (winding down),
+      // so it's not a trust detractor there — say "settled", don't read as illiquid.
+      tiers.push(expected ? 'high' : 'medium');
+      reasons.push(expected
+        ? `${midpointFallback.lastTradeCount} settled rung(s) (priced from last trade)`
+        : `${midpointFallback.lastTradeCount} rung(s) priced from last trade (no live book)`);
     }
     if (midpointFallback.skippedCount > 0) {
+      // A genuinely missing price punches a hole in the CDF — a real defect even near settlement.
       tiers.push('low');
       const ts = (midpointFallback.skippedThresholds ?? []).join(', ');
       reasons.push(`${midpointFallback.skippedCount} rung(s) excluded (no price)${ts ? `: ${ts}` : ''}`);
@@ -171,17 +190,19 @@ export function scoreConfidence({
 
   // Smooth 0..1 score for sorting / the badge.
   const countScore = Math.min(1, count / ladderSize);
-  const monoScore = Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
+  // Near settlement, the isotonic adjustment is structural (rungs pinning to 0/1), not noise.
+  const monoScore = nearSettled ? 1 : Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
   const spreadScore = priceOnly ? 0.6 : Math.max(0, Math.min(1, 1 - spread / 0.1));
   const liqScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
   let score = (countScore + monoScore + spreadScore + liqScore) / 4;
   if (anomalies) {
     if (anomalies.stale) score -= 0.15;
-    if (anomalies.closedCount > 0 && !settled) score -= 0.1 * Math.min(3, anomalies.closedCount);
+    if (anomalies.closedCount > 0 && !expected) score -= 0.1 * Math.min(3, anomalies.closedCount);
     if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) score -= 0.1;
   }
   if (midpointFallback) {
-    score -= 0.05 * Math.min(4, midpointFallback.lastTradeCount ?? 0);
+    // Expected last-trade legs near settlement aren't a score detractor; a skipped rung still is.
+    if (!expected) score -= 0.05 * Math.min(4, midpointFallback.lastTradeCount ?? 0);
     score -= 0.1 * Math.min(4, midpointFallback.skippedCount ?? 0);
   }
   score = Number(Math.max(0, Math.min(1, score)).toFixed(3));

@@ -102,6 +102,7 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
   const rawSha: string = s?.source?.raw_sha256 ?? '';
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
   const band = resolvedBand(s?.lifecycle?.resolved_outcome, unit);
+  const near = d.near_settlement === true && lifecycleState === 'OPEN'; // amber NEAR SETTLEMENT (Bug 3)
 
   return (
     <article className="detail-view" data-zone="detail-view" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -116,9 +117,15 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
         </div>
         <div className="detail-head-actions">
           {envelope?.market_id && <RefreshButton slug={envelope.market_id} />}
-          <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
-            ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
-          </span>
+          {near ? (
+            <span className="detail-lifecycle state-pending" data-field="lifecycle" data-near-settlement="true">
+              ◐ NEAR SETTLEMENT
+            </span>
+          ) : (
+            <span className={`detail-lifecycle ${LIFECYCLE_CLASS[lifecycleState] ?? ''}`} data-field="lifecycle">
+              ● {LIFECYCLE_LABEL[lifecycleState] ?? lifecycleState}
+            </span>
+          )}
         </div>
       </header>
 
