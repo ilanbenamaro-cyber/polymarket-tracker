@@ -187,17 +187,18 @@ function MarketDetailView({ record, envelope, hist }: { record: MarketRecord; en
         </div>
       </div>
 
-      {/* NARRATIVE */}
-      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
-
       {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
-          1→0 with no remaining signal, so swap it for the settlement-consensus view (Bug 6). */}
+          1→0 with no remaining signal, so swap it for the settlement-consensus view (Bug 6).
+          Enh 3 hierarchy: header → headline → trust → DISTRIBUTION → narrative → analytics. */}
       <section className="detail-section">
         <h2 className="detail-h2">{near ? 'Settlement consensus' : 'Distribution'}</h2>
         {near
           ? <SettlementConsensus markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />
           : <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />}
       </section>
+
+      {/* NARRATIVE — after the chart (Enh 3): the number + distribution lead, the prose explains. */}
+      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
           "Collecting" state until enough days accrue; never dashes. */}
@@ -298,11 +299,17 @@ export function DetailEmpty() {
 
 export function DetailSkeleton() {
   return (
-    <div className="detail-view" data-zone="detail-skeleton" aria-hidden="true">
-      <div className="wl-skel-bar" style={{ width: '46%', height: 18, marginBottom: 18 }} />
-      <div className="wl-skel-bar" style={{ width: '70%', height: 40, marginBottom: 12 }} />
-      <div className="wl-skel-bar" style={{ width: '90%', height: 12, marginBottom: 24 }} />
-      <div className="wl-skel-bar" style={{ width: '100%', height: 160 }} />
+    <div className="detail-view" data-zone="detail-skeleton" data-field="detail-loading">
+      {/* Enh 7: name what's happening — a new market runs the full verified pipeline live,
+          which takes a moment, so the wait reads as work, not a hang. */}
+      <div className="detail-loading-msg" role="status" aria-live="polite">
+        <span className="detail-loading-title">Computing market data…</span>
+        <span className="detail-loading-sub faint">Fetching live Polymarket prices and running the verified pipeline — this takes a moment for a new market.</span>
+        <div className="detail-loading-bar" aria-hidden="true"><div className="detail-loading-bar-fill" /></div>
+      </div>
+      <div className="wl-skel-bar" style={{ width: '70%', height: 40, marginBottom: 12 }} aria-hidden="true" />
+      <div className="wl-skel-bar" style={{ width: '90%', height: 12, marginBottom: 24 }} aria-hidden="true" />
+      <div className="wl-skel-bar" style={{ width: '100%', height: 160 }} aria-hidden="true" />
     </div>
   );
 }
