@@ -239,7 +239,9 @@ a:hover { text-decoration: underline; }
 /* ── Zone 2: market detail (2c.3) ────────────────────────────────────────────
  * STRUCTURAL only — colours from existing semantic tokens (.conf-*, .state-*,
  * .is-stale, accents). No new design tokens. */
-.detail-view { padding: var(--sp-4) var(--sp-6) var(--sp-8); max-width: 920px; }
+/* Fill the whole detail grid area (1fr) at any width — no fixed cap left empty space to the
+   right on wide monitors (Bug A). Prose stays readable via a max-width on the narrative itself. */
+.detail-view { padding: var(--sp-4) var(--sp-6) var(--sp-8); width: 100%; }
 
 .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-4); }
 .detail-title { font-size: var(--fs-lg); margin: 0 0 var(--sp-1); line-height: var(--lh-tight); }
@@ -288,7 +290,8 @@ a:hover { text-decoration: underline; }
 .detail-stale-pill { color: var(--c-low); font-weight: 700; letter-spacing: var(--track-label); }
 
 .detail-narrative { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--bg-card-2);
-  border-left: 3px solid var(--accent-amber); border-radius: var(--radius); font-size: var(--fs-emph); line-height: var(--lh-prose); }
+  border-left: 3px solid var(--accent-amber); border-radius: var(--radius); font-size: var(--fs-emph);
+  line-height: var(--lh-prose); max-width: 80ch; }
 
 .detail-section { margin-top: var(--sp-6); }
 .detail-h2 { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: var(--track-label);
@@ -320,7 +323,7 @@ a:hover { text-decoration: underline; }
 .acard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3); }
 .acard-v { font-size: var(--fs-emph); font-weight: 700; margin-top: var(--sp-1); }
 .acard-s { font-size: var(--fs-micro); margin-top: var(--sp-1); }
-.detail-analytics-desc { font-size: var(--fs-tiny); margin-top: var(--sp-2); }
+.detail-analytics-desc { font-size: var(--fs-tiny); margin-top: var(--sp-2); max-width: 80ch; }
 
 /* history chart (Phase 1) */
 .hist-chart { margin-top: var(--sp-3); }
