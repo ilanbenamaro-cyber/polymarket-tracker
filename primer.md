@@ -8,6 +8,26 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 1b — CATEGORICAL MODEL — DONE on `feature/history-system` (live-verified)
+- **Categorical markets now COMPUTE** (was a 422 gate). `core/categorical.js` (de-vig
+  `normalizeProbabilities`, `shannonEntropy`, `consensusStrength`, `scoreCategoricalConfidence`,
+  `buildCategoricalRecord`) + `core/fetch.js` `fetchCategoricalMeta/Status/Snapshot` (YES-leg PMF
+  via the shared Phase-1 fallback chain) + `computeCategoricalRecord` (route in `compute.mjs`,
+  replacing the 422). **RAW observed midpoints stay in raw_inputs (threshold=leg index); de-vig is
+  display-only → hash recipe UNCHANGED** (constraint #2). schema.json categorical `allOf` branch +
+  `validate.js` skip + **migration 0007** (kind check) + methodology.json recipe doc.
+- **`CategoricalDetailView.tsx`** (dominant headline + entropy consensus meter + SVG outcome bars +
+  volume table + trust/hash-verify + trend chart), routed in MarketDetailView; HistoryChart treats
+  categorical as a 0–100% dominant-prob axis. `market-history` fineKind/headlineValue/dispersion updated.
+- **LIVE-VERIFIED** (`node scripts/verify-categorical.mjs`, network-only, no DB): `how-many-fed-rate-cuts-in-2026`
+  → 13 outcomes sum 1.0, dominant "0 (0 bps)" 80%, entropy 0.291→HIGH, hash re-verifies. **SpaceX parity 3/3.**
+  node --test **194/194** (+13), tsc clean, next build clean. Commit `e916207`.
+- **⚠ OPERATOR:** apply **migration 0007** to DEV (+ PROD at standup). Categorical adds to watchlist via
+  search now (no error). `scripts/verify-categorical.mjs` runnable anytime (no creds).
+- **NEXT:** Phase 2 (I5+ bug cluster: Bug 3 NEAR SETTLEMENT [started on `feature/i5-confidence-near-settlement`],
+  Bug 5 median labels, Bug 6, Bug 7 titles, Bug 8 analytics-collecting, Enh 1–8, signup, keyboard) → Phase 3
+  (v1-parity, HARD-GATED on real history rows) → Phase 4 polish.
+
 ## ⮕ DIRECTION (2026-06-25): Phase 1 — HISTORY SYSTEM — CODE DONE on `feature/history-system` (live gate pending operator)
 - **Why:** the multi-market product computes on demand + caches ONE snapshot, so every
   velocity/dispersion/trend card was empty (v1 SpaceX showed them from a stored daily series).
