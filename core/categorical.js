@@ -23,6 +23,39 @@ const VOL_MEDIUM = 10_000;
 const CONSENSUS_HIGH = 0.7;
 const CONSENSUS_MEDIUM = 0.4;
 
+// Polymarket seeds categorical events with PLACEHOLDER / UNTRADED legs — generic "Candidate C"
+// through "Candidate Z" (also "Choice X" / "Option X"), plus catch-all legs like "Other" — that
+// carry $0 all-time volume and sit at the untraded listing-price midpoint (~0.5 each). They are
+// market-structure artifacts, not real outcomes. CRITICAL (Bug Zero): they MUST be removed BEFORE
+// the de-vig normalization — including 25+ legs at ~0.5 in the denominator collapses a real leader
+// (Ryan Fazio's true 97% → ~7%; even one surviving "Other" at 0.5 drags him to ~65%).
+//
+// A leg is an artifact only when it has ZERO all-time volume AND EITHER a generic "<word> <letter>"
+// label OR a midpoint still pinned at the ~0.5 listing default (never traded → no market signal).
+// Any leg that has actually traded (volume > 0) is ALWAYS kept, however thin; and a zero-volume leg
+// with a real divergent quote (not ~0.5) is kept too — so a genuine low-odds candidate survives.
+const GENERIC_LEG_LABEL = /^(candidate|choice|option|name)\s+[a-z]$/i;
+const UNTRADED_MIDPOINT = 0.5;     // Polymarket's no-information seed price for a fresh leg
+const UNTRADED_EPS = 0.02;         // a leg within this of 0.5 with $0 volume has never traded
+
+/** True when a leg is a zero-volume placeholder / untraded artifact (not a real, active outcome). */
+export function isPlaceholderLeg(leg) {
+  if (!leg) return false;
+  const vol = leg.volume ?? 0;
+  if (vol !== 0) return false; // any traded leg is real, regardless of label or price
+  const label = String(leg.label ?? '').trim();
+  if (GENERIC_LEG_LABEL.test(label)) return true;
+  const raw = leg.prob;
+  return raw != null && Number.isFinite(raw) && Math.abs(raw - UNTRADED_MIDPOINT) <= UNTRADED_EPS;
+}
+
+/** Drop placeholder legs, but never strip a market below its real outcomes: if filtering would
+ *  leave nothing (a degenerate all-generic event), fall back to the original legs unchanged. */
+export function realCategoricalLegs(legs) {
+  const real = (legs ?? []).filter((l) => !isPlaceholderLeg(l));
+  return real.length > 0 ? real : (legs ?? []);
+}
+
 /** De-vig: scale a raw PMF to sum to 1, preserving ratios. All-zero ⇒ zeros (no div by 0). */
 export function normalizeProbabilities(rawProbs) {
   const sum = (rawProbs ?? []).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
@@ -52,9 +85,12 @@ export function consensusStrength(dominantProb) {
  *  normalized + sorted descending. Each outcome keeps BOTH the normalized `probability` and
  *  the `raw_probability` so the de-vig is transparent. */
 export function parseCategoricalOutcomes(legs) {
-  const raw = (legs ?? []).map((l) => (Number.isFinite(l.prob) ? l.prob : 0));
+  // Bug Zero: filter placeholder legs BEFORE de-vig so the normalization denominator is built
+  // from real candidates only (else a real leader collapses, e.g. Ryan Fazio 97% → 7%).
+  const real = realCategoricalLegs(legs);
+  const raw = real.map((l) => (Number.isFinite(l.prob) ? l.prob : 0));
   const norm = normalizeProbabilities(raw);
-  return (legs ?? [])
+  return real
     .map((l, i) => ({
       label: l.label,
       probability: norm[i],
