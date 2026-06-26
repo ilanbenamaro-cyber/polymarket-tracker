@@ -217,9 +217,17 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         </div>
       </div>
 
-      {/* KEY METRICS (v1 ITEMS 5 + 6) — P(>at-the-money) + P(>tail) with 30d change + total volume. */}
+      {/* KEY METRICS — for an OPEN market the v1 P(>at-the-money)/P(>tail) cards (ITEMS 5+6); for a
+          RESOLVED market those make no sense (every P(>X) is now 0/1 with a meaningless "30d Δ"), so
+          Bug C swaps them for RESOLUTION STATE cards: outcome, final median, resolution date. */}
       {Array.isArray(d.markets) && d.markets.length > 0 && (
-        <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} />
+        isFinal
+          ? <ResolvedMetricsSection
+              outcome={s?.lifecycle?.resolved_outcome}
+              medianLabel={impliedMedianLabel(d.markets, d.implied_median ?? null, unit)}
+              resolvedAt={s?.lifecycle?.as_of ?? s?.fetched_at ?? null}
+              unit={unit} />
+          : <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} />
       )}
 
       {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
@@ -348,6 +356,49 @@ function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
           <div className="label">Total volume</div>
           <div className="acard-v">{totalVolume != null ? fmtVolHuman(totalVolume) : '—'}</div>
           <div className="acard-s faint">cumulative, all legs</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Bug C: a concise settled-range label for a RESOLVED ladder (the resolution card value).
+ *  Mirrors resolvedBand but tighter — "Settled: $2.0–2.2T range" / "Settled above $X". */
+function settledRangeLabel(outcome: ResolvedLeg[] | undefined, unit: string): string {
+  if (!Array.isArray(outcome) || outcome.length === 0) return 'settled';
+  const yes = outcome.filter((o) => o.outcome === 'Yes').map((o) => o.threshold);
+  const no = outcome.filter((o) => o.outcome === 'No').map((o) => o.threshold);
+  const lastYes = yes.length ? Math.max(...yes) : null;
+  const firstNo = no.length ? Math.min(...no) : null;
+  if (lastYes != null && firstNo != null) return `Settled: $${lastYes}–${firstNo}${unit} range`;
+  if (lastYes != null) return `Settled above $${lastYes}${unit}`;
+  if (firstNo != null) return `Settled below $${firstNo}${unit}`;
+  return 'settled';
+}
+
+/** Bug C: RESOLUTION STATE cards for a RESOLVED ladder — outcome, final implied median, and the
+ *  resolution date — replacing the at-the-money/tail P(>X) cards (which read 0%/100% with a
+ *  meaningless "30d Δ" once a market has settled). */
+function ResolvedMetricsSection({ outcome, medianLabel, resolvedAt, unit }:
+  { outcome: ResolvedLeg[] | undefined; medianLabel: string; resolvedAt: string | null; unit: string }) {
+  return (
+    <section className="detail-section" data-field="resolved-metrics">
+      <h2 className="detail-h2">Resolution</h2>
+      <div className="detail-analytics">
+        <div className="acard" data-field="rcard-outcome">
+          <div className="label">Resolution outcome</div>
+          <div className="acard-v">{settledRangeLabel(outcome, unit)}</div>
+          <div className="acard-s faint">final settled range</div>
+        </div>
+        <div className="acard" data-field="rcard-median">
+          <div className="label">Final median</div>
+          <div className="acard-v">{medianLabel}</div>
+          <div className="acard-s faint">last implied median before resolution</div>
+        </div>
+        <div className="acard" data-field="rcard-date">
+          <div className="label">Resolution date</div>
+          <div className="acard-v">{resolvedAt ? fmtEastern(resolvedAt) : '—'}</div>
+          <div className="acard-s faint">captured at settlement</div>
         </div>
       </div>
     </section>

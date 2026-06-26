@@ -121,7 +121,7 @@ export interface Snapshot {
   source?: { raw_sha256?: string };
   raw_inputs?: unknown[];
   derived?: Derived;
-  lifecycle?: { state?: string; resolved_outcome?: ResolvedLeg[] };
+  lifecycle?: { state?: string; resolved_outcome?: ResolvedLeg[]; as_of?: string };
 }
 
 export interface MarketRecord {
