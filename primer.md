@@ -8,12 +8,33 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-25): Phase 5 — HISTORY BACKFILL — CODE DONE on `feature/history-backfill` (live gate pending operator)
+## ⮕ DIRECTION (2026-06-26): Phase 5 — HISTORY BACKFILL — MERGED to main (`--no-ff` `e270f05`) + PUSHED; live gate GREEN
+- **MERGED & PUSHED** (`e270f05`; `ff086d8..e270f05`; **255/255** on merged main; **SpaceX parity 3/3**; tsc +
+  build clean; `main`↔`origin/main` in sync). Branched off `main` (Phase 3 + Phase 4); no cron race.
+- **✅ PLAYWRIGHT LIVE GATE GREEN on dev `:3000`** (operator applied migration 0008 + set CRON_SECRET + ran
+  backfills; I drove the browser) across all THREE shape families, 0 app console errors throughout:
+  - **survival ladder** `spacex-ipo-closing-market-cap-above` (180 days, the definitive test): **Δ columns
+    24h/7d/30d** with real per-threshold values (>$2T +7.0/−1.0/0.0; >$1.6T +4.4/+1.6/+10.8; honest "—" where a
+    horizon has no matching day), **Biggest Movers** real data (>$2.4T ▼−11.0 37→26%, >$1.6T ▲+10.8 85→95%,
+    >$1.8T ▲+9.0), velocity `rising +0.06 $T`, **dispersion `converging IQR −46%`** (needs ≥30d — 180 delivers),
+    HistoryChart **ALL = 180 dots**.
+  - **touch** (Anthropic Dec-31 HIGH-only + SpaceX Jun-30, 37d each): velocity + 38-day chart populate;
+    dispersion n/a + no Δ/movers — **CORRECT, touch markets have no threshold ladder by design**.
+- **⚠ TWO FOLLOW-ON FIXES from the live gate (both in the merge):** (a) **one-sided touch trend** —
+  `headlineValue` returned the midpoint of BOTH range bounds → null when either is null; a HIGH-only "hit $X"
+  market has no LOW crossover → trend NEVER charted. Now tracks the single available bound (display-only, no
+  hash/parity impact). (b) **detail history read 90→365 days** — a backfill writes 180+ days but `readHistory(id,
+  90)` showed only the tail for a market whose data ends weeks ago (74 of 180). Now the chart's ALL shows the
+  full series.
+- **⚠ SHAPE LEARNING (cost 2 gate rounds):** Polymarket "valuation **hit** $X" / "(HIGH)"/"(LOW)" markets are
+  `directional_touch` (range view — NO Δ columns / movers / dispersion). The **survival ladder** is "cap
+  **above** $X" (P(>X)); "**between** $X and $Y" is `bucket_pmf` (renders as a ladder). Δ/movers only exist on
+  survival/bucket. When verifying ladder analytics, pick a "cap above" or "between" market.
 - **What:** on add, rebuild `market_history` from Polymarket CLOB prices-history so the Phase-3
   analytics populate from day one (not after weeks of cron). Built + offline-gated as I1–I4
   (`1499837`/`b68cebf`/`ecb1c92`/`1bdf12d`). **The UI needs no change — it already reads `readHistory`.**
   Full "why" + provenance model in [[decisions]] "History backfill on add"; the endpoint traps in [[gotchas]]
-  "CLOB prices-history". Branched off `main` (which carries Phase 3 + Phase 4).
+  "CLOB prices-history".
 - **I1 `core/price-history.js` (pure, 8 tests):** `prices-history?market=<token>&interval=max&fidelity=1440`
   → `{history:[{t,p}]}`; floor to UTC DATE (raw `t` varies by token → date-floor aligns legs), last point per
   date, forward-fill gaps (flagged), `complete=false` before a leg's first point.
@@ -34,18 +55,19 @@
   `/api/backfill`** from session auth (the bearer-route gotcha — applied, not re-discovered).
 - **OFFLINE GATES GREEN:** node --test **255/255** (+20), **SpaceX parity 3/3**, tsc clean, next build clean
   (`/api/backfill` registered). No `core/fetch.js` behavior change (only `export`s).
-- **⚠ OPERATOR LIVE GATE (the part I can't run — needs dev Supabase creds + migration applied):**
-  (1) **apply migration 0008** to dev (`market_history.source`, `markets.backfill_status`/`backfilled_through`);
-  (2) set **CRON_SECRET** in `.env.local` (+ Vercel scopes at standup); (3) **single** clean dev server
-  (`rm -rf .next && npm run dev`); (4) backfill a real market — either add one via the UI, or
-  `curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3001/api/backfill?id=<slug>&wait=1"` →
-  expect a JSON summary `{written, failed, days}`; (5) verify `market_history` has `source='backfill'` rows for
-  past dates + `markets.backfill_status='done'` + `backfilled_through`; (6) open that market's detail → the
-  chart/Δ/movers/velocity/dispersion populate from the **real backfilled history** immediately. Then **merge
-  `--no-ff` to main**. PROD-STANDUP now also needs **0008** applied + CRON_SECRET (already required for the cron).
-- **NEXT (after the live gate + merge):** wire the daily cron to RETRY `backfill_status IN ('failed', null)`
-  markets (the columns exist for it); optional UI "backfilling history…" signal from `backfill_status`. Then
-  Phase 4-style polish. Also still pending from earlier: nothing — `main` (Phase 3 + Phase 4) was pushed.
+- **✅ LIVE GATE — DONE** (steps kept for re-run): (1) **migration 0008** applied to dev; (2) **CRON_SECRET**
+  set in `.env.local`; (3) single clean dev server; (4) backfill via UI add or
+  `curl -H "Authorization: Bearer $CRON_SECRET" ".../api/backfill?id=<slug>&wait=1"` → `{written, failed, days}`;
+  (5) `market_history` has `source='backfill'` rows + `markets.backfill_status='done'`/`backfilled_through`;
+  (6) detail populates from real backfilled history. All green — see the ✅ bullet at the top of this entry.
+  **⚠ PROD-STANDUP now also needs migration 0008 applied + CRON_SECRET** (CRON_SECRET was already required for
+  the daily cron). Migrations to apply at standup: **0001–0008**.
+- **NEXT:** wire the daily cron (`/api/snapshot`) to RETRY `backfill_status IN ('failed', null)` markets — the
+  columns exist for it; optional UI "backfilling history…" signal from `backfill_status`. Then Phase 4-style
+  polish (the touch range-bar narrow-band nit was already fixed in Phase 4). A possible perf optimization: the
+  detail now reads up to 365 full `record` JSONBs for the chart — the Δ/mover/velocity/dispersion derivations
+  only need a handful of horizon records + lean {date,value} for the chart, so a leaner history read could be
+  split out later if detail-load latency becomes a concern.
 
 ## ⮕ DIRECTION (2026-06-25): Phase 4 — LAYOUT FIXES (Bug A width-fill + Bug B touch labels) — MERGED to main (`--no-ff` `782cbed`)
 - **MERGED** (`782cbed`; **235/235** on merged main; parity 3/3; tsc + build clean). **NOT yet pushed.**
