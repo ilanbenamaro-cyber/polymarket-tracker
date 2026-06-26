@@ -7,11 +7,13 @@
 // keep MarketDetailView ⇄ Binary/Touch view imports acyclic. Server component (the chart
 // itself is the only client island).
 
-import { HistoryChart, type HistoryPoint } from './HistoryChart';
+import { HistoryChart, type HistoryPoint, type ChartSeries } from './HistoryChart';
 
 export interface VelocityResult { status: string; kind?: string; trend?: string; period?: string; change?: number; days_have?: number; days_needed?: number; }
 export interface DispersionResult { status: string; direction?: string; change_pct?: number; current_width?: number; days_have?: number; days_needed?: number; }
-export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; }
+// `series` (v1 ITEM 7) is the multi-line dual-axis chart data for survival/bucket ladders; null
+// for binary/touch/categorical (the chart falls back to the single `points` headline line).
+export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; }
 
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */
@@ -67,7 +69,7 @@ export function TrendHistorySection({ hist, unit, label }: { hist: HistoryUI; un
         <VelocityCard v={hist.velocity} unit={unit} />
         <DispersionCard d={hist.dispersion} unit={unit} />
       </div>
-      <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} />
+      <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} series={hist.series ?? null} />
     </section>
   );
 }

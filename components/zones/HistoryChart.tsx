@@ -1,28 +1,40 @@
 'use client';
-// components/zones/HistoryChart.tsx — the historical trends chart (Phase 1).
+// components/zones/HistoryChart.tsx — the historical trends chart (Phase 1 + v1 ITEM 7).
 //
 // Hand-rolled inline SVG (no charting dependency, same approach as DistributionSVG),
-// fed a LEAN server-built series ({date,value}[]) so the heavy record JSONB never ships
-// to the client. Phase 1 plots the single headline line per kind — survival/bucket:
-// implied median; binary: YES probability; touch: implied-range midpoint — with a
-// 7D/30D/90D/ALL time-range toggle (the one piece of client state, hence 'use client').
-// Phase 3 layers per-threshold lines + faded low-confidence segments on this same frame.
+// fed a LEAN server-built series so the heavy record JSONB never ships to the client.
 //
-// Below 2 points in the selected window it shows an explicit "Collecting history" state —
-// never an empty axis, never dashes. SVG <text> uses a single string child (the adjacent
-// dynamic+static hydration trap, see gotchas.md).
+// TWO modes, chosen by whether a `series` prop is supplied:
+//   • SINGLE-LINE (binary/touch/categorical, and ladder before history accrues): the one
+//     headline line per kind — binary YES prob; touch range midpoint; categorical dominant
+//     prob; ladder implied median — on one axis.
+//   • DUAL-AXIS MULTI-LINE (v1 ITEM 7, survival/bucket only): per-threshold P(>X) lines on a
+//     left 0–100% probability axis + implied median (+ faint dashed mean) on a right value axis,
+//     exactly the v1 trend chart. Low-confidence days are dashed/faded. Built server-side
+//     (lib/market-history.deriveChartSeries); only lean {date,value}[] per line crosses the wire.
+//
+// Both share the 7D/30D/90D/ALL time-range toggle (the one piece of client state, hence
+// 'use client'). Below 2 points in the window → an explicit "Collecting history" state, never
+// an empty axis. SVG <text> uses a single string child (the adjacent dynamic+static hydration
+// trap, see gotchas.md).
 
 import { useState } from 'react';
 
 export interface HistoryPoint { date: string; value: number }
+export interface ChartLine { key: string; label?: string; threshold?: number; points: HistoryPoint[]; faint?: boolean; dashed?: boolean }
+export interface ChartSeries { dual: boolean; probLines: ChartLine[]; valueLines: ChartLine[]; lowDays: string[] }
 
 const VB_W = 480;
 const VB_H = 180;
 const PAD = { t: 12, r: 14, b: 28, l: 44 };
+const PAD_DUAL = { t: 12, r: 44, b: 28, l: 44 }; // dual axis needs room on the right for the value ticks
 const RANGES: { key: string; days: number | null }[] = [
   { key: '7D', days: 7 }, { key: '30D', days: 30 }, { key: '90D', days: 90 }, { key: 'ALL', days: null },
 ];
 const DAY_MS = 86_400_000;
+const PROB_CLASSES = ['hist-line-p0', 'hist-line-p1', 'hist-line-p2']; // up to 3 threshold lines
+
+const ms = (date: string) => Date.parse(`${date}T00:00:00Z`);
 
 /** Probability-axis kinds use a 0–100% scale; value kinds use a padded data range. */
 const isPctKind = (kind: string) => kind === 'binary' || kind === 'categorical';
@@ -33,44 +45,80 @@ function fmtVal(v: number, kind: string, unit: string): string {
   return `$${v.toFixed(2)}${unit}`;
 }
 
-export function HistoryChart({ points, kind, unit = '', label = 'Value' }:
-  { points: HistoryPoint[]; kind: string; unit?: string; label?: string }) {
+export function HistoryChart({ points, kind, unit = '', label = 'Value', series = null }:
+  { points: HistoryPoint[]; kind: string; unit?: string; label?: string; series?: ChartSeries | null }) {
   const [range, setRange] = useState<string>('30D');
   const sel = RANGES.find((r) => r.key === range) ?? RANGES[3];
+  const days = sel.days; // hoist for narrowing inside the filter closures
 
-  const days = sel.days; // hoist for narrowing inside the filter closure
+  // DUAL-AXIS path (ladder with derived series). The collecting test uses the median line —
+  // the headline value line that always exists when there is any ladder history at all.
+  if (series && series.dual) {
+    const filt = (pts: HistoryPoint[]) => {
+      if (days == null) return pts;
+      const last = pts.length ? ms(pts[pts.length - 1].date) : 0;
+      return pts.filter((p) => ms(p.date) >= last - days * DAY_MS);
+    };
+    const probLines = series.probLines.map((l) => ({ ...l, points: filt(l.points) }));
+    const valueLines = series.valueLines.map((l) => ({ ...l, points: filt(l.points) }));
+    const primary = valueLines.find((l) => l.key === 'median') ?? valueLines[0] ?? probLines[0];
+    const enough = primary && primary.points.length >= 2;
+    return (
+      <div className="hist-chart" data-field="history-chart">
+        <ChartHead label={label} range={range} setRange={setRange} />
+        {!enough
+          ? <Collecting range={range} />
+          : <DualPlot probLines={probLines} valueLines={valueLines} lowDays={series.lowDays} unit={unit} />}
+        {enough && <DualLegend probLines={probLines} valueLines={valueLines} unit={unit} />}
+      </div>
+    );
+  }
+
+  // SINGLE-LINE path (default).
   const sorted = [...(points ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const lastMs = sorted.length ? Date.parse(`${sorted[sorted.length - 1].date}T00:00:00Z`) : 0;
+  const lastMs = sorted.length ? ms(sorted[sorted.length - 1].date) : 0;
   const visible = days == null ? sorted
-    : sorted.filter((p) => Date.parse(`${p.date}T00:00:00Z`) >= lastMs - days * DAY_MS);
+    : sorted.filter((p) => ms(p.date) >= lastMs - days * DAY_MS);
 
   return (
     <div className="hist-chart" data-field="history-chart">
-      <div className="hist-head">
-        <div className="label">{`${label} over time`}</div>
-        <div className="hist-range" role="group" aria-label="time range">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              className={`hist-range-btn${r.key === range ? ' is-active' : ''}`}
-              aria-pressed={r.key === range}
-              onClick={() => setRange(r.key)}
-            >{r.key}</button>
-          ))}
-        </div>
-      </div>
+      <ChartHead label={label} range={range} setRange={setRange} />
       {visible.length < 2
-        ? <div className="empty" data-field="history-collecting">
-            {`Collecting history — the trend chart appears once ${range === 'ALL' ? '2+' : `2+ in the last ${range.toLowerCase()}`} daily snapshots exist.`}
-          </div>
+        ? <Collecting range={range} />
         : <Plot points={visible} kind={kind} unit={unit} />}
     </div>
   );
 }
 
+function ChartHead({ label, range, setRange }: { label: string; range: string; setRange: (k: string) => void }) {
+  return (
+    <div className="hist-head">
+      <div className="label">{`${label} over time`}</div>
+      <div className="hist-range" role="group" aria-label="time range">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            className={`hist-range-btn${r.key === range ? ' is-active' : ''}`}
+            aria-pressed={r.key === range}
+            onClick={() => setRange(r.key)}
+          >{r.key}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Collecting({ range }: { range: string }) {
+  return (
+    <div className="empty" data-field="history-collecting">
+      {`Collecting history — the trend chart appears once ${range === 'ALL' ? '2+' : `2+ in the last ${range.toLowerCase()}`} daily snapshots exist.`}
+    </div>
+  );
+}
+
 function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; unit: string }) {
-  const xs = points.map((p) => Date.parse(`${p.date}T00:00:00Z`));
+  const xs = points.map((p) => ms(p.date));
   const xLo = xs[0], xHi = xs[xs.length - 1];
   const ys = points.map((p) => p.value);
   // Probability kinds use a fixed 0–100% axis; value kinds use a padded data range.
@@ -81,7 +129,7 @@ function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; un
     const pad = (max - min) * 0.1 || Math.abs(max) * 0.05 || 1;
     yLo = min - pad; yHi = max + pad;
   }
-  const xScale = (ms: number) => xHi === xLo ? PAD.l : PAD.l + ((ms - xLo) / (xHi - xLo)) * (VB_W - PAD.l - PAD.r);
+  const xScale = (msVal: number) => xHi === xLo ? PAD.l : PAD.l + ((msVal - xLo) / (xHi - xLo)) * (VB_W - PAD.l - PAD.r);
   const yScale = (v: number) => yHi === yLo ? VB_H - PAD.b : VB_H - PAD.b - ((v - yLo) / (yHi - yLo)) * (VB_H - PAD.t - PAD.b);
   const line = points.map((p, i) => `${xScale(xs[i]).toFixed(1)},${yScale(p.value).toFixed(1)}`).join(' ');
 
@@ -105,5 +153,98 @@ function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; un
       <text className="dist-tick" x={PAD.l} y={VB_H - PAD.b + 16} textAnchor="start">{first.date}</text>
       <text className="dist-tick" x={VB_W - PAD.r} y={VB_H - PAD.b + 16} textAnchor="end">{last.date}</text>
     </svg>
+  );
+}
+
+/** v1 ITEM 7: the dual-axis multi-line plot. Probability lines read off the LEFT axis (0–100%),
+ *  value lines (median/mean) off the RIGHT axis. Each line is drawn segment-by-segment so a
+ *  low-confidence day can dash/fade just its adjacent segments (the v1 segment styling). */
+function DualPlot({ probLines, valueLines, lowDays, unit }:
+  { probLines: ChartLine[]; valueLines: ChartLine[]; lowDays: string[]; unit: string }) {
+  const P = PAD_DUAL;
+  const low = new Set(lowDays);
+  // X domain across every visible point on every line.
+  const allDates = [...probLines, ...valueLines].flatMap((l) => l.points.map((p) => ms(p.date)));
+  const xLo = Math.min(...allDates), xHi = Math.max(...allDates);
+  const xScale = (msVal: number) => xHi === xLo ? P.l : P.l + ((msVal - xLo) / (xHi - xLo)) * (VB_W - P.l - P.r);
+
+  // LEFT axis: probability 0–100%. RIGHT axis: value range across the value lines, padded.
+  const yP = (v: number) => (VB_H - P.b) - v * (VB_H - P.t - P.b); // v in 0..1
+  const vVals = valueLines.flatMap((l) => l.points.map((p) => p.value));
+  const vMin = vVals.length ? Math.min(...vVals) : 0;
+  const vMax = vVals.length ? Math.max(...vVals) : 1;
+  const vPad = (vMax - vMin) * 0.1 || Math.abs(vMax) * 0.05 || 1;
+  const vLo = vMin - vPad, vHi = vMax + vPad;
+  const yV = (v: number) => vHi === vLo ? VB_H - P.b : (VB_H - P.b) - ((v - vLo) / (vHi - vLo)) * (VB_H - P.t - P.b);
+
+  const segments = (line: ChartLine, yScale: (v: number) => number, cls: string) =>
+    line.points.slice(1).map((p, i) => {
+      const prev = line.points[i];
+      const isLow = low.has(prev.date) || low.has(p.date);
+      return (
+        <line
+          key={`${line.key}-${i}`}
+          className={`hist-line ${cls}${isLow ? ' is-low' : ''}`}
+          x1={xScale(ms(prev.date))} y1={yScale(prev.value)}
+          x2={xScale(ms(p.date))} y2={yScale(p.value)}
+        />
+      );
+    });
+
+  const probTicks = [0, 0.5, 1];
+  const valTicks = [vLo, (vLo + vHi) / 2, vHi];
+  const firstDate = new Date(xLo).toISOString().slice(0, 10);
+  const lastDate = new Date(xHi).toISOString().slice(0, 10);
+
+  return (
+    <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Multi-line dual-axis history chart" data-field="history-svg" data-dual="true">
+      {/* left probability axis grid + ticks */}
+      {probTicks.map((v, i) => (
+        <g key={`p${i}`}>
+          <line className="dist-grid" x1={P.l} x2={VB_W - P.r} y1={yP(v)} y2={yP(v)} />
+          <text className="dist-axis" x={P.l - 5} y={yP(v) + 3} textAnchor="end">{`${Math.round(v * 100)}%`}</text>
+        </g>
+      ))}
+      {/* right value axis ticks (no grid lines — they belong to the left axis) */}
+      {valueLines.length > 0 && valTicks.map((v, i) => (
+        <text key={`v${i}`} className="hist-axis-r" x={VB_W - P.r + 5} y={yV(v) + 3} textAnchor="start">{`$${v.toFixed(2)}${unit}`}</text>
+      ))}
+      {/* probability lines (left axis) */}
+      {probLines.map((l, i) => segments(l, yP, PROB_CLASSES[i] ?? 'hist-line-p2'))}
+      {/* value lines (right axis): median solid bright, mean faint dashed */}
+      {valueLines.map((l) => segments(l, yV, l.key === 'median' ? 'hist-line-median' : 'hist-line-mean'))}
+      <text className="dist-tick" x={P.l} y={VB_H - P.b + 16} textAnchor="start">{firstDate}</text>
+      <text className="dist-tick" x={VB_W - P.r} y={VB_H - P.b + 16} textAnchor="end">{lastDate}</text>
+    </svg>
+  );
+}
+
+/** Legend chips for the dual chart — names each line so the colour hierarchy is legible. */
+function DualLegend({ probLines, valueLines, unit }: { probLines: ChartLine[]; valueLines: ChartLine[]; unit: string }) {
+  const swatch = (cls: string) => {
+    const map: Record<string, string> = {
+      'hist-line-p0': 'var(--accent-amber)', 'hist-line-p1': 'var(--accent-blue)', 'hist-line-p2': 'var(--text-muted)',
+      'hist-line-median': 'var(--tier1)', 'hist-line-mean': 'var(--tier1)',
+    };
+    return { borderTopColor: map[cls] ?? 'var(--text-muted)', opacity: cls === 'hist-line-mean' ? 0.4 : 1 };
+  };
+  return (
+    <>
+      <div className="hist-legend" data-field="history-legend">
+        {probLines.map((l, i) => (
+          <span key={l.key} className="hist-leg">
+            <span className="hist-swatch" style={swatch(PROB_CLASSES[i] ?? 'hist-line-p2')} />
+            {`P(>$${l.threshold}${unit})`}
+          </span>
+        ))}
+        {valueLines.map((l) => (
+          <span key={l.key} className="hist-leg">
+            <span className="hist-swatch" style={swatch(l.key === 'median' ? 'hist-line-median' : 'hist-line-mean')} />
+            {l.label ?? l.key}
+          </span>
+        ))}
+      </div>
+      <p className="hist-note">Probabilities read off the left axis; valuation off the right. Dashed/faded segments are low-confidence days.</p>
+    </>
   );
 }

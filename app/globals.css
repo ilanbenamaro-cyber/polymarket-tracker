@@ -281,6 +281,9 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: var(--sp-2); }
 .trust-reasons, .trust-prov { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-tiny); }
 .trust-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2px var(--sp-2); color: var(--text-muted); }
+/* v1 ITEM 11: tier-marked confidence-basis chips (✓ passed · caveat · ✗ failed). */
+.conf-chip-high { color: var(--c-high); border-color: color-mix(in srgb, var(--c-high) 40%, var(--border)); }
+.conf-chip-low { color: var(--c-low); border-color: color-mix(in srgb, var(--c-low) 40%, var(--border)); }
 .trust-sep { color: var(--text-faint); }
 .hashverify { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .prov-hash { font-family: var(--font-mono); background: var(--bg-card); padding: 1px var(--sp-2); border-radius: var(--radius-sm); color: var(--text); }
@@ -338,6 +341,22 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius); cursor: pointer; letter-spacing: var(--track-label); }
 .hist-range-btn:hover { color: var(--accent-blue); border-color: var(--border-strong); }
 .hist-range-btn.is-active { color: var(--accent-amber); border-color: var(--accent-amber); }
+/* v1 ITEM 7: multi-line dual-axis trend chart — per-threshold P(>X) lines (left % axis) +
+   implied median/mean (right value axis). Deliberate hierarchy: median brightest/thickest,
+   threshold probs supporting, mean a faint dashed reference. Low-confidence days are dashed. */
+.hist-line { fill: none; stroke-width: 1.4; }
+.hist-line-p0 { stroke: var(--accent-amber); }
+.hist-line-p1 { stroke: var(--accent-blue); }
+.hist-line-p2 { stroke: var(--text-muted); }
+.hist-line-median { stroke: var(--tier1); stroke-width: 2.6; }
+.hist-line-mean { stroke: var(--tier1); stroke-width: 1.2; opacity: 0.4; stroke-dasharray: 5 4; }
+.hist-line.is-low { stroke-dasharray: 4 3; opacity: 0.45; }
+.hist-axis-r { fill: var(--text-faint); font-family: var(--font-mono); font-size: 9px; }
+.hist-legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2);
+  font-size: var(--fs-tiny); color: var(--text-muted); }
+.hist-leg { display: inline-flex; align-items: center; gap: 5px; }
+.hist-swatch { width: 14px; height: 0; border-top-width: 2px; border-top-style: solid; display: inline-block; }
+.hist-note { margin-top: var(--sp-1); font-size: var(--fs-micro); color: var(--text-faint); }
 
 /* ladder table */
 .detail-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
@@ -346,6 +365,9 @@ a:hover { text-decoration: underline; }
 .detail-table th { color: var(--text-muted); font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: var(--track-label); font-weight: 600; }
 .detail-table .tl { text-align: left; }
 .detail-table tr.thin td { opacity: 0.5; }
+/* v1 ITEM 9: the at-the-money rung (P nearest 50%) — the threshold that matters most. */
+.detail-table tr.tracked td { color: var(--accent-amber); font-weight: 600; opacity: 1; }
+.track-dot { color: var(--accent-amber); }
 .adjmark { color: var(--accent-amber); cursor: help; }
 .vdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: var(--sp-1); vertical-align: middle; }
 .v-high { background: var(--c-high); } .v-med { background: var(--c-med); } .v-low { background: var(--text-faint); } .v-na { background: transparent; }

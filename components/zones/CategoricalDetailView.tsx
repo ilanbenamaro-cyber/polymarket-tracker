@@ -8,7 +8,8 @@
 // freshness, provenance + hash-verify) is identical to every other detail. Server component;
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { ConfidenceBasis } from './ConfidenceBasis';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -79,6 +80,15 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
   const winner = resolvedWinner(s?.lifecycle?.resolved_outcome);
 
+  // v1 ITEM 1/5: the dominant-outcome probability + its move over 30d/7d (from the lean history
+  // series the view holds). Gated by days_have so a short window isn't mislabelled "past month".
+  const pts = hist?.points ?? [];
+  const daysHave = hist?.velocity?.days_have ?? 0;
+  const change30 = daysHave >= 28 ? pointChange(pts, 30) : null;
+  const change7 = daysHave >= 7 ? pointChange(pts, 7) : null;
+  const noConsensus = d.implied_winner === 'no consensus';
+  const totalVolume = d.total_volume ?? outcomes.reduce((sum, o) => sum + (o.volume ?? 0), 0);
+
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="categorical" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
       <header className="detail-head">
@@ -127,14 +137,9 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
         </div>
       </div>
 
-      {/* TRUST BAND — identical to every other detail */}
+      {/* TRUST BAND — identical to every other detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
-          <div className="trust-reasons">
-            <span className="label">Confidence basis</span>
-            {conf.reasons.map((r: string, i: number) => <span key={i} className="trust-chip">{r}</span>)}
-          </div>
-        )}
+        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -147,7 +152,32 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
         </div>
       </div>
 
-      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+      {/* KEY METRICS (v1 ITEMS 5 + 8) — the leading-outcome probability with its 30d move +
+          consensus (entropy) + volume, each with a plain-English sub-label. */}
+      <section className="detail-section" data-field="key-metrics">
+        <h2 className="detail-h2">Key metrics</h2>
+        <div className="detail-analytics">
+          <div className="acard" data-field="pcard-leader">
+            <div className="label">Leading outcome</div>
+            <div className="acard-v">{pctStr(d.dominant_prob)}</div>
+            <div className={`acard-s ${deltaSign(change30)}`}>{change30 == null ? <span className="faint">no 30d history</span> : <>{fmtDeltaPp(change30)} pp · 30d</>}</div>
+          </div>
+          <div className="acard" data-field="pcard-consensus">
+            <div className="label">Consensus (entropy)</div>
+            <div className={`acard-v ${consensus.cls}`}>{consensus.label}</div>
+            <div className="acard-s faint">{d.entropy != null ? `entropy ${d.entropy.toFixed(2)} · ${d.entropy < 0.5 ? 'lo = agrees' : 'hi = uncertain'}` : '—'}</div>
+          </div>
+          <div className="acard" data-field="pcard-volume">
+            <div className="label">Volume</div>
+            <div className="acard-v">{totalVolume ? fmtVolHuman(totalVolume) : '—'}</div>
+            <div className="acard-s faint">cumulative, all outcomes</div>
+          </div>
+        </div>
+      </section>
+
+      {/* NARRATIVE (v1 ITEM 1) — leading outcome + 30d/7d move + consensus read + confidence,
+          built display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
+      <p className="detail-narrative" data-field="narrative">{categoricalNarrative({ dominantOutcome: d.dominant_outcome ?? null, dominantProb: d.dominant_prob ?? null, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative}</p>
 
       {/* OUTCOME DISTRIBUTION — the analytical centerpiece */}
       <section className="detail-section">
