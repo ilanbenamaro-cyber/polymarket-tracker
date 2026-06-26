@@ -16,7 +16,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { serveMarket } from '@/lib/serve-market.mjs';
-import { allWatchedMarketIds, marketsSnapshottedOn, writeHistory } from '@/lib/market-history.mjs';
+import { allWatchedMarketIds, marketsSnapshottedOn, writeHistory, marketsNeedingBackfill } from '@/lib/market-history.mjs';
 
 // Node runtime: core/ + the service-role Supabase client require Node APIs (not edge).
 export const runtime = 'nodejs';
@@ -27,6 +27,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const NO_STORE = { 'cache-control': 'no-store' } as const;
+// Cap the per-run backfill retries so a large backlog drains over successive daily runs without
+// blowing the cron's budget (each retry only FIRES /api/backfill, which owns the actual rebuild).
+const BACKFILL_RETRY_LIMIT = 10;
 
 /** Timing-safe `Authorization: Bearer <CRON_SECRET>` check. Fails CLOSED when the secret
  *  is unset (never run unauthenticated) or on any length/content mismatch. */
@@ -87,6 +90,29 @@ export async function GET(req: Request): Promise<Response> {
     }
   }
 
+  // Retry markets whose backfill never completed (status null = the add-time trigger never ran,
+  // e.g. added before CRON_SECRET was set; or 'failed'). We FIRE the dedicated /api/backfill route
+  // (its own time budget; it ACKs 202 and rebuilds in its own after()) rather than backfill inline,
+  // so this cron stays within maxDuration. Bounded per run so a large backlog drains over days.
+  const backfill_retried: string[] = [];
+  try {
+    const needing = (await marketsNeedingBackfill(ids)).slice(0, BACKFILL_RETRY_LIMIT);
+    const origin = new URL(req.url).origin;
+    const secret = process.env.CRON_SECRET as string; // authorized() passed ⇒ secret is set
+    for (const id of needing) {
+      try {
+        await fetch(`${origin}/api/backfill?id=${encodeURIComponent(id)}`, {
+          method: 'POST', headers: { authorization: `Bearer ${secret}` }, cache: 'no-store',
+        });
+        backfill_retried.push(id);
+      } catch (e) {
+        console.warn('[snapshot] backfill retry failed', id, (e as Error).message);
+      }
+    }
+  } catch (e) {
+    console.warn('[snapshot] backfill-retry query failed', (e as Error).message);
+  }
+
   const summary = {
     ok: true,
     started_at: startedAt,
@@ -97,6 +123,7 @@ export async function GET(req: Request): Promise<Response> {
     success,
     failed,
     failures,
+    backfill_retried,
   };
   // Observable in Vercel deployment logs (success/failed/skipped counts + per-market errors).
   console.log('[snapshot]', JSON.stringify(summary));
