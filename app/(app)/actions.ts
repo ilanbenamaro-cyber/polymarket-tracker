@@ -68,20 +68,32 @@ export async function addMarket(slug: string, orgId: string | null): Promise<Act
  *  (skips when unset — fails closed, never runs the job open), and any failure here NEVER affects
  *  the add (history simply backfills later, or via the cron retry of a 'failed' status). */
 async function triggerBackfill(id: string): Promise<void> {
+  // Audit F2: every skip/failure here used to be SILENT, so a market added before CRON_SECRET was
+  // set (or any trigger failure) left market_history empty with NO trace — backfill_status stays
+  // null and nothing logs. Each path now logs, so a missed backfill is observable in the server
+  // logs (and the cron should retry markets where backfill_status IS NULL or 'failed').
   const secret = process.env.CRON_SECRET;
-  if (!secret) return; // no secret configured ⇒ no backfill trigger (same fail-closed posture as the route)
+  if (!secret) {
+    console.warn('[backfill-trigger]', JSON.stringify({ id, skipped: 'CRON_SECRET unset' }));
+    return; // fail-closed: never run the job open
+  }
   try {
     const h = await headers();
     const host = h.get('host');
-    if (!host) return;
+    if (!host) {
+      console.warn('[backfill-trigger]', JSON.stringify({ id, skipped: 'no host header' }));
+      return;
+    }
     const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-    await fetch(`${proto}://${host}/api/backfill?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`${proto}://${host}/api/backfill?id=${encodeURIComponent(id)}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${secret}` },
       cache: 'no-store',
     });
-  } catch {
-    // swallow — fire-and-forget; the market is already added and the cron will retry the backfill
+    if (!res.ok) console.warn('[backfill-trigger]', JSON.stringify({ id, route_status: res.status }));
+  } catch (e) {
+    // fire-and-forget: a trigger failure NEVER affects the add — but log it (the cron retries later).
+    console.warn('[backfill-trigger]', JSON.stringify({ id, error: (e as Error).message }));
   }
 }
 
