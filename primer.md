@@ -8,6 +8,48 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-26): v1-DEPTH DETAIL (items 1–11 + dual-axis chart + non-ladder propagation) — MERGED to main (`--no-ff` `e31c02d`) + PUSHED
+- **MERGED & PUSHED** (`e31c02d`; `b9182bc..e31c02d`; **278/278** on merged main; **SpaceX parity 3/3**;
+  tsc + build clean; `main`↔`origin/main` in sync). Clean topology (main was an ancestor of
+  `feature/v1-depth-detail`, no cron race). The whole v1-depth epic is **display-only** — no
+  pipeline/hash/stored-data change; frozen SpaceX `raw_sha256` byte-identical.
+- **The epic brought the detail views to v1 depth.** Items 1–6,8–11 (survival ladder) landed in the
+  first two commits (`8e17b03`/`5a55393`); this session finished it: **ITEM 7** + propagation.
+- **ITEM 7 — multi-line DUAL-AXIS history chart** (survival/bucket ladders only): per-threshold
+  P(>X) lines on a LEFT 0–100% axis + implied median (bright) + faint dashed mean on a RIGHT
+  valuation axis, low-confidence days dashed — exactly the v1 trend chart. New pure
+  `lib/market-history.deriveChartSeries` builds **lean `{date,value}[]` per line server-side** (the
+  record JSONB never ships — it reads per-threshold probs from the record on the server, emits only
+  scalars). `HistoryChart.tsx` gained an optional `series` prop + a `DualPlot` rendered
+  **segment-by-segment** so a low-conf day dashes just its adjacent segments; legend + axis note.
+  Binary/touch/categorical pass `series=null` → unchanged single-line path. **Playwright-verified on
+  SpaceX** (180-day backfill): `data-dual="true"`, 3 prob lines (P(>$2.4T)/$2.2T/$2T), median+mean,
+  dual axes ($2.08–$2.50T right / 0–100% left), low-conf dashing. Screenshot
+  `v1-item7-dual-axis-chart-spacex.png`.
+- **PROPAGATION of items 1/5/8/11 to Binary/Touch/CategoricalDetailView:**
+  - **ITEM 11** — confidence basis as a tier-marked **checklist** (✓ high · caveat ✗ low). Extracted
+    to a shared **`components/zones/ConfidenceBasis.tsx`** and adopted by the ladder view too (DRY).
+  - **ITEM 1** — deterministic per-kind narrative (`binaryNarrative`/`touchNarrative`/
+    `categoricalNarrative` in `format-detail.mjs`): headline + 30d/7d move + consensus/range +
+    confidence; Δ sentences **omit gracefully** (never "—") with no history.
+  - **ITEM 5/8** — a **Key metrics** card row per view (headline value + 30d move + a kind metric +
+    volume) with plain-English sub-labels. Movement Δ from the lean history series via the new pure
+    **`pointChange`** (mirrors `headlineChange` on `{date,value}[]`). (Item 8's two parts map to the
+    card sub-labels + the narrative's tying sentence — no separate synthesis line, to avoid
+    redundancy with the narrative directly below.)
+- **Offline gates:** node --test **278/278** (+13: 5 `deriveChartSeries`, 2 `pointChange`, 6 narrative),
+  tsc clean, next build clean. **Playwright** (single clean dev `:3000`, **0 app console errors**):
+  us-recession (binary) + Anthropic (touch) — all four propagated items render; SpaceX (ladder) —
+  Item 7 dual chart. Touch "Range width" correctly shows `—` on Anthropic (one-sided range, LOW bound
+  `> $0.80T` is outside the ladder → no width).
+- **⚠ Wording fix mid-verify:** the narrative read "down +11.0pp" (redundant sign after the direction
+  word) → magnitude-only `ppMag` (cards keep the signed `fmtDeltaPp`). Caught in the binary Playwright
+  pass, not offline.
+- **NEXT:** optional detail-view "backfilling history…" UI signal from `backfill_status` (cron-retry
+  half done). Then Phase 4-style polish. PROD-STANDUP still needs migrations 0001–0008 + CRON_SECRET.
+  A possible perf split: the detail reads up to 365 full `record` JSONBs for the chart/derivations —
+  could be slimmed to horizon records + lean series if detail-load latency becomes a concern.
+
 ## ⮕ DIRECTION (2026-06-26): PREDEV GUARD + CRON BACKFILL-RETRY (audit follow-ons) — MERGED to main (`--no-ff` `6dd52c1`)
 - **MERGED** (`6dd52c1`; **262/262** on merged main; **SpaceX parity 3/3**; tsc + build clean). Not yet pushed
   at the time of this entry (the `/sync` commit + push follow).
