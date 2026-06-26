@@ -177,3 +177,40 @@ test('deltaSign: classes direction with a sub-0.1pp deadband', () => {
   assert.equal(deltaSign(null), '');
   assert.equal(deltaSign(undefined), '');
 });
+
+// ── v1 ITEM 3: mean robustness ──────────────────────────────────────────────────
+import { meanRobustnessLabel, modeBucket, detailNarrative } from '../lib/format-detail.mjs';
+test('meanRobustnessLabel: ≈0 / tail-insensitive / tail-sensitive by |mean−median| relative to median', () => {
+  assert.equal(meanRobustnessLabel(2.10, 2.10, 'T'), 'tail-insensitive (≈0)');
+  assert.equal(meanRobustnessLabel(2.12, 2.10, 'T'), 'tail-insensitive (+$0.02T)'); // 0.95% → insensitive but shown
+  assert.equal(meanRobustnessLabel(2.40, 2.10, 'T'), 'tail-sensitive (+$0.30T) — outlier rungs present'); // 14%
+  assert.equal(meanRobustnessLabel(null, 2.1, 'T'), '');
+});
+
+// ── v1 ITEM 1: mode bucket + narrative ──────────────────────────────────────────
+test('modeBucket: the density bucket with the most mass, with a clean label', () => {
+  const markets = [
+    { threshold: 1, adjusted_prob: 1.0, bucket_prob: 0.05 },
+    { threshold: 2, adjusted_prob: 0.95, bucket_prob: 0.90 }, // the mode
+    { threshold: 2.2, adjusted_prob: 0.05, bucket_prob: 0.05 },
+  ];
+  const m = modeBucket(markets, 'T');
+  assert.equal(m.label, '$2–2.2T');
+  assert.ok(Math.abs(m.prob - 0.90) < 1e-9);
+});
+
+test('detailNarrative: full paragraph with history; omits Δ/band sentences without it (no "—")', () => {
+  const full = detailNarrative({ medianLabel: '$2.10T', change30: -0.07, change7: -0.03,
+    mode: { prob: 1.0, label: '$2–2.2T' }, bandDirection: 'narrowing', confidenceTier: 'high', unit: 'T' });
+  assert.match(full, /median of \$2\.10T, down \$0\.07T over the past month and down \$0\.03T this week\./);
+  assert.match(full, /largest single concentration of probability \(100%\) sits in the \$2–2\.2T range\./);
+  assert.match(full, /25–75% band is narrowing — the market is converging on a view\./);
+  assert.match(full, /Confidence is high\./);
+
+  const noHist = detailNarrative({ medianLabel: '$2.10T', change30: null, change7: null,
+    mode: { prob: 0.9, label: '$2–2.2T' }, bandDirection: null, confidenceTier: 'medium', unit: 'T' });
+  assert.match(noHist, /^The market implies a median of \$2\.10T\./); // no Δ clause
+  assert.doesNotMatch(noHist, /band is/);  // no band sentence
+  assert.doesNotMatch(noHist, /—/);        // never a dash in prose
+  assert.match(noHist, /Confidence is medium\./);
+});

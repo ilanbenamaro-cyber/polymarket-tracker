@@ -11,8 +11,8 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, headlineChange } from '@/lib/market-history.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -87,11 +87,23 @@ export async function DetailData({ id }: { id: string }) {
   const thresholds = (body.record?.snapshot?.derived?.markets ?? []).map((m) => m.threshold);
   const deltas = deriveDeltas(rows, thresholds) as ThresholdDelta[];
   const movers = deriveBiggestMoves(rows, 30) as BiggestMoves;
-  return <MarketDetailView record={body.record} envelope={body} hist={hist} deltas={deltas} movers={movers} />;
+  // v1 ITEM 1: history-derived narrative pieces. The 30d sentence needs a near-full month of data
+  // so a short window isn't mislabelled "past month"; the band direction needs dispersion (≥30d).
+  const daysHave = (hist.velocity as VelocityResult & { days_have?: number }).days_have ?? 0;
+  const narrativeBits: NarrativeBits = {
+    change7: daysHave >= 7 ? (headlineChange(rows, 7) as number | null) : null,
+    change30: daysHave >= 28 ? (headlineChange(rows, 30) as number | null) : null,
+    bandDirection: hist.dispersion.status === 'ok'
+      ? (hist.dispersion.direction === 'converging' ? 'narrowing' : hist.dispersion.direction === 'diverging' ? 'widening' : 'steady')
+      : null,
+  };
+  return <MarketDetailView record={body.record} envelope={body} hist={hist} deltas={deltas} movers={movers} narrativeBits={narrativeBits} />;
 }
 
-function MarketDetailView({ record, envelope, hist, deltas, movers }:
-  { record: MarketRecord; envelope: ServeBody; hist: HistoryUI; deltas: ThresholdDelta[]; movers: BiggestMoves }) {
+interface NarrativeBits { change7: number | null; change30: number | null; bandDirection: 'narrowing' | 'widening' | 'steady' | null; }
+
+function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBits }:
+  { record: MarketRecord; envelope: ServeBody; hist: HistoryUI; deltas: ThresholdDelta[]; movers: BiggestMoves; narrativeBits: NarrativeBits }) {
   // Binary (Yes/No) markets get a distinct, simpler layout — no CDF/ladder/analytics.
   if (record?.snapshot?.derived?.kind === 'binary') {
     return <BinaryDetailView record={record} envelope={envelope} hist={hist} />;
@@ -162,7 +174,8 @@ function MarketDetailView({ record, envelope, hist, deltas, movers }:
         <div className="detail-metric">
           <span className="label">Implied mean <span className="faint">(approx)</span></span>
           <span className="detail-sec num" data-field="mean">{fmtMoney(d.implied_mean, unit)}</span>
-          <span className="detail-band faint">{d.mean?.tail_insensitive ? 'tail-insensitive (±<$0.01)' : (fmtRange(d.mean, unit) ? `range ${fmtRange(d.mean, unit)} · tail` : '')}</span>
+          {/* v1 ITEM 3: mean robustness at a glance from |mean − median| */}
+          <span className="detail-band faint" data-field="mean-band">{meanRobustnessLabel(d.implied_mean ?? null, d.implied_median ?? null, unit) || (fmtRange(d.mean, unit) ? `range ${fmtRange(d.mean, unit)} · tail` : '')}</span>
         </div>
         <div className="detail-metric">
           <span className="label">50% band</span>
@@ -210,8 +223,18 @@ function MarketDetailView({ record, envelope, hist, deltas, movers }:
           : <DistributionSVG markets={d.markets} impliedMedian={d.implied_median ?? null} unit={unit} />}
       </section>
 
-      {/* NARRATIVE — after the chart (Enh 3): the number + distribution lead, the prose explains. */}
-      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+      {/* NARRATIVE (v1 ITEM 1) — current median + 30d/7d change + mode bucket + band direction +
+          confidence, built display-side from the derived block + history (the stored pipeline
+          narrative is unchanged). Δ/band sentences omit gracefully when history is absent. */}
+      <p className="detail-narrative" data-field="narrative">{detailNarrative({
+        medianLabel: impliedMedianLabel(d.markets, d.implied_median ?? null, unit),
+        change30: narrativeBits.change30,
+        change7: narrativeBits.change7,
+        mode: modeBucket(d.markets, unit),
+        bandDirection: narrativeBits.bandDirection,
+        confidenceTier: conf.tier ?? null,
+        unit,
+      })}</p>
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
           "Collecting" state until enough days accrue; never dashes. */}
@@ -309,8 +332,9 @@ function BiggestMoversSection({ movers, unit }: { movers: BiggestMoves; unit: st
             return (
               <div key={`${mv.threshold}-${i}`} className="acard mover-card">
                 <div className="label">&gt;${mv.threshold}{unit}</div>
-                <div className={`acard-v ${cls}`}>{arrow} {fmtDeltaPp(mv.change)}<span className="mover-pp faint"> pp</span></div>
-                <div className="acard-s faint">{pct(mv.start)} → {pct(mv.end)}</div>
+                {/* v1 ITEM 10: start → end → delta — where it was, where it is, how much it moved. */}
+                <div className={`acard-v ${cls}`} data-field="mover-change">{arrow} {pct(mv.start)} → {pct(mv.end)}</div>
+                <div className="acard-s faint">{fmtDeltaPp(mv.change)} pp · {movers?.period ?? '30d'}</div>
               </div>
             );
           })}
