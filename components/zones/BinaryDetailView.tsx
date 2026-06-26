@@ -6,7 +6,8 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { ConfidenceBasis } from './ConfidenceBasis';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -52,6 +53,14 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
     : p <= 0.2 ? { label: 'STRONG · NO', cls: 'conf-high' }
     : p >= 0.6 || p <= 0.4 ? { label: 'LEANING', cls: 'conf-med' }
     : { label: 'CONTESTED', cls: 'conf-low' };
+
+  // v1 ITEM 1/5: the YES-probability move over the last 30d/7d (from the lean history series the
+  // view already holds). Gated by days_have so a short window isn't mislabelled "past month".
+  const pts = hist?.points ?? [];
+  const daysHave = hist?.velocity?.days_have ?? 0;
+  const change30 = daysHave >= 28 ? pointChange(pts, 30) : null;
+  const change7 = daysHave >= 7 ? pointChange(pts, 7) : null;
+  const spreadWord = spread == null ? 'no live book' : spread < 0.04 ? 'tight' : spread <= 0.08 ? 'moderate' : 'wide';
 
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="binary" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -123,14 +132,9 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
         </div>
       </div>
 
-      {/* TRUST BAND — identical to the ladder detail */}
+      {/* TRUST BAND — identical to the ladder detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
-          <div className="trust-reasons">
-            <span className="label">Confidence basis</span>
-            {conf.reasons.map((r: string, i: number) => <span key={i} className="trust-chip">{r}</span>)}
-          </div>
-        )}
+        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -145,7 +149,32 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
         </div>
       </div>
 
-      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+      {/* KEY METRICS (v1 ITEMS 5 + 8) — the YES probability with its 30d move + 7d momentum +
+          volume, each with a plain-English sub-label, and a synthesis line tying them together. */}
+      <section className="detail-section" data-field="key-metrics">
+        <h2 className="detail-h2">Key metrics</h2>
+        <div className="detail-analytics">
+          <div className="acard" data-field="pcard-yes">
+            <div className="label">P(YES)</div>
+            <div className="acard-v">{pctStr(p)}</div>
+            <div className={`acard-s ${deltaSign(change30)}`}>{change30 == null ? <span className="faint">no 30d history</span> : <>{fmtDeltaPp(change30)} pp · 30d</>}</div>
+          </div>
+          <div className="acard" data-field="pcard-momentum">
+            <div className="label">Momentum (7d)</div>
+            <div className="acard-v">{change7 == null ? 'collecting' : change7 > 0.01 ? 'rising' : change7 < -0.01 ? 'falling' : 'steady'}</div>
+            <div className={`acard-s ${deltaSign(change7)}`}>{change7 == null ? <span className="faint">requires ≥7 days</span> : <>{fmtDeltaPp(change7)} pp · 7d</>}</div>
+          </div>
+          <div className="acard" data-field="pcard-volume">
+            <div className="label">Volume</div>
+            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
+            <div className="acard-s faint">book is {spreadWord}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* NARRATIVE (v1 ITEM 1) — probability + 30d/7d move + consensus + confidence, built
+          display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
+      <p className="detail-narrative" data-field="narrative">{binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
 
       {/* TREND & HISTORY — YES-probability series (Phase 1); collecting until 7 days accrue */}
       {hist && <TrendHistorySection hist={hist} unit="" label="YES probability" />}

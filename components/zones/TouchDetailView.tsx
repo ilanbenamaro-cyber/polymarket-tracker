@@ -7,8 +7,9 @@
 // 50% crossovers) as a horizontal range bar, plus a touch-probability table. The TRUST layer
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, touchNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
+import { ConfidenceBasis } from './ConfidenceBasis';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -73,6 +74,18 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
   const rows = [...byLevel.values()].sort((a, b) => b.level - a.level);
   const allLevels = [...high, ...low].map((p) => p.level);
 
+  // v1 ITEM 1/5: the implied-range midpoint + its move over 30d/7d (from the lean history series).
+  // A touch market has no median — the midpoint of the [low,high] band is the headline scalar.
+  const lo = range.low ?? null, hi = range.high ?? null;
+  const mid = lo != null && hi != null ? (lo + hi) / 2 : (hi ?? lo);
+  const width = lo != null && hi != null ? hi - lo : null;
+  const pts = hist?.points ?? [];
+  const daysHave = hist?.velocity?.days_have ?? 0;
+  const midChange30 = daysHave >= 28 ? pointChange(pts, 30) : null;
+  const midChange7 = daysHave >= 7 ? pointChange(pts, 7) : null;
+  const fmtSigned = (c: number | null) => c == null ? null : `${c >= 0 ? '+' : '−'}$${Math.abs(c).toFixed(2)}${unit}`;
+  const signCls = (c: number | null) => c == null ? '' : c > 0 ? 'is-up' : c < 0 ? 'is-down' : '';
+
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="directional_touch" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
       <header className="detail-head">
@@ -131,14 +144,9 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
         <RangeBar low={range.low ?? null} high={range.high ?? null} lowLabel={range.low_label ?? '—'} highLabel={range.high_label ?? '—'} levels={allLevels} />
       </section>
 
-      {/* TRUST BAND — identical to the ladder/binary detail */}
+      {/* TRUST BAND — identical to the ladder/binary detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
-          <div className="trust-reasons">
-            <span className="label">Confidence basis</span>
-            {conf.reasons.map((r: string, i: number) => <span key={i} className="trust-chip">{r}</span>)}
-          </div>
-        )}
+        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -151,7 +159,32 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
         </div>
       </div>
 
-      {d.narrative && <p className="detail-narrative" data-field="narrative">{d.narrative}</p>}
+      {/* KEY METRICS (v1 ITEMS 5 + 8) — the range midpoint with its 30d move + range width +
+          volume, each with a plain-English sub-label. The midpoint is the touch headline scalar. */}
+      <section className="detail-section" data-field="key-metrics">
+        <h2 className="detail-h2">Key metrics</h2>
+        <div className="detail-analytics">
+          <div className="acard" data-field="pcard-midpoint">
+            <div className="label">Range midpoint</div>
+            <div className="acard-v">{mid != null ? `$${mid.toFixed(2)}${unit}` : '—'}</div>
+            <div className={`acard-s ${signCls(midChange30)}`}>{midChange30 == null ? <span className="faint">no 30d history</span> : <>{fmtSigned(midChange30)} · 30d</>}</div>
+          </div>
+          <div className="acard" data-field="pcard-width">
+            <div className="label">Range width</div>
+            <div className="acard-v">{width != null ? `$${width.toFixed(2)}${unit}` : '—'}</div>
+            <div className="acard-s faint">upper − lower bound</div>
+          </div>
+          <div className="acard" data-field="pcard-volume">
+            <div className="label">Volume</div>
+            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
+            <div className="acard-s faint">cumulative, all-time</div>
+          </div>
+        </div>
+      </section>
+
+      {/* NARRATIVE (v1 ITEM 1) — the implied range + midpoint move + confidence, built display-side;
+          Δ sentences omit gracefully when history is absent (never a dash). */}
+      <p className="detail-narrative" data-field="narrative">{touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
 
       {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs */}
       {rows.length > 0 && (

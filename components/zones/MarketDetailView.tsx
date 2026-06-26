@@ -11,7 +11,7 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, headlineChange } from '@/lib/market-history.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
@@ -19,6 +19,7 @@ import { TrendHistorySection, type HistoryUI, type VelocityResult, type Dispersi
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
+import { ConfidenceBasis } from './ConfidenceBasis';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import { CategoricalDetailView } from './CategoricalDetailView';
@@ -79,6 +80,10 @@ export async function DetailData({ id }: { id: string }) {
     dispersion: deriveDispersion(rows) as DispersionResult,
     points: rows.map((r) => ({ date: r.snapshot_date, value: headlineValue(r) as number })).filter((p) => p.value != null),
     kind: chartKind,
+    // v1 ITEM 7: the multi-line dual-axis chart series — per-threshold P(>X) + median/mean — for
+    // survival/bucket ladders only (null for binary/touch/categorical → single-line fallback).
+    // Built server-side from the record JSONB; only lean {date,value}[] per line ships to the client.
+    series: deriveChartSeries(rows),
   };
   // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
   // Survival/PMF only (the ladder view owns the threshold table); the binary/touch/categorical
@@ -196,19 +201,8 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
 
       {/* TRUST BAND — prominent, before the distribution */}
       <div className="detail-trust" data-field="trust">
-        {/* v1 ITEM 11: the confidence basis reads as a CHECKLIST of conditions, not a failure log.
-            For HIGH the stored reasons ARE the passing conditions (✓); MEDIUM marks caveats (·);
-            LOW marks the conditions that failed (✗). (The reason TEXT is pipeline-generated; the
-            display reframes its presentation by tier — it doesn't re-derive the conditions.) */}
-        {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
-          <div className="trust-reasons" data-field="confidence-basis">
-            <span className="label">Confidence basis</span>
-            {conf.reasons.map((r: string, i: number) => {
-              const mark = conf.tier === 'high' ? '✓' : conf.tier === 'low' ? '✗' : '·';
-              return <span key={i} className={`trust-chip conf-chip-${conf.tier ?? 'medium'}`}>{mark} {r}</span>;
-            })}
-          </div>
-        )}
+        {/* v1 ITEM 11: the confidence basis as a tier-marked checklist (shared component). */}
+        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>

@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
+  deriveChartSeries,
   needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
@@ -201,4 +202,60 @@ test('deriveBiggestMoves: binary reports the max probability swing', () => {
   assert.equal(moves.kind, 'binary');
   assert.ok(Math.abs(moves.change - 0.40) < 1e-9);
   assert.equal(moves.direction, 'up');
+});
+
+// ── deriveChartSeries (v1 ITEM 7: multi-line dual-axis chart) ─────────────────
+/** A ladder history row carrying per-threshold survival probs + median/mean + a confidence tier. */
+function ladderRow(dayIdx, { markets, median, mean = null, tier = 'high', kind = 'survival' }) {
+  return {
+    snapshot_date: dateAt(dayIdx),
+    kind,
+    implied_median: median,
+    implied_mean: mean,
+    confidence_tier: tier,
+    record: { snapshot: { derived: { markets } } },
+  };
+}
+
+test('deriveChartSeries: survival ladder → dual axis with prob lines + median/mean value lines', () => {
+  const mk = (i) => ladderRow(i, {
+    markets: [{ threshold: 1.8, prob: 0.80 }, { threshold: 2.0, prob: 0.50 + i * 0.01 }, { threshold: 2.4, prob: 0.20 }],
+    median: 2.0 + i * 0.01, mean: 2.1 + i * 0.01,
+  });
+  const series = deriveChartSeries([mk(0), mk(1), mk(2)]);
+  assert.equal(series.dual, true);
+  // three rungs bracket P=0.75/0.5/0.25 → all three distinct thresholds chosen, ordered high→low
+  assert.deepEqual(series.probLines.map((l) => l.threshold), [2.4, 2.0, 1.8]);
+  assert.equal(series.probLines[0].points.length, 3);
+  // value lines: median (plain) + mean (faint, dashed)
+  assert.deepEqual(series.valueLines.map((l) => l.key), ['median', 'mean']);
+  assert.equal(series.valueLines.find((l) => l.key === 'mean').dashed, true);
+  assert.equal(series.valueLines.find((l) => l.key === 'median').points.length, 3);
+});
+
+test('deriveChartSeries: dedups when one rung is nearest multiple targets', () => {
+  // a single-rung ladder → P=0.75/0.5/0.25 all snap to the same threshold → one prob line
+  const mk = (i) => ladderRow(i, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0 });
+  const series = deriveChartSeries([mk(0), mk(1)]);
+  assert.equal(series.probLines.length, 1);
+  assert.equal(series.probLines[0].threshold, 2.0);
+});
+
+test('deriveChartSeries: low-confidence days are flagged for dashing', () => {
+  const rows = [
+    ladderRow(0, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0, tier: 'low' }),
+    ladderRow(1, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0, tier: 'high' }),
+  ];
+  const series = deriveChartSeries(rows);
+  assert.deepEqual(series.lowDays, [dateAt(0)]);
+});
+
+test('deriveChartSeries: null for binary/touch/categorical (single-line falls back)', () => {
+  assert.equal(deriveChartSeries([0, 1, 2, 3, 4, 5, 6].map((i) => mkRow(i, { kind: 'binary', probability: 0.4 }))), null);
+  assert.equal(deriveChartSeries([0, 1].map((i) => mkRow(i, { kind: 'directional_touch', touchLo: 60, touchHi: 80 }))), null);
+});
+
+test('deriveChartSeries: null below two points', () => {
+  assert.equal(deriveChartSeries([ladderRow(0, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0 })]), null);
+  assert.equal(deriveChartSeries([]), null);
 });

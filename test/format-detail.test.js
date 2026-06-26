@@ -4,7 +4,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, settlementZone, settlementZoneLabel } from '../lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, settlementZone, settlementZoneLabel,
+  pointChange, binaryNarrative, touchNarrative, categoricalNarrative } from '../lib/format-detail.mjs';
 
 test('derives T from a trillions ladder (SpaceX-style)', () => {
   assert.equal(unitFromLadder([{ label: '>$1T' }, { label: '>$1.8T' }]), 'T');
@@ -213,4 +214,65 @@ test('detailNarrative: full paragraph with history; omits Δ/band sentences with
   assert.doesNotMatch(noHist, /band is/);  // no band sentence
   assert.doesNotMatch(noHist, /—/);        // never a dash in prose
   assert.match(noHist, /Confidence is medium\./);
+});
+
+// ── pointChange (v1 ITEM 1: lean-series Δ for the non-ladder views) ───────────
+test('pointChange: today minus the row nearest N days ago', () => {
+  const pts = [
+    { date: '2026-05-01', value: 0.30 },
+    { date: '2026-05-25', value: 0.40 }, // ~7 days before 2026-06-01
+    { date: '2026-06-01', value: 0.50 },
+  ];
+  assert.ok(Math.abs(pointChange(pts, 7) - 0.10) < 1e-9);  // 0.50 - 0.40
+  assert.ok(Math.abs(pointChange(pts, 30) - 0.20) < 1e-9); // 0.50 - 0.30 (nearest to 30d ago)
+});
+
+test('pointChange: null below two points', () => {
+  assert.equal(pointChange([{ date: '2026-06-01', value: 0.5 }], 7), null);
+  assert.equal(pointChange([], 30), null);
+  assert.equal(pointChange(undefined, 30), null);
+});
+
+// ── binaryNarrative ──────────────────────────────────────────────────────────
+test('binaryNarrative: probability + 30d/7d move + consensus + confidence', () => {
+  const s = binaryNarrative({ prob: 0.82, change30: 0.05, change7: -0.02, confidenceTier: 'high' });
+  assert.match(s, /82% chance of YES/);
+  assert.match(s, /up 5\.0pp over the past month/);
+  assert.match(s, /down 2\.0pp this week/);
+  assert.match(s, /strong YES consensus/);
+  assert.match(s, /Confidence is high\./);
+});
+
+test('binaryNarrative: omits Δ sentences gracefully with no history (never a dash)', () => {
+  const s = binaryNarrative({ prob: 0.5, change30: null, change7: null, confidenceTier: 'low' });
+  assert.match(s, /50% chance of YES\./);
+  assert.doesNotMatch(s, /—|month|week/);
+  assert.match(s, /contested book/);
+});
+
+// ── touchNarrative ───────────────────────────────────────────────────────────
+test('touchNarrative: range + midpoint move in unit space + no-median note', () => {
+  const s = touchNarrative({ lowLabel: '$66.73', highLabel: '$90.00', midChange30: 1.5, unit: '', confidenceTier: 'medium' });
+  assert.match(s, /\$66\.73 to \$90\.00/);
+  assert.match(s, /midpoint up \$1\.50 over the past month/);
+  assert.match(s, /not a settlement value/);
+  assert.match(s, /Confidence is medium\./);
+});
+
+test('touchNarrative: empty when a bound label is missing', () => {
+  assert.equal(touchNarrative({ lowLabel: '', highLabel: '$90', unit: '' }), '');
+});
+
+// ── categoricalNarrative ─────────────────────────────────────────────────────
+test('categoricalNarrative: leader + move + entropy consensus read', () => {
+  const s = categoricalNarrative({ dominantOutcome: '0 (0 bps)', dominantProb: 0.80, change30: 0.03, entropy: 0.29, confidenceTier: 'high' });
+  assert.match(s, /most likely outcome is 0 \(0 bps\) at 80%/);
+  assert.match(s, /up 3\.0pp over the past month/);
+  assert.match(s, /high consensus/);
+});
+
+test('categoricalNarrative: no-consensus framing when nothing clears 50%', () => {
+  const s = categoricalNarrative({ dominantOutcome: 'Yes', dominantProb: 0.42, entropy: 0.9, noConsensus: true });
+  assert.match(s, /No single outcome clears 50%/);
+  assert.match(s, /wide open/);
 });
