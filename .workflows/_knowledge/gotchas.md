@@ -5,6 +5,48 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## TWO `next dev` on one `.next` wedges everything — now blocked by a `predev` guard
+**Symptom:** a second `next dev` started while one was running. Next silently falls back to the
+next port (3000 → 3001), but BOTH share this project's single `.next` dir → webpack-runtime 500s,
+stale-404s, and eventually EVERY route hangs (`curl 000`, 60s timeouts). It has masqueraded as
+"`/api/search` hangs" and other phantom bugs, and recurred 3+ times across sessions (incl. mid-audit,
+where it caused a FALSE "search is broken" finding — after recovery the search returned 200/580ms).
+**Reality:** the corruption is the SHARED `.next`, not the second port. The processes look like two
+pairs in `ps` (`next dev` parent + `next-server` worker each); `lsof -ti tcp:3000` + `tcp:3001` both
+listen.
+**Lesson / MITIGATION (now in place):** a **`predev` npm hook** (`scripts/predev-guard.mjs`) aborts
+`npm run dev` when the intended PORT is already LISTENing or a `next dev` process exists, with a
+"restart cleanly" message; bypass with `DEV_GUARD=off`. To recover a wedged env:
+`pkill -f "next dev"; pkill -f "next-server"; rm -rf .next; npm run dev`. Same family as the
+"Stale `.next` runs old middleware/build" trap below — **never run `next build` while `next dev` is
+live** either (it writes the same `.next`). When a route mysteriously hangs, suspect a second server
+BEFORE the route's code.
+
+## A sourceable `.env.local` (`export KEY=val`) breaks a naive manual dotenv parse
+**Symptom:** `scripts/check-backfill-status.mjs` (and `seed-history-dev.mjs`) reported
+"SUPABASE_URL / SERVICE_ROLE_KEY not set" even though both were in `.env.local` and even after
+`source .env.local`.
+**Reality:** the `.env.local` lines are `export SUPABASE_URL=…` (so the file is `source`-able). The
+manual parser split on the first `=` WITHOUT stripping the leading `export `, so it set
+`process.env["export SUPABASE_URL"]` and the real `SUPABASE_URL` stayed unset. (`source` alone also
+doesn't help a `node` child unless the vars are exported — which is why the file uses `export`.)
+**Lesson:** a hand-rolled `.env` parser must **strip a leading `export `** before the key (and trim
++ unquote the value). Fixed in both scripts. If a script can't see creds that are "clearly there,"
+check for `export `/quotes/`KEY = val` spacing before assuming the file is missing them.
+
+## Audit DOM sweeps must scope to `[data-zone="detail-view"]` — the rail shares `data-field` names
+**Symptom:** the live-market audit reported "detail implied median shows `—`" (F3) and "rail≠detail
+confidence" (F4). Both were FALSE — detail-scoped, the median was `$2.10T` and confidence `HIGH`,
+matching the rail.
+**Reality:** the audit used `document.querySelector('[data-field="median"]')` / `'[data-field=
+"confidence"]'` UNSCOPED. The watchlist rail rows use the SAME `data-field` names as the detail and
+come FIRST in DOM order, so the selector grabbed the rail's first row (a categorical with `—`), not
+the detail headline.
+**Lesson:** when auditing the detail view, scope every query to `[data-zone="detail-view"] …`. A
+genuinely-real rail finding hid underneath (categorical/null-median rail headline `—`, fixed via
+`market-scan.headlineDisplay`) — so the artifact wasn't pure noise, but the "detail is broken"
+framing was wrong. Re-measure with a scoped selector before reporting a cross-component discrepancy.
+
 ## CLOB prices-history: finer fidelity silently truncates depth; daily buckets align by DATE not timestamp
 **Symptom (measured, not bitten — pinned during the backfill design):** building the history
 backfill, the intuition "use a fine fidelity for resolution, `interval=max` for depth" is wrong on

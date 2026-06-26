@@ -8,6 +8,31 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-26): PREDEV GUARD + CRON BACKFILL-RETRY (audit follow-ons) — MERGED to main (`--no-ff` `6dd52c1`)
+- **MERGED** (`6dd52c1`; **262/262** on merged main; **SpaceX parity 3/3**; tsc + build clean). Not yet pushed
+  at the time of this entry (the `/sync` commit + push follow).
+- **Predev guard (`91b55fe`):** `scripts/predev-guard.mjs` + a **`predev` npm hook** abort `npm run dev` when
+  PORT 3000 is already LISTENing or a `next dev` process exists → prevents the two-servers-one-`.next` wedge
+  (bitten 3+ times, incl. a FALSE "search hangs" finding mid-audit). `DEV_GUARD=off` bypasses. **Verified
+  end-to-end:** clean start allowed, 2nd `npm run dev` blocked, bypass works. (It also CAUGHT a live double-server
+  during this session — two were actually running on :3000 + :3001.) See [[gotchas]] "TWO `next dev`…".
+- **Cron backfill-retry (`19b9545`):** the daily `/api/snapshot` cron now retries markets where
+  `needsBackfill(status)` (status **null** = add-time trigger never ran, or **'failed'**) by firing
+  `/api/backfill` (own budget; bounded 10/run). Self-heals a missed add-time backfill within a day. Pure
+  `needsBackfill` (tested) + `marketsNeedingBackfill`. Summary reports `backfill_retried[]`. **⚠ live-verify
+  (operator):** `GET /api/snapshot` with the CRON_SECRET bearer → the summary should list `backfill_retried`.
+  See [[decisions]] "The lifecycle PROBE must classify shape first … cron self-heals".
+- **`.env.local` loader fix (`789673f`):** the manual dotenv parse in `check-backfill-status` + `seed-history-dev`
+  now strips a leading `export ` (the file is `export KEY=val`, sourceable) — they were reporting creds "not set"
+  despite being present. See [[gotchas]] "A sourceable `.env.local`…".
+- **F2 CONFIRMED NOT A BUG** (operator ran `scripts/check-backfill-status.mjs`): Bitcoin
+  `backfill_status=done`, `backfilled_through=2026-06-23`, 3 history days — correct for a 4-day-old weekly market;
+  the add-time auto-trigger DID fire. (My "silent failure" hypothesis was wrong; the `[backfill-trigger]` logging
+  added in `fc14689` remains useful defensively.)
+- **NEXT:** optional detail-view "backfilling history…" UI signal from `backfill_status` (the cron-retry half of
+  that roadmap item is now done). Then Phase 4-style polish. PROD-STANDUP still needs migrations 0001–0008 +
+  CRON_SECRET.
+
 ## ⮕ DIRECTION (2026-06-26): AUDIT FIXES (F1/F3/F7/F8 + F2) — MERGED to main (`--no-ff` `0d27dc8`) + PUSHED
 - **MERGED & PUSHED** (`0d27dc8`; `b999261..0d27dc8`; **261/261** on merged main; **SpaceX parity 3/3**; tsc +
   build clean; in sync). From the live-market Playwright audit (`AUDIT-2026-06-25.md`). All Playwright-verified

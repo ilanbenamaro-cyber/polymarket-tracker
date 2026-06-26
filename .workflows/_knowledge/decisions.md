@@ -5,6 +5,28 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## The lifecycle PROBE must classify market shape first (audit F1) + the cron self-heals backfills
+**Decided (2026-06-26):** `lib/compute.probeLifecycle` (the cheap gamma-meta probe `serveMarket`
+runs on the within-TTL path to confirm a market hasn't resolved) now **classifies the market shape
+first** (`classifyMarketShape`, one gamma GET, no parse) and routes to the shape's lifecycle-status
+fetcher; ONLY survival parses `$X`. Before this it assumed a survival ladder and ran the `$X` parser,
+throwing "Cannot parse threshold" (HTTP 500) on every binary/categorical/touch/bucket market whenever
+the serve took the PROBE branch (cached <15-min TTL, last probe >60s — exactly where a freshly-added
+binary lands a minute after adding). Mirrors `computeMarketRecord`'s classify-then-route; injectable
+deps for offline tests.
+**Why:** a whole class of markets 500'd in the detail a minute after being added — the rail showed
+them fine (cache), the detail broke. The probe was the one serve-path step that still assumed the
+SpaceX shape. Serve correctness must be shape-aware end-to-end, not just in compute.
+**Also decided (self-heal):** the daily `/api/snapshot` cron now retries markets where
+`needsBackfill(status)` (status **null** = the add-time trigger never ran, or **'failed'**) by FIRING
+the dedicated `/api/backfill` route (its own budget; ACK 202 + rebuild in its `after()`), bounded to
+10/run so a backlog drains over days. So a missed add-time backfill self-heals within a day instead of
+staying empty forever. (`backfill_status`/`backfilled_through` columns from migration 0008 drive it.)
+**Constrains:** the probe now does 2 gamma GETs (classify + status) instead of 1 — acceptable (both
+are cheap meta, no CLOB). No `core/` change; **frozen SpaceX parity 3/3 holds.** Verified live via the
+real PROBE path (fed-rate-cut categorical + us-recession binary render where they 500'd). See
+[[gotchas]] "Audit DOM sweeps must scope…" for the F3/F4 measurement artifacts found alongside.
+
 ## History backfill on add — reconstruct market_history from CLOB prices-history (Phase 5)
 **Decided (2026-06-25):** When a user adds a market, immediately rebuild `market_history` from
 Polymarket's per-token CLOB price history, so velocity/dispersion/Δ/movers/chart populate from
