@@ -8,6 +8,47 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-26): CATEGORICAL DE-VIG + DETAIL CLEANUPS (Bug Zero/A/B/C + title) — MERGED to main (`--no-ff` `b95d73d`) + PUSHED
+- **MERGED & PUSHED** (`b95d73d`; `d589729..b95d73d`; **283/283** on merged main; **SpaceX parity 3/3**;
+  tsc + build clean; in sync). Clean topology (main an ancestor of `fix/categorical-devig-touch-resolved`,
+  no cron race). All Playwright-verified on a single clean dev `:3000`, **0 app console errors**.
+- **BUG ZERO (SHIP-STOPPER, `fa127e7`):** the categorical de-vig (`normalizeProbabilities` via
+  `parseCategoricalOutcomes`) ran over ALL legs — including the 25+ generic placeholder legs Polymarket
+  seeds ("Candidate C".."Candidate Z") AND untraded catch-alls ("Other"), each $0 volume / ~0.5 raw —
+  so the denominator collapsed the real leader: **Ryan Fazio read 7%** (label-only filter → 65%; truth
+  ~97%). Fix: **`isPlaceholderLeg`/`realCategoricalLegs`** drop a leg ONLY when **zero volume AND (generic
+  `<word> <letter>` label OR midpoint still pinned at the ~0.5 untraded default)**; applied at the TOP of
+  `parseCategoricalOutcomes` so de-vig/entropy/dominant compute over **real, traded** candidates only.
+  Any traded leg (vol>0) is always kept; a $0-vol leg with a real divergent quote (a long-shot) is kept
+  too. **raw_inputs + the hash are UNTOUCHED** (the filter is on the derived display PMF, not on what's
+  hashed — every observed leg still lands in raw_inputs). **Playwright: Ryan Fazio 98%** on
+  `connecticut-governor-republican-primary-winner`, only the 5 real candidates (Fazio/Stewart/Wilcox/
+  McCaughey/Arora), no Candidate X, no Other. **⚠ stale cache:** a record computed before this fix shows
+  the wrong %; the detail's RefreshButton (or any TTL-expired serve) recomputes it correct.
+- **BUG A (`762519f`, categorical display):** `CategoricalDetailView` defensively re-drops placeholders
+  with the SAME `isPlaceholderLeg`; bars capped at 10 via a new **client `CategoricalOutcomeBars`** with a
+  "N more outcomes" expand; headline names the leader only above a **10% floor** (`NO_CONSENSUS_FLOOR`),
+  else "No consensus — field is wide open". (NB: the filter is so effective that every live crowded field
+  collapses to its 2–8 real outcomes, so the >10 expand path didn't trigger live — verified by render +
+  logic, not a live >10 market.)
+- **BUG B (`762519f`, touch tables):** new **client `TouchProbabilityTable`** — NEAR SETTLEMENT shows only
+  active rows (P(touch) > 1% either side) + "N settled legs hidden" + a **show-all** toggle (Silver: 6
+  active, 15 hidden, show-all → 21); otherwise the full table with consecutive 0%/0% rows collapsed into
+  one "N levels at 0%" row (Anthropic: full mode, nothing to collapse).
+- **BUG C (`762519f`, resolved ladder):** a RESOLVED ladder swaps the v1 at-the-money/tail P(>X) cards
+  (0%/100% with a meaningless "30d Δ") for **RESOLUTION STATE cards** — outcome ("Settled: $2–2.2T range"),
+  final implied median ($2.10T), resolution date (from `lifecycle.as_of`/`fetched_at`). SpaceX verified.
+- **Title date-range repair (`762519f`):** `humanizeDateRange` fixes "June 22 28 2026" → "June 22–28, 2026"
+  (em-dash + comma; only fires on Month + bare day(s) + 4-digit year), applied in `titleFromSlug` +
+  `displayTitle` → rail + every detail title. Verified in the rail ("What Price Will Bitcoin Hit
+  June 22–28, 2026"); the live `bitcoin-hit-june-22-28-2026` detail 502s (market delisted from gamma —
+  its window passed), so the repair is rail- + unit-verified, not detail-verified.
+- **⚠ DEV-ENV note:** `rm -rf .next` under a LIVE `next dev` wedges it (stale in-memory chunk refs → every
+  route 500s) — same stale-`.next` family. Recover with kill-all + `rm -rf .next` + ONE fresh server. Don't
+  rm `.next` while dev is running.
+- **NEXT:** optional detail "backfilling history…" signal from `backfill_status`; Phase-4 polish.
+  PROD-STANDUP still needs migrations 0001–0008 + CRON_SECRET.
+
 ## ⮕ DIRECTION (2026-06-26): v1-DEPTH DETAIL (items 1–11 + dual-axis chart + non-ladder propagation) — MERGED to main (`--no-ff` `e31c02d`) + PUSHED
 - **MERGED & PUSHED** (`e31c02d`; `b9182bc..e31c02d`; **278/278** on merged main; **SpaceX parity 3/3**;
   tsc + build clean; `main`↔`origin/main` in sync). Clean topology (main was an ancestor of
