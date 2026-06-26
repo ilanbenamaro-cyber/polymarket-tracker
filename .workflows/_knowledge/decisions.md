@@ -5,6 +5,40 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## History backfill on add — reconstruct market_history from CLOB prices-history (Phase 5)
+**Decided (2026-06-25):** When a user adds a market, immediately rebuild `market_history` from
+Polymarket's per-token CLOB price history, so velocity/dispersion/Δ/movers/chart populate from
+day one instead of waiting weeks for the daily cron. Built as I1–I4 on `feature/history-backfill`:
+- **I1 `core/price-history.js` (pure):** `GET /prices-history?market=<token>&interval=max&
+  fidelity=1440` → `{history:[{t,p}]}`; floor each point to its UTC DATE, last point per date per
+  token, forward-fill per-leg gaps (flagged), `complete=false` before a leg's first datapoint.
+- **I2 `lib/backfill-record.mjs`:** per day, build a `live`-shaped object from that day's per-leg
+  prices and run the SAME core builders the live path uses (survival/bucket_pmf/binary/touch/
+  categorical) → a validated record.
+- **I3 `lib/backfill.mjs`:** orchestrator (gamma meta → N histories → reconstruct → assemble →
+  write), I/O injected (serve-market pattern). REUSES the live gamma meta parsers (exported from
+  `core/fetch.js`, additive). One bad leg/day never aborts; a fatal error marks the market failed.
+- **I4:** bearer-guarded `/api/backfill` (own budget: ACK 202 + run in `after()`; `?wait=1`
+  synchronous); `addMarket` fire-and-forgets it; migration 0008 (`market_history.source`,
+  `markets.backfill_status`/`backfilled_through`).
+**Provenance model (the load-bearing part):** a backfill row gets a REAL, re-verifiable
+`raw_sha256` — same `hashRawInputs` recipe over `raw_inputs` whose `midpoint` is the historical
+price, `best_bid/ask=null`, `volume=null`, `midpoint_source='clob_price_history'` (the exact shape
+the live `last_trade` path already hashes). Confidence is CAPPED at MEDIUM with a
+historical-backfill reason (no live book/spread to assess). `snapshot.source.{backfilled,method}`
+mark the row reconstructed. The markers + `midpoint_source` stay OUT of `canonicalizeRawInputs`, so
+the hash recipe — and the **frozen SpaceX hash** — are untouched.
+**Why:** the on-demand model cached ONE snapshot, so the analytics were empty until the cron
+accrued days. Backfill makes a freshly-added market immediately useful, honestly labelled as
+reconstructed-not-captured. **The UI needs no change — it already reads `readHistory`.**
+**Constrains:** **CRON PRECEDENCE** — backfill INSERTs and treats a `(market_id,snapshot_date)`
+unique conflict as a no-op (`writeBackfillRow` → false), so a real captured `source='cron'` row is
+NEVER overwritten by a reconstruction. Daily `fidelity=1440` is the ONLY full-depth option (finer
+fidelities are retention-capped to ~17 days — see [[gotchas]]). No `core/fetch.js` behavior change
+(only added `export` to the 5 meta parsers + `pinnedConfigFor`) → parity 3/3 holds. Offline gates:
+255/255, parity 3/3, tsc + build clean. Live gate (apply 0008, set CRON_SECRET, add a market →
+history backfills) is OPERATOR-run. See [[gotchas]] "CLOB prices-history".
+
 ## Near-settlement state + confidence recalibration CONFINED to that path (Bug 3)
 **Decided (2026-06-25):** A market is NEAR SETTLEMENT when it expires within 7 days AND a
 majority (>50%) of rungs are pinned to ~0/~1 (`core/confidence.nearSettlement(markets,

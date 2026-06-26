@@ -8,6 +8,45 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-25): Phase 5 — HISTORY BACKFILL — CODE DONE on `feature/history-backfill` (live gate pending operator)
+- **What:** on add, rebuild `market_history` from Polymarket CLOB prices-history so the Phase-3
+  analytics populate from day one (not after weeks of cron). Built + offline-gated as I1–I4
+  (`1499837`/`b68cebf`/`ecb1c92`/`1bdf12d`). **The UI needs no change — it already reads `readHistory`.**
+  Full "why" + provenance model in [[decisions]] "History backfill on add"; the endpoint traps in [[gotchas]]
+  "CLOB prices-history". Branched off `main` (which carries Phase 3 + Phase 4).
+- **I1 `core/price-history.js` (pure, 8 tests):** `prices-history?market=<token>&interval=max&fidelity=1440`
+  → `{history:[{t,p}]}`; floor to UTC DATE (raw `t` varies by token → date-floor aligns legs), last point per
+  date, forward-fill gaps (flagged), `complete=false` before a leg's first point.
+- **I2 `lib/backfill-record.mjs` (7 tests):** per day → a `live`-shaped object → the SAME core builders
+  (survival/bucket_pmf/binary/touch/categorical) → a VALIDATED record. Backfill provenance: real re-verifiable
+  `raw_sha256` (recipe over `midpoint`=historical price, `best_bid/ask=null`, `volume=null`,
+  `midpoint_source='clob_price_history'` — exactly the live last-trade shape), confidence **capped at MEDIUM**
+  + historical-backfill reason, `snapshot.source.{backfilled,method}`. Markers OUT of `canonicalizeRawInputs`
+  → **frozen SpaceX hash untouched**.
+- **I3 `lib/backfill.mjs` (5 tests):** orchestrator, I/O injected (serve-market pattern). `fetchBackfillMeta`
+  REUSES the live gamma meta parsers (now `export`ed from `core/fetch.js`, additive). One bad leg/day never
+  aborts; fatal → market `failed`, never throws; status pending→done/failed + earliest date.
+- **I4:** bearer-guarded **`/api/backfill`** (timing-safe CRON_SECRET, fails closed; ACK **202** + run in
+  `after()` for its own budget; `?wait=1` = synchronous summary) + `addMarket` fire-and-forgets it (user sees
+  the market instantly; trigger failure never affects the add) + **migration 0008** (`market_history.source`
+  cron|backfill; `markets.backfill_status`/`backfilled_through`) + `writeBackfillRow` (INSERT, unique-conflict
+  = no-op → **cron precedence**, never clobbers a captured row) + `setBackfillStatus`. **middleware excludes
+  `/api/backfill`** from session auth (the bearer-route gotcha — applied, not re-discovered).
+- **OFFLINE GATES GREEN:** node --test **255/255** (+20), **SpaceX parity 3/3**, tsc clean, next build clean
+  (`/api/backfill` registered). No `core/fetch.js` behavior change (only `export`s).
+- **⚠ OPERATOR LIVE GATE (the part I can't run — needs dev Supabase creds + migration applied):**
+  (1) **apply migration 0008** to dev (`market_history.source`, `markets.backfill_status`/`backfilled_through`);
+  (2) set **CRON_SECRET** in `.env.local` (+ Vercel scopes at standup); (3) **single** clean dev server
+  (`rm -rf .next && npm run dev`); (4) backfill a real market — either add one via the UI, or
+  `curl -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3001/api/backfill?id=<slug>&wait=1"` →
+  expect a JSON summary `{written, failed, days}`; (5) verify `market_history` has `source='backfill'` rows for
+  past dates + `markets.backfill_status='done'` + `backfilled_through`; (6) open that market's detail → the
+  chart/Δ/movers/velocity/dispersion populate from the **real backfilled history** immediately. Then **merge
+  `--no-ff` to main**. PROD-STANDUP now also needs **0008** applied + CRON_SECRET (already required for the cron).
+- **NEXT (after the live gate + merge):** wire the daily cron to RETRY `backfill_status IN ('failed', null)`
+  markets (the columns exist for it); optional UI "backfilling history…" signal from `backfill_status`. Then
+  Phase 4-style polish. Also still pending from earlier: nothing — `main` (Phase 3 + Phase 4) was pushed.
+
 ## ⮕ DIRECTION (2026-06-25): Phase 4 — LAYOUT FIXES (Bug A width-fill + Bug B touch labels) — MERGED to main (`--no-ff` `782cbed`)
 - **MERGED** (`782cbed`; **235/235** on merged main; parity 3/3; tsc + build clean). **NOT yet pushed.**
 - **Bug A — detail not filling width:** `.detail-view` was capped at `max-width: 920px`, leaving the right of

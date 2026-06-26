@@ -5,6 +5,28 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## CLOB prices-history: finer fidelity silently truncates depth; daily buckets align by DATE not timestamp
+**Symptom (measured, not bitten — pinned during the backfill design):** building the history
+backfill, the intuition "use a fine fidelity for resolution, `interval=max` for depth" is wrong on
+both counts. `GET https://clob.polymarket.com/prices-history?market=<token>&interval=max&fidelity=N`
+returns `{history:[{t,p}]}` where: with `fidelity=1` or `60` you get only the **last ~17 days**
+(2569 / 430 points), while `fidelity=1440` (daily) returns the **FULL history to market creation**
+(SpaceX: 162 daily points back to its first trade). So daily is the ONLY full-depth option — and
+it's also exactly what a daily backfill wants. Second trap: the daily bucket `t` lands a few
+SECONDS past 00:00 UTC and the exact second VARIES per token, so matching legs of one market by raw
+`t` nearly always fails (two SpaceX legs shared only 36/160 raw timestamps) — but flooring each `t`
+to its UTC DATE aligns them (159/161 shared dates). A token also occasionally skips a date (gap) and
+only HAS data from its first trade onward.
+**Reality:** `interval=max` caps the point count, so a finer fidelity trades depth for resolution;
+and the per-bucket timestamp is not on a shared global grid to the second. The endpoint is also
+behind Cloudflare (`cf-cache-status: HIT`, no rate-limit headers) and 403s the default urllib UA —
+use `curl`/`fetch` with a UA. There is NO batch endpoint: one call per token (N calls/market).
+**Lesson:** for any per-day reconstruction, fetch `interval=max&fidelity=1440` and key the series by
+**UTC date** (`core/price-history.utcDate` → last point per date per token), forward-filling per-leg
+gaps; never intersect raw `t`. `p` is a single price (no bid/ask, no per-day volume) → backfilled
+rows carry `best_bid/ask=null, volume=null` and hash exactly like the live `last_trade` path. See
+[[decisions]] "History backfill on add".
+
 ## A synthetic OPEN fixture market can't be served live — anchor cached_at/last_checked_at in the FUTURE
 **Symptom:** the detail view runs the AUTHORITATIVE `serveMarket()` (not the rail's plain cache
 read), which for an OPEN market either PROBEs gamma (within TTL, not probed in 60s) or RECOMPUTEs
