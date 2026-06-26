@@ -8,8 +8,10 @@
 // freshness, provenance + hash-verify) is identical to every other detail. Server component;
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
+import { isPlaceholderLeg } from '@/core/categorical.js';
 import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -23,6 +25,7 @@ const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 
 const pctStr = (p: number | null | undefined) => (p == null ? '—' : `${Math.round(p * 100)}%`);
 const pct1 = (p: number | null | undefined) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`);
 const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
+const NO_CONSENSUS_FLOOR = 0.10; // Bug A item 4: below this the leader is too weak to name
 
 /** Consensus descriptor from normalized Shannon entropy (0 = certain, 1 = wide open). */
 function consensusLabel(entropy: number | undefined): { label: string; cls: string } {
@@ -39,33 +42,6 @@ function resolvedWinner(outcome: ResolvedLeg[] | undefined): string | null {
   return won ? `resolved: ${won.outcome}` : null;
 }
 
-/** Horizontal outcome-bar chart — one labeled bar per outcome, width ∝ probability, the
- *  dominant bar in amber. Hand-rolled SVG (no charting dep), single-string <text> children. */
-function OutcomeBars({ outcomes }: { outcomes: CategoricalOutcome[] }) {
-  if (outcomes.length === 0) return <div className="empty" data-field="outcomes-empty">No outcome data.</div>;
-  const max = Math.max(0.01, ...outcomes.map((o) => o.probability));
-  const rowH = 26;
-  const VB_W = 480;
-  const VB_H = outcomes.length * rowH + 8;
-  const labelW = 150;
-  const barMax = VB_W - labelW - 52; // leave room for the % at the right
-  return (
-    <svg className="cat-bars" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Outcome probability distribution" data-field="outcome-bars">
-      {outcomes.map((o, i) => {
-        const y = i * rowH + 4;
-        const w = (o.probability / max) * barMax;
-        return (
-          <g key={i}>
-            <text className="cat-bar-label" x={labelW - 6} y={y + rowH / 2 + 3} textAnchor="end">{o.label}</text>
-            <rect className={`cat-bar${i === 0 ? ' cat-bar-top' : ''}`} x={labelW} y={y + 3} width={Math.max(1, w)} height={rowH - 10} rx={2} />
-            <text className="cat-bar-pct" x={labelW + Math.max(1, w) + 6} y={y + rowH / 2 + 3} textAnchor="start">{pct1(o.probability)}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 export function CategoricalDetailView({ record, envelope, hist }: { record: MarketRecord; envelope: ServeBody; hist?: HistoryUI }) {
   const s = record?.snapshot ?? {};
   const d = s?.derived ?? {};
@@ -74,7 +50,16 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
   const isFinal = lifecycleState === 'RESOLVED';
   const conf = d.confidence ?? {};
   const fresh = d.freshness ?? {};
-  const outcomes = (d.outcomes ?? []) as CategoricalOutcome[];
+  const allOutcomes = (d.outcomes ?? []) as CategoricalOutcome[];
+  // Bug A: defensively drop placeholder/untraded legs in the display too (belt-and-suspenders for a
+  // record cached BEFORE the core de-vig fix). For a freshly computed record this is a no-op — the
+  // SAME isPlaceholderLeg predicate already filtered them before normalization in core/categorical.
+  const outcomes = allOutcomes.filter((o) => !isPlaceholderLeg({ label: o.label, prob: o.raw_probability ?? undefined, volume: o.volume }));
+  const dominant = outcomes[0] ?? null;
+  const dominantProb = dominant?.probability ?? d.dominant_prob ?? 0;
+  // Bug A item 4: with no leader above the consensus floor (10%) the field is genuinely wide open —
+  // don't crown a 7% "leader". Name the leader in the headline only when it clears the floor.
+  const wideOpen = dominantProb < NO_CONSENSUS_FLOOR;
   const consensus = consensusLabel(d.entropy);
   const rawSha: string = s?.source?.raw_sha256 ?? '';
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
@@ -86,7 +71,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
   const daysHave = hist?.velocity?.days_have ?? 0;
   const change30 = daysHave >= 28 ? pointChange(pts, 30) : null;
   const change7 = daysHave >= 7 ? pointChange(pts, 7) : null;
-  const noConsensus = d.implied_winner === 'no consensus';
+  const noConsensus = wideOpen || d.implied_winner === 'no consensus';
   const totalVolume = d.total_volume ?? outcomes.reduce((sum, o) => sum + (o.volume ?? 0), 0);
 
   return (
@@ -120,8 +105,12 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
       <div className="detail-headline">
         <div className="detail-metric detail-metric-wide">
           <span className="label">Most likely outcome</span>
-          <span className="detail-hero num" data-field="dominant">{d.dominant_outcome ?? '—'} <span className="faint">{pctStr(d.dominant_prob)}</span></span>
-          <span className="detail-band faint">{d.implied_winner === 'no consensus' ? 'no single outcome above 50% — no consensus' : 'market consensus leader'}</span>
+          <span className="detail-hero num" data-field="dominant">
+            {wideOpen
+              ? 'No consensus — field is wide open'
+              : <>{dominant?.label ?? '—'} <span className="faint">{pctStr(dominantProb)}</span></>}
+          </span>
+          <span className="detail-band faint">{wideOpen ? 'no outcome above 10% — wide-open field' : (d.implied_winner === 'no consensus' ? 'no single outcome above 50% — no consensus' : 'market consensus leader')}</span>
         </div>
         <div className="detail-metric">
           <span className="label">Consensus</span>
@@ -159,7 +148,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
         <div className="detail-analytics">
           <div className="acard" data-field="pcard-leader">
             <div className="label">Leading outcome</div>
-            <div className="acard-v">{pctStr(d.dominant_prob)}</div>
+            <div className="acard-v">{pctStr(dominantProb)}</div>
             <div className={`acard-s ${deltaSign(change30)}`}>{change30 == null ? <span className="faint">no 30d history</span> : <>{fmtDeltaPp(change30)} pp · 30d</>}</div>
           </div>
           <div className="acard" data-field="pcard-consensus">
@@ -177,12 +166,12 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
 
       {/* NARRATIVE (v1 ITEM 1) — leading outcome + 30d/7d move + consensus read + confidence,
           built display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{categoricalNarrative({ dominantOutcome: d.dominant_outcome ?? null, dominantProb: d.dominant_prob ?? null, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative}</p>
 
-      {/* OUTCOME DISTRIBUTION — the analytical centerpiece */}
+      {/* OUTCOME DISTRIBUTION — the analytical centerpiece (top 10, "N more" expands) */}
       <section className="detail-section">
         <h2 className="detail-h2">Outcome distribution <span className="faint">· de-vigged, sums to 100%</span></h2>
-        <OutcomeBars outcomes={outcomes} />
+        <CategoricalOutcomeBars outcomes={outcomes} />
       </section>
 
       {/* VOLUME TABLE — where the conviction sits */}

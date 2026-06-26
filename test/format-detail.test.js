@@ -147,6 +147,21 @@ test('displayTitle: prefers the stored name, falls back to a cleaned slug', () =
   assert.equal(displayTitle('wti-crude-oil', 'wti-crude-oil'), 'Wti Crude Oil');
 });
 
+// ── date-range repair in titles (the Bitcoin "June 22 28 2026" bug) ──────────────
+import { humanizeDateRange } from '../lib/format-detail.mjs';
+test('humanizeDateRange: inserts an em-dash + comma into a stripped date range', () => {
+  assert.equal(humanizeDateRange('June 22 28 2026'), 'June 22–28, 2026');
+  assert.equal(humanizeDateRange('Bitcoin price on June 22 28 2026'), 'Bitcoin price on June 22–28, 2026');
+  assert.equal(humanizeDateRange('December 31 2026'), 'December 31, 2026'); // single date → comma
+  assert.equal(humanizeDateRange('June 22–28, 2026'), 'June 22–28, 2026'); // already punctuated: untouched
+  assert.equal(humanizeDateRange('Group 22 28 2026'), 'Group 22 28 2026'); // no month name → no change
+});
+
+test('titleFromSlug + displayTitle repair date ranges end-to-end', () => {
+  assert.equal(titleFromSlug('bitcoin-june-22-28-2026'), 'Bitcoin June 22–28, 2026');
+  assert.equal(displayTitle('Will Bitcoin dip June 22 28 2026?', 'x'), 'Will Bitcoin dip June 22–28, 2026?');
+});
+
 // ── Enh 5: human-readable volume ────────────────────────────────────────────────
 import { fmtVolHuman } from '../lib/format-detail.mjs';
 test('fmtVolHuman: compact dollar volumes across magnitudes', () => {

@@ -10,6 +10,7 @@ import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { fmtEastern, displayTitle, pointChange, touchNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { TouchProbabilityTable } from './TouchProbabilityTable';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -20,9 +21,7 @@ const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-me
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
-const pctStr = (p: number | null | undefined) => (p == null ? '—' : `${Math.round(p * 100)}%`);
 const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
-const fmtLevel = (lvl: number, unit: string) => `$${lvl.toFixed(unit ? 2 : 2)}${unit}`;
 
 /** Horizontal range bar: the implied [low, high] band within the full strike span. A null
  *  bound (50% crossover outside the quoted ladder) extends the band to that edge. */
@@ -186,25 +185,13 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
           Δ sentences omit gracefully when history is absent (never a dash). */}
       <p className="detail-narrative" data-field="narrative">{touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
 
-      {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs */}
+      {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs. Near
+          settlement (Bug B) it shows the active range only with a "show all" toggle; otherwise
+          consecutive all-zero levels collapse into one "N levels at 0%" row. */}
       {rows.length > 0 && (
         <section className="detail-section">
           <h2 className="detail-h2">Touch probabilities <span className="faint">· current snapshot</span></h2>
-          <div className="detail-table-wrap">
-            <table className="detail-table num" data-field="touch-table">
-              <thead><tr><th className="tl">Level</th><th>P(touch ≥)</th><th>P(touch ≤)</th><th>All-time volume</th></tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.level}>
-                    <td className="tl">{fmtLevel(r.level, unit)}</td>
-                    <td className={r.high != null && r.high >= 0.5 ? 'touch-hot' : ''}>{pctStr(r.high)}</td>
-                    <td className={r.low != null && r.low >= 0.5 ? 'touch-hot' : ''}>{pctStr(r.low)}</td>
-                    <td>{fmtVol(r.vol)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TouchProbabilityTable rows={rows} near={near} unit={unit} />
         </section>
       )}
 

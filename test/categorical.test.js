@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeProbabilities, shannonEntropy, consensusStrength,
   parseCategoricalOutcomes, scoreCategoricalConfidence, buildCategoricalRecord,
+  isPlaceholderLeg, realCategoricalLegs,
 } from '../core/categorical.js';
 import { hashRawInputs } from '../core/fetch.js';
 import { validateRecord } from '../core/validate.js';
@@ -61,6 +62,59 @@ test('parseCategoricalOutcomes: sorts descending, normalizes, keeps the raw prob
   assert.equal(outs[0].raw_probability, 0.8); // raw preserved
   assert.ok(outs[0].probability > 0.8); // normalized up (overround removed)
   assert.ok(Math.abs(outs.reduce((a, o) => a + o.probability, 0) - 1) < 1e-9);
+});
+
+// ── Bug Zero: placeholder legs must be filtered BEFORE de-vig ─────────────────
+test('isPlaceholderLeg: generic zero-volume legs are placeholders; real names never are', () => {
+  assert.equal(isPlaceholderLeg({ label: 'Candidate C', volume: 0 }), true);
+  assert.equal(isPlaceholderLeg({ label: 'candidate z', volume: 0 }), true);
+  assert.equal(isPlaceholderLeg({ label: 'Choice D', volume: 0 }), true);
+  assert.equal(isPlaceholderLeg({ label: 'Option F', volume: null }), true); // null volume = 0
+  // a real named candidate is NEVER a placeholder, even at zero volume
+  assert.equal(isPlaceholderLeg({ label: 'Ryan Fazio', volume: 0 }), false);
+  assert.equal(isPlaceholderLeg({ label: 'Betsy McCaughey', volume: 0 }), false);
+  // a generic label WITH real volume is kept (the AND guard)
+  assert.equal(isPlaceholderLeg({ label: 'Candidate C', volume: 1200 }), false);
+  // a real-named catch-all leg ("Other") that never traded — $0 volume, still pinned at ~0.5 — is
+  // an untraded artifact too (it dragged Ryan Fazio from 97% to 65% before this rule).
+  assert.equal(isPlaceholderLeg({ label: 'Other', prob: 0.5, volume: 0 }), true);
+  assert.equal(isPlaceholderLeg({ label: 'Other', prob: 0.49, volume: 0 }), true);
+  // but a zero-volume leg with a real divergent quote (a genuine long-shot) is kept
+  assert.equal(isPlaceholderLeg({ label: 'Other', prob: 0.03, volume: 0 }), false);
+  // and "Other" that has actually traded is always kept
+  assert.equal(isPlaceholderLeg({ label: 'Other', prob: 0.5, volume: 5000 }), false);
+});
+
+test('realCategoricalLegs: drops placeholders but never strips below the real outcomes', () => {
+  const legs = [
+    { label: 'Ryan Fazio', prob: 0.97, volume: 50000 },
+    { label: 'Erin Stewart', prob: 0.02, volume: 800 },
+    { label: 'Candidate C', prob: 0.5, volume: 0 },
+    { label: 'Candidate D', prob: 0.5, volume: 0 },
+  ];
+  assert.deepEqual(realCategoricalLegs(legs).map((l) => l.label), ['Ryan Fazio', 'Erin Stewart']);
+  // degenerate all-generic event → fall back to the originals (never blank the market)
+  const allGeneric = [{ label: 'Candidate A', prob: 0.5, volume: 0 }, { label: 'Candidate B', prob: 0.5, volume: 0 }];
+  assert.equal(realCategoricalLegs(allGeneric).length, 2);
+});
+
+test('Bug Zero: de-vig over real legs only — Ryan Fazio stays ~97%, not collapsed to ~7%', () => {
+  // The exact failure: 2 real candidates + 24 placeholder legs ("Candidate C".."Candidate Z"),
+  // each at 0.5 raw / $0 volume. WRONG (de-vig over all): 0.97 / (0.97 + 0.02 + 24*0.5) ≈ 0.075.
+  // RIGHT (de-vig over the two real legs): 0.97 / 0.99 ≈ 0.98.
+  const legs = [
+    { label: 'Ryan Fazio', prob: 0.97, volume: 50000 },
+    { label: 'Erin Stewart', prob: 0.02, volume: 800 },
+    { label: 'Other', prob: 0.5, volume: 0 }, // untraded catch-all — the real CT inflator
+    ...Array.from({ length: 24 }, (_, i) => ({ label: `Candidate ${String.fromCharCode(67 + i)}`, prob: 0.5, volume: 0 })),
+  ];
+  const outs = parseCategoricalOutcomes(legs);
+  assert.equal(outs.length, 2); // only the two real traded candidates survive
+  assert.equal(outs[0].label, 'Ryan Fazio');
+  assert.ok(outs[0].probability > 0.95, `expected ~0.98, got ${outs[0].probability}`);
+  assert.ok(Math.abs(outs.reduce((a, o) => a + o.probability, 0) - 1) < 1e-9); // still a valid PMF
+  // entropy reflects the real (concentrated) field, not 27 near-uniform legs
+  assert.ok(shannonEntropy(outs.map((o) => o.probability)) < 0.3);
 });
 
 // ── scoreCategoricalConfidence ───────────────────────────────────────────────

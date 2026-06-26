@@ -447,6 +447,10 @@ a:hover { text-decoration: underline; }
 .touch-axislabel { fill: var(--accent-amber); font-family: var(--font-mono); font-size: 26px; font-weight: 600; }
 .touch-axisend { fill: var(--text-faint); font-family: var(--font-mono); font-size: 22px; }
 .touch-hot { color: var(--accent-amber); font-weight: 700; }
+/* Bug B: settled-leg filtering — footer note + "show all" toggle, and the collapsed 0%-run row. */
+.touch-table-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin-top: var(--sp-2); font-size: var(--fs-micro); }
+.touch-collapsed td { color: var(--text-faint); font-style: italic; text-align: center; }
 
 /* ── settlement-consensus view (Bug 6, near settlement) ──────────────────── */
 .settle-view { margin-top: var(--sp-3); }
@@ -467,6 +471,11 @@ a:hover { text-decoration: underline; }
 .cat-bar-label { fill: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
 .cat-bar-pct { fill: var(--text-faint); font-family: var(--font-mono); font-size: 10px; }
 .cat-row-top td { color: var(--accent-amber); }
+/* Bug A item 2: "N more outcomes" toggle under the distribution bars. */
+.cat-more { margin-top: var(--sp-2); background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
+  padding: 3px 9px; border-radius: var(--radius); cursor: pointer; letter-spacing: var(--track-label); }
+.cat-more:hover { color: var(--accent-blue); border-color: var(--border-strong); }
 
 /* ── binary detail view: probability meter (Enh 4) ───────────────────────── */
 .bin-meter { margin-top: var(--sp-3); }
