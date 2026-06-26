@@ -67,8 +67,13 @@ export async function DetailData({ id }: { id: string }) {
   const chartKind = dk === 'binary' ? 'binary'
     : dk === 'categorical' ? 'categorical'
     : dk === 'directional_touch' ? 'directional_touch' : 'ladder';
+  // Read up to a year of history so the chart's 90D/ALL toggle can show the FULL backfilled
+  // series (a backfill can write 180+ days; the old 90-day window hid most of it, and for a
+  // RESOLVED market whose data ends weeks ago the 90-day-from-today window caught only the tail).
+  // The velocity/dispersion/Δ/mover derivations look only at fixed horizons, so the wider read
+  // doesn't change them. Lean {date,value} points are shipped to the client — not the records.
   let rows: HistoryRow[] = [];
-  try { rows = (await readHistory(id, 90)) as HistoryRow[]; } catch { rows = []; }
+  try { rows = (await readHistory(id, 365)) as HistoryRow[]; } catch { rows = []; }
   const hist: HistoryUI = {
     velocity: deriveVelocity(rows) as VelocityResult,
     dispersion: deriveDispersion(rows) as DispersionResult,
