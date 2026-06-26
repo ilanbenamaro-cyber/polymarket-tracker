@@ -8,6 +8,8 @@
 // the LAYOUT segment — where the watchlist rail (a Server Component) lives — so the new
 // or removed market appears without a full reload or a client-state layer.
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
@@ -54,7 +56,33 @@ export async function addMarket(slug: string, orgId: string | null): Promise<Act
   }
 
   revalidatePath('/', 'layout'); // rail (layout-level Server Component) re-renders
+
+  // 3. Backfill market_history from CLOB price history — fire-and-forget AFTER the response
+  // flushes (the user already sees the market). The dedicated /api/backfill route ACKs 202 and
+  // owns the (minutes-long) rebuild in its own budget, so this trigger returns fast.
+  after(() => triggerBackfill(id));
   return { ok: true, slug: id };
+}
+
+/** Kick the backfill route for a freshly added market. Fire-and-forget: gated by CRON_SECRET
+ *  (skips when unset — fails closed, never runs the job open), and any failure here NEVER affects
+ *  the add (history simply backfills later, or via the cron retry of a 'failed' status). */
+async function triggerBackfill(id: string): Promise<void> {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return; // no secret configured ⇒ no backfill trigger (same fail-closed posture as the route)
+  try {
+    const h = await headers();
+    const host = h.get('host');
+    if (!host) return;
+    const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+    await fetch(`${proto}://${host}/api/backfill?id=${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${secret}` },
+      cache: 'no-store',
+    });
+  } catch {
+    // swallow — fire-and-forget; the market is already added and the cron will retry the backfill
+  }
 }
 
 /** Remove a market from the rail. orgId null = personal; otherwise the org's shared list. */

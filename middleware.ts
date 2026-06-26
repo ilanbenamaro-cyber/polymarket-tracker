@@ -53,8 +53,11 @@ export async function middleware(request: NextRequest) {
     || pathname === '/signup' || pathname.startsWith('/signup/'); // invite-acceptance (Enh 6)
   // Routes whose OWN auth governs them (not the session cookie) — never session-redirect:
   //   /api/market   = public verified market data (no-store);
-  //   /api/snapshot = the cron job, gated by CRON_SECRET bearer in the route handler.
-  const isNonSessionApi = pathname.startsWith('/api/market') || pathname.startsWith('/api/snapshot');
+  //   /api/snapshot = the daily cron, gated by CRON_SECRET bearer in the route handler;
+  //   /api/backfill = the per-market history backfill, same CRON_SECRET bearer gate.
+  const isNonSessionApi = pathname.startsWith('/api/market')
+    || pathname.startsWith('/api/snapshot')
+    || pathname.startsWith('/api/backfill');
 
   if (!user && !isAuthRoute && !isNonSessionApi) {
     const loginUrl = request.nextUrl.clone();
