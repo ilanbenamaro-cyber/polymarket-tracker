@@ -281,6 +281,9 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: var(--sp-2); }
 .trust-reasons, .trust-prov { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font-size: var(--fs-tiny); }
 .trust-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2px var(--sp-2); color: var(--text-muted); }
+/* v1 ITEM 11: tier-marked confidence-basis chips (✓ passed · caveat · ✗ failed). */
+.conf-chip-high { color: var(--c-high); border-color: color-mix(in srgb, var(--c-high) 40%, var(--border)); }
+.conf-chip-low { color: var(--c-low); border-color: color-mix(in srgb, var(--c-low) 40%, var(--border)); }
 .trust-sep { color: var(--text-faint); }
 .hashverify { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .prov-hash { font-family: var(--font-mono); background: var(--bg-card); padding: 1px var(--sp-2); border-radius: var(--radius-sm); color: var(--text); }
@@ -346,6 +349,9 @@ a:hover { text-decoration: underline; }
 .detail-table th { color: var(--text-muted); font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: var(--track-label); font-weight: 600; }
 .detail-table .tl { text-align: left; }
 .detail-table tr.thin td { opacity: 0.5; }
+/* v1 ITEM 9: the at-the-money rung (P nearest 50%) — the threshold that matters most. */
+.detail-table tr.tracked td { color: var(--accent-amber); font-weight: 600; opacity: 1; }
+.track-dot { color: var(--accent-amber); }
 .adjmark { color: var(--accent-amber); cursor: help; }
 .vdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: var(--sp-1); vertical-align: middle; }
 .v-high { background: var(--c-high); } .v-med { background: var(--c-med); } .v-low { background: var(--text-faint); } .v-na { background: transparent; }

@@ -12,7 +12,7 @@ import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, headlineChange } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative } from '@/lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -129,6 +129,9 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
   const canonical = Array.isArray(s?.raw_inputs) ? canonicalizeRawInputs(s.raw_inputs) : '';
   const band = resolvedBand(s?.lifecycle?.resolved_outcome, unit);
   const near = d.near_settlement === true && lifecycleState === 'OPEN'; // amber NEAR SETTLEMENT (Bug 3)
+  // v1 ITEM 9: the at-the-money rung (P nearest 50%) is the threshold that matters most — the one
+  // the market is actually deciding — vs the noise rungs pinned at 0%/100%. Highlight it amber.
+  const atmThreshold = nearestThreshold(d.markets, 0.5)?.threshold ?? null;
 
   return (
     <article className="detail-view" data-zone="detail-view" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -193,10 +196,17 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
 
       {/* TRUST BAND — prominent, before the distribution */}
       <div className="detail-trust" data-field="trust">
+        {/* v1 ITEM 11: the confidence basis reads as a CHECKLIST of conditions, not a failure log.
+            For HIGH the stored reasons ARE the passing conditions (✓); MEDIUM marks caveats (·);
+            LOW marks the conditions that failed (✗). (The reason TEXT is pipeline-generated; the
+            display reframes its presentation by tier — it doesn't re-derive the conditions.) */}
         {Array.isArray(conf.reasons) && conf.reasons.length > 0 && (
-          <div className="trust-reasons">
+          <div className="trust-reasons" data-field="confidence-basis">
             <span className="label">Confidence basis</span>
-            {conf.reasons.map((r: string, i: number) => <span key={i} className="trust-chip">{r}</span>)}
+            {conf.reasons.map((r: string, i: number) => {
+              const mark = conf.tier === 'high' ? '✓' : conf.tier === 'low' ? '✗' : '·';
+              return <span key={i} className={`trust-chip conf-chip-${conf.tier ?? 'medium'}`}>{mark} {r}</span>;
+            })}
           </div>
         )}
         <div className="trust-prov">
@@ -212,6 +222,11 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
             : <span className="faint">unavailable</span>}
         </div>
       </div>
+
+      {/* KEY METRICS (v1 ITEMS 5 + 6) — P(>at-the-money) + P(>tail) with 30d change + total volume. */}
+      {Array.isArray(d.markets) && d.markets.length > 0 && (
+        <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} />
+      )}
 
       {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
           1→0 with no remaining signal, so swap it for the settlement-consensus view (Bug 6).
@@ -266,9 +281,10 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
                 {d.markets.map((m: LadderRow, i: number) => {
                   const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
                   const dl = deltaFor(deltas, m.threshold);
+                  const tracked = m.threshold === atmThreshold;
                   return (
-                    <tr key={`${m.threshold}-${i}`} className={m.volume_tier === 'low' ? 'thin' : ''}>
-                      <td className="tl">{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
+                    <tr key={`${m.threshold}-${i}`} className={`${tracked ? 'tracked ' : ''}${m.volume_tier === 'low' ? 'thin' : ''}`.trim()}>
+                      <td className="tl">{tracked && <span className="track-dot" aria-hidden="true">● </span>}{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
                       <td>{pct(m.prob)}</td>
                       <td>{pct1(m.bucket_prob)}</td>
                       <DeltaCell delta={dl?.d1 ?? null} />
@@ -301,6 +317,47 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
 /** Look up the Δ row for one threshold (exact match; null when the history has no series). */
 function deltaFor(deltas: ThresholdDelta[], threshold: number): ThresholdDelta | undefined {
   return deltas?.find((x) => x.threshold === threshold);
+}
+
+/** The ladder rung whose P(>X) is nearest a target probability — e.g. the at-the-money rung
+ *  (target 0.5) or the tail rung (target 0.1). Null on an empty ladder. (v1 ITEMS 5, 9.) */
+function nearestThreshold(markets: LadderRow[] | undefined, target: number): LadderRow | null {
+  if (!Array.isArray(markets) || markets.length === 0) return null;
+  return markets.reduce((best, m) => (Math.abs(m.prob - target) < Math.abs(best.prob - target) ? m : best), markets[0]);
+}
+
+/** v1 ITEMS 5 + 6: the key-metrics cards — P(>at-the-money) + P(>tail) (current % + 30d change,
+ *  green/red) + total volume. The at-the-money rung (P≈0.5) and the tail rung (P≈0.1) bracket the
+ *  distribution; the change comes from the same 30d Δ the table uses. */
+function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
+  { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string }) {
+  const atm = nearestThreshold(markets, 0.5);
+  const tail = nearestThreshold(markets, 0.1);
+  const probCard = (m: LadderRow | null, tag: string) => {
+    if (!m) return null;
+    const d30 = deltaFor(deltas, m.threshold)?.d30 ?? null;
+    return (
+      <div className="acard" key={tag} data-field={`pcard-${tag}`}>
+        <div className="label">P(&gt;${m.threshold}{unit}) <span className="faint">· {tag}</span></div>
+        <div className="acard-v">{pct(m.prob)}</div>
+        <div className={`acard-s ${deltaSign(d30)}`}>{d30 == null ? <span className="faint">no 30d history</span> : <>{fmtDeltaPp(d30)} pp · 30d</>}</div>
+      </div>
+    );
+  };
+  return (
+    <section className="detail-section" data-field="key-metrics">
+      <h2 className="detail-h2">Key metrics</h2>
+      <div className="detail-analytics">
+        {probCard(atm, 'at-the-money')}
+        {probCard(tail, 'tail')}
+        <div className="acard" data-field="total-volume">
+          <div className="label">Total volume</div>
+          <div className="acard-v">{totalVolume != null ? fmtVolHuman(totalVolume) : '—'}</div>
+          <div className="acard-s faint">cumulative, all legs</div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 /** One Δ cell: signed percentage points, coloured up/down (neutral inside the deadband), with
@@ -356,18 +413,25 @@ function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit
   const sh = analytics.shape ?? {};
   const di = analytics.dispersion ?? {};
   const ve = analytics.velocity ?? {};
-  const skew = sh.skew_bowley == null ? '—' : `${sh.skew_bowley > 0.1 ? 'right (upside)' : sh.skew_bowley < -0.1 ? 'left (downside)' : '~symmetric'} (${sh.skew_bowley.toFixed(2)})`;
-  const consensus = sh.entropy == null ? '—' : `${sh.entropy < 0.5 ? 'tight' : sh.entropy < 0.78 ? 'moderate' : 'wide'} (${sh.entropy.toFixed(2)})`;
-  // Dispersion trend + velocity need a history prior; until it accrues, say "collecting"
-  // (never a bare dash). Shape/consensus are computed from the single snapshot → always real.
+  // v1 ITEM 8: each card carries a plain-English interpretation, and a synthesis line below ties
+  // the four together. Words shared between cards + synthesis so they read as one read.
+  const shapeWord = sh.skew_bowley == null ? null : sh.skew_bowley > 0.1 ? 'right-skewed' : sh.skew_bowley < -0.1 ? 'left-skewed' : '~symmetric';
+  const skew = shapeWord == null ? '—' : `${shapeWord === 'right-skewed' ? 'right (upside)' : shapeWord === 'left-skewed' ? 'left (downside)' : '~symmetric'} (${sh.skew_bowley!.toFixed(2)})`;
+  const consensusWord = sh.entropy == null ? null : sh.entropy < 0.5 ? 'tight consensus' : sh.entropy < 0.78 ? 'moderate consensus' : 'wide field';
+  const consensus = consensusWord == null ? '—' : `${sh.entropy! < 0.5 ? 'tight' : sh.entropy! < 0.78 ? 'moderate' : 'wide'} (${sh.entropy!.toFixed(2)})`;
+  const massLabel = sh.dominant_bucket?.label ?? null;
   const disp = di.trend ? `${di.trend} · width ${di.iqr_width != null ? `$${di.iqr_width.toFixed(2)}${unit}` : '—'}` : 'collecting';
-  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} $${unit}/yr` : null;
+  const bandWord = di.trend === 'converging' ? 'narrowing' : di.trend === 'diverging' ? 'widening' : di.trend ? 'steady' : null;
+  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} $${unit}/yr (30d)` : null;
   const cards = [
-    { l: 'Shape (skew)', v: skew, s: sh.fat_tail != null ? `fat-tail ${sh.fat_tail.toFixed(2)}×` : '' },
-    { l: 'Consensus (entropy)', v: consensus, s: sh.dominant_bucket?.label ? `mass at ${sh.dominant_bucket.label}` : '' },
-    { l: 'Dispersion (25–75)', v: disp, s: di.trend === 'converging' ? 'narrowing → more certain' : di.trend === 'diverging' ? 'widening → less certain' : 'requires ≥30 days' },
+    { l: 'Distribution shape', v: skew, s: `Bowley skew → ${shapeWord ?? 'unknown'}${sh.fat_tail != null ? ` (${sh.fat_tail.toFixed(2)}×)` : ''}` },
+    { l: 'Consensus (entropy)', v: consensus, s: `${sh.entropy != null && sh.entropy < 0.5 ? 'lo = market agrees' : 'hi = market uncertain'}${massLabel ? ` · mass ${massLabel}` : ''}` },
+    { l: 'Dispersion (25–75 band)', v: disp, s: di.trend === 'converging' ? 'narrowing → growing certainty' : di.trend === 'diverging' ? 'widening → growing uncertainty' : 'requires ≥30 days' },
     { l: 'Velocity', v: ve.acceleration ?? 'collecting', s: drift ? `median drift ${drift}` : 'requires ≥7 days' },
   ];
+  // synthesis (mirrors v1's summary line): "[consensus]; [shape]; mass centred on $A–$B; band […]."
+  const synth = [consensusWord, shapeWord, massLabel ? `mass centred on ${massLabel}` : null, bandWord ? `band ${bandWord}` : null]
+    .filter(Boolean).join('; ');
   return (
     <section className="detail-section">
       <h2 className="detail-h2">Market analytics <span className="tier1-tag">Tier 1 · market-derived</span></h2>
@@ -380,7 +444,7 @@ function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit
           </div>
         ))}
       </div>
-      {analytics.descriptor && <p className="detail-analytics-desc faint">{analytics.descriptor}</p>}
+      {synth && <p className="detail-analytics-desc faint" data-field="analytics-synthesis">{synth}.</p>}
     </section>
   );
 }
