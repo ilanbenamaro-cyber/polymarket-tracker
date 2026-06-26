@@ -13,8 +13,18 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
+  needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
+
+// ── needsBackfill (the cron-retry rule) ───────────────────────────────────────
+test('needsBackfill: null (never triggered) and "failed" retry; "done"/"pending" do not', () => {
+  assert.equal(needsBackfill(null), true);
+  assert.equal(needsBackfill(undefined), true);
+  assert.equal(needsBackfill('failed'), true);
+  assert.equal(needsBackfill('done'), false);
+  assert.equal(needsBackfill('pending'), false);
+});
 
 // ── fixture helpers ──────────────────────────────────────────────────────────
 const dayMs = 86_400_000;
