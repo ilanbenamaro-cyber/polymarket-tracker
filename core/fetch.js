@@ -96,7 +96,7 @@ async function fetchLastTradePrice(token) {
  * outcomePrices) in the side channel for the lifecycle classifier — NEVER in
  * raw_inputs, so the frozen hash recipe is untouched.
  */
-async function fetchMarketMeta(config = null) {
+export async function fetchMarketMeta(config = null) {
   const url = config ? gammaUrl(config.event_slug) : ENDPOINTS.gamma;
   const re = config ? thresholdRegExp(config) : THRESHOLD_RE;
   const labelOf = config ? (t) => labelGt(config, t) : (t) => `>$${t}T`;
@@ -320,7 +320,7 @@ export async function classifyMarketShape(slug) {
 
 /** The single Yes/No market's metadata — NO threshold parsing (the binary question
  *  has none). Returns the YES/NO token ids + resolution signals + display fields. */
-async function fetchBinaryMeta(config = null) {
+export async function fetchBinaryMeta(config = null) {
   const url = config ? gammaUrl(config.event_slug) : ENDPOINTS.gamma;
   const events = await fetchJson(url);
   if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
@@ -444,7 +444,7 @@ export async function fetchBinarySnapshot(config = null) {
 
 /** Gamma event → { title, end_date, unit, legs[] } where each leg is a parseable bucket
  *  (lo/hi absolute $, YES token, volume, resolution signals). Non-$ legs are excluded. */
-async function fetchBucketMeta(config) {
+export async function fetchBucketMeta(config) {
   const events = await fetchJson(gammaUrl(config.event_slug));
   if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
   const ev = events[0];
@@ -561,7 +561,7 @@ export async function fetchBucketPmfSnapshot(config) {
 // and deterministic (mirrors binary's 1=YES/0=NO trick). See MARKET-TYPES-PLAN.md.
 
 /** Gamma event → { title, end_date, unitInfo, legs[] } of parseable touch legs. */
-async function fetchTouchMeta(config) {
+export async function fetchTouchMeta(config) {
   const events = await fetchJson(gammaUrl(config.event_slug));
   if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
   const ev = events[0];
@@ -665,7 +665,7 @@ export async function fetchTouchSnapshot(config) {
 
 /** Gamma event → { title, end_date, legs[] } where each leg = a named outcome (label from
  *  groupItemTitle, else the question) with its YES token + resolution signals. */
-async function fetchCategoricalMeta(config) {
+export async function fetchCategoricalMeta(config) {
   const events = await fetchJson(gammaUrl(config.event_slug));
   if (!Array.isArray(events) || events.length === 0) throw new Error('Gamma API returned no events');
   const ev = events[0];
