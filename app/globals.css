@@ -186,7 +186,11 @@ a:hover { text-decoration: underline; }
 .wl-title {
   flex: 1 1 auto; min-width: 0;
   font-size: var(--fs-body); line-height: var(--lh-tight);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* F8: allow up to 2 lines before ellipsizing. Long market titles ("What will WTI Crude Oil
+     (WTI) hit in June 2026?") clipped after one line; short ones still render on one line, so
+     density is preserved for the common case while long titles become legible without a hover. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; text-overflow: ellipsis;
 }
 .wl-chip {
   flex: 0 0 auto;
