@@ -59,8 +59,14 @@ test('headlineValue: survival/bucket use implied_median, binary uses probability
   assert.equal(headlineValue(mkRow(0, { kind: 'directional_touch', touchLo: 66, touchHi: 90 })), 78);
 });
 
-test('headlineValue: touch midpoint is null when a bound is missing', () => {
-  assert.equal(headlineValue(mkRow(0, { kind: 'directional_touch', touchLo: 66, touchHi: null })), null);
+test('headlineValue: a one-sided touch market tracks its single available bound (not null)', () => {
+  // HIGH-only "hit $X" market: no LOW crossover → track the high bound (the gap the Anthropic
+  // backfill exposed — otherwise its trend never charts despite full history).
+  assert.equal(headlineValue(mkRow(0, { kind: 'directional_touch', touchLo: null, touchHi: 1.84 })), 1.84);
+  // LOW-only: track the low bound.
+  assert.equal(headlineValue(mkRow(0, { kind: 'directional_touch', touchLo: 66, touchHi: null })), 66);
+  // truly no signal → null.
+  assert.equal(headlineValue(mkRow(0, { kind: 'directional_touch', touchLo: null, touchHi: null })), null);
 });
 
 // ── deriveVelocity ───────────────────────────────────────────────────────────
