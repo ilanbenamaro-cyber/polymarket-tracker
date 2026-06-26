@@ -4,6 +4,7 @@
   "type": "module",
   "main": "tracker.js",
   "scripts": {
+    "predev": "node scripts/predev-guard.mjs",
     "dev": "next dev",
     "build": "next build",
     "start:next": "next start",
