@@ -98,6 +98,27 @@ test('binary market renders its headline as a probability %, ladder as $median',
   assert.equal(lad.median_display, '$2.10T', 'ladder headline is the $median');
 });
 
+test('F7: a categorical market headlines the leading outcome probability (not a bare —)', () => {
+  const visible = [{ scope: 'personal', org_id: null, market_id: 'cat', created_at: '2026-06-22T00:00:00Z' }];
+  const markets = [{ id: 'cat', title: 'How many Fed cuts?', kind: 'categorical' }];
+  // categorical does NOT populate implied_median; the leading outcome lives in the record.
+  const latest = [{ market_id: 'cat', implied_median: null, confidence_tier: 'medium', lifecycle_state: 'OPEN', is_final: false, stale_after: null, fetched_at: '2026-06-22T00:00:00Z',
+    record: { snapshot: { derived: { dominant_outcome: '0 cuts', dominant_prob: 0.62 } } } }];
+  const [row] = assembleScanRows(visible, markets, latest);
+  assert.equal(row.median_display, '62%', 'leading-outcome probability, not "—"');
+});
+
+test('F3: a ladder whose CDF never crosses 50% shows the honest bound label, not a bare —', () => {
+  const visible = [{ scope: 'personal', org_id: null, market_id: 'lad', created_at: '2026-06-22T00:00:00Z' }];
+  const markets = [{ id: 'lad', title: 'Cap above', kind: 'threshold_ladder' }];
+  // implied_median null + every rung pinned ABOVE 50% → median is above the top strike → "> $X".
+  const rungs = [{ threshold: 1, prob: 0.99, adjusted_prob: 0.99 }, { threshold: 2, prob: 0.95, adjusted_prob: 0.95 }];
+  const latest = [{ market_id: 'lad', implied_median: null, confidence_tier: 'high', lifecycle_state: 'OPEN', is_final: false, stale_after: null, fetched_at: '2026-06-22T00:00:00Z',
+    record: { snapshot: { derived: { markets: rungs } } } }];
+  const [row] = assembleScanRows(visible, markets, latest);
+  assert.equal(row.median_display, '> $2', 'honest "> $top" label (Bug 5), not a bare "—"');
+});
+
 test('empty watchlist yields no rows', () => {
   assert.deepEqual(assembleScanRows([], [], []), []);
 });
