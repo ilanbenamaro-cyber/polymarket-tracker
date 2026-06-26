@@ -8,6 +8,38 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-26): AUDIT FIXES (F1/F3/F7/F8 + F2) — MERGED to main (`--no-ff` `0d27dc8`) + PUSHED
+- **MERGED & PUSHED** (`0d27dc8`; `b999261..0d27dc8`; **261/261** on merged main; **SpaceX parity 3/3**; tsc +
+  build clean; in sync). From the live-market Playwright audit (`AUDIT-2026-06-25.md`). All Playwright-verified
+  on the 5 real markets (single clean dev `:3000`, 0 app console errors).
+- **F1 (CRITICAL, `dc1c2c7`):** `lib/compute.probeLifecycle` assumed a survival ladder and ran the `$X` parser
+  → threw "Cannot parse threshold" (HTTP **500**) on every binary/categorical/touch/bucket market whenever the
+  serve took the **PROBE path** (cached <15min TTL, last probe >60s — exactly where a freshly-added binary lands
+  a minute after adding). Now it **classifies shape first** (classifyMarketShape) and routes to the shape's
+  status fetcher; only survival parses `$X`. Injectable deps + 4 tests. **Verified via the real PROBE path:**
+  fed-rate-cut (categorical) + us-recession (binary) render where they 500'd.
+- **F3+F7 (`1682088`):** `lib/market-scan.headlineDisplay` — added a **categorical** branch (rail headline =
+  leading-outcome %, e.g. fed-rate-cut `44%`, was a bare `—`) + a **null-median ladder** branch (the Bug-5
+  `< $lo`/`> $hi` label, was `—`). +2 tests.
+- **F8 (`57305f2`):** `.wl-title` clamps to **2 lines** — long rail titles were clipping after one; verified all
+  8 rows un-clipped.
+- **F2 (`investigated`, not a backfill code fix):** `addMarket`'s `triggerBackfill` had **3 SILENT failure
+  paths** (no CRON_SECRET / no host / swallowed fetch) → a market added before CRON_SECRET was set (the likely
+  Bitcoin cause) left history empty + `backfill_status` null with NO trace. Now each path **logs
+  `[backfill-trigger]`**. Added **`scripts/check-backfill-status.mjs`** (operator-run; reads `backfill_status`/
+  `backfilled_through` + history-row counts by source). **Bitcoin's manual backfill returned written:3/days:4.**
+- **⚠ TWO AUDIT FINDINGS WERE MEASUREMENT ARTIFACTS** (the audit's unscoped `querySelector('[data-field=…]')`
+  grabbed the **rail's first row** — rail + detail share `data-field` names): **F3-detail** (detail median is
+  fine, `$2.10T`, never `—`) and **F4** (rail==detail confidence, both HIGH). Lesson for future audits: **scope
+  DOM queries to `[data-zone="detail-view"]`**. F5 (Bitcoin IQR `n/a–$64.15`) + F6 (noisy quotes, 51.4%
+  monotonicity adj) are real DETAIL findings, left as data-quality observations (not in the fix scope).
+- **⚠ The two-`next dev`-on-one-`.next` wedge RECURRED AGAIN during the audit** (it had falsely looked like
+  "/api/search hangs"; after kill-all + `rm -rf .next` + one server, search returns 200/580ms). **3rd recurrence
+  — keep ONE dev server; never run `next build` while `next dev` is live (corrupts the shared `.next`).**
+- **NEXT:** the recommended F2 follow-on — wire the daily cron (`/api/snapshot`) to RETRY markets where
+  `backfill_status IN (null,'failed')` (columns exist) + an optional detail "backfilling history…" UI signal.
+  Then Phase 4-style polish. PROD-STANDUP still needs migrations 0001–0008 + CRON_SECRET.
+
 ## ⮕ DIRECTION (2026-06-26): Phase 5 — HISTORY BACKFILL — MERGED to main (`--no-ff` `e270f05`) + PUSHED; live gate GREEN
 - **MERGED & PUSHED** (`e270f05`; `ff086d8..e270f05`; **255/255** on merged main; **SpaceX parity 3/3**; tsc +
   build clean; `main`↔`origin/main` in sync). Branched off `main` (Phase 3 + Phase 4); no cron race.
