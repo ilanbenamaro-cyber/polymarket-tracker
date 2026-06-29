@@ -291,3 +291,29 @@ test('categoricalNarrative: no-consensus framing when nothing clears 50%', () =>
   assert.match(s, /No single outcome clears 50%/);
   assert.match(s, /wide open/);
 });
+
+// ── Increment 6: ladder zone classification (threshold table signal-to-noise) ────
+import { classifyLadderZones } from '../lib/format-detail.mjs';
+test('classifyLadderZones: splits rungs into settled-high / active / settled-low by P(>X)', () => {
+  const m = [
+    { threshold: 1.0, prob: 0.99 }, // settled-high
+    { threshold: 1.5, prob: 0.95 }, // settled-high (boundary ≥0.95)
+    { threshold: 2.0, prob: 0.60 }, // active
+    { threshold: 2.5, prob: 0.20 }, // active
+    { threshold: 3.0, prob: 0.05 }, // settled-low (boundary ≤0.05)
+    { threshold: 3.5, prob: 0.01 }, // settled-low
+  ];
+  const z = classifyLadderZones(m);
+  assert.deepEqual(z.settledHigh.map((r) => r.threshold), [1.0, 1.5]);
+  assert.deepEqual(z.active.map((r) => r.threshold), [2.0, 2.5]);
+  assert.deepEqual(z.settledLow.map((r) => r.threshold), [3.0, 3.5]);
+});
+
+test('classifyLadderZones: all-active and empty edge cases', () => {
+  const allActive = classifyLadderZones([{ threshold: 2, prob: 0.5 }, { threshold: 2.2, prob: 0.4 }]);
+  assert.equal(allActive.active.length, 2);
+  assert.equal(allActive.settledHigh.length, 0);
+  assert.equal(allActive.settledLow.length, 0);
+  const empty = classifyLadderZones([]);
+  assert.deepEqual([empty.settledHigh.length, empty.active.length, empty.settledLow.length], [0, 0, 0]);
+});

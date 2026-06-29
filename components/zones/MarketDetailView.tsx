@@ -21,6 +21,7 @@ import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
+import { LadderThresholdTable } from './LadderThresholdTable';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import { CategoricalDetailView } from './CategoricalDetailView';
@@ -40,8 +41,6 @@ const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PEN
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
 const pct = (p: number | null | undefined) => (p == null ? '—' : `${Math.round(p * 100)}%`);
-const pct1 = (p: number | null | undefined) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`);
-const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
 
 /** The realized band from a RESOLVED outcome ladder: highest Yes → first No. */
 function resolvedBand(outcome: ResolvedLeg[] | undefined, unit: string): string | null {
@@ -289,36 +288,9 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
       {Array.isArray(d.markets) && d.markets.length > 0 && (
         <section className="detail-section">
           <h2 className="detail-h2">All thresholds <span className="faint">· current snapshot + history Δ</span></h2>
-          <div className="detail-table-wrap">
-            <table className="detail-table num" data-field="ladder">
-              <thead><tr>
-                <th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th>
-                <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th>
-                {vol24ByThreshold && <th>24h volume</th>}
-                <th>All-time volume</th>
-              </tr></thead>
-              <tbody>
-                {d.markets.map((m: LadderRow, i: number) => {
-                  const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
-                  const dl = deltaFor(deltas, m.threshold);
-                  const tracked = m.threshold === atmThreshold;
-                  const v24 = vol24ByThreshold?.[String(m.threshold)];
-                  return (
-                    <tr key={`${m.threshold}-${i}`} className={`${tracked ? 'tracked ' : ''}${m.volume_tier === 'low' ? 'thin' : ''}`.trim()}>
-                      <td className="tl">{tracked && <span className="track-dot" aria-hidden="true">● </span>}{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
-                      <td>{pct(m.prob)}</td>
-                      <td>{pct1(m.bucket_prob)}</td>
-                      <DeltaCell delta={dl?.d1 ?? null} />
-                      <DeltaCell delta={dl?.d7 ?? null} />
-                      <DeltaCell delta={dl?.d30 ?? null} />
-                      {vol24ByThreshold && <td>{v24 != null ? fmtVol(v24) : <span className="faint">—</span>}</td>}
-                      <td><span className={`vdot v-${m.volume_tier ?? 'na'}`} />{fmtVol(m.volume)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Increment 6: settled zones (P≥95% / ≤5%) collapse behind per-side toggles; active rows
+              + the at-the-money row stay visible. Tiny/near-settlement tables aren't collapsed. */}
+          <LadderThresholdTable markets={d.markets} deltas={deltas} atmThreshold={atmThreshold} vol24ByThreshold={vol24ByThreshold} near={near} />
         </section>
       )}
 
@@ -418,18 +390,6 @@ function ResolvedMetricsSection({ outcome, medianLabel, resolvedAt, unit }:
         </div>
       </div>
     </section>
-  );
-}
-
-/** One Δ cell: signed percentage points, coloured up/down (neutral inside the deadband), with
- *  a "pp" suffix on hover. A null horizon renders as a faint em dash — never a fake 0. */
-function DeltaCell({ delta }: { delta: number | null }) {
-  const cls = deltaSign(delta);
-  const txt = fmtDeltaPp(delta);
-  return (
-    <td className={`delta-cell ${cls}${txt === '—' ? ' faint' : ''}`} title={txt === '—' ? 'no snapshot at this horizon yet' : `${txt} percentage points`}>
-      {txt}
-    </td>
   );
 }
 

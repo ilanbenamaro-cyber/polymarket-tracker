@@ -376,6 +376,10 @@ a:hover { text-decoration: underline; }
 /* Phase 3: per-threshold Δ columns (is-up/is-down colour the value; a null horizon is faint). */
 .delta-cell { font-variant-numeric: tabular-nums; }
 .delta-cell.faint { color: var(--text-faint); }
+/* Increment 6: settled-zone rows are muted; their Δ cells fade further (≈no movement). */
+.detail-table tr.settled td { opacity: 0.62; }
+.delta-cell.settled-delta { opacity: 0.4; }
+.ladder-toggle-row td { text-align: center; padding: var(--sp-1) 0; }
 .mover-card .acard-v { font-variant-numeric: tabular-nums; }
 .mover-pp { font-size: var(--fs-micro); font-weight: 400; }
 
