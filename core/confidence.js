@@ -27,11 +27,14 @@ const VOL24_HIGH = 50_000;
 const VOL1WK_HIGH = 200_000;
 const VOL24_MEDIUM = 5_000;
 const VOL1WK_MEDIUM = 25_000;
+// F1 (red-team fix): the 7d-only HIGH path requires a minimum recent (24h) floor so a STALE 7d spike
+// on a now-dormant market (24h ≈ dead) can't read HIGH on week-old activity. Absent v24 counts as 0.
+const VOL24_HIGH_FLOOR = 2_000;
 
 /**
  * Windowed-volume liquidity signal from a derived.liquidity object {volume_24hr, volume_1wk}.
- *   HIGH   : 24h ≥ $50K OR 7d ≥ $200K
- *   MEDIUM : 24h ≥ $5K  OR 7d ≥ $25K
+ *   HIGH   : 24h ≥ $50K  OR  (7d ≥ $200K AND 24h ≥ $2K)   ← the $2K floor blocks a stale 7d spike
+ *   MEDIUM : 24h ≥ $5K   OR  7d ≥ $25K
  *   LOW    : below both
  * Returns { tier, reason } (reason null for HIGH — no caveat) or NULL when no windowed data is
  * present, so callers fall back to the all-time tier and leave the score/tier UNCHANGED. The null
@@ -41,10 +44,11 @@ export function windowedVolumeSignal(liquidity) {
   if (!liquidity) return null;
   const v24 = liquidity.volume_24hr, v7 = liquidity.volume_1wk;
   if (v24 == null && v7 == null) return null;
+  const v24n = v24 ?? 0, v7n = v7 ?? 0;
   const usd = `$${Math.round(v24 ?? v7 ?? 0).toLocaleString('en-US')}`;
   const window = v24 != null ? '24h' : '7d';
-  if ((v24 ?? 0) >= VOL24_HIGH || (v7 ?? 0) >= VOL1WK_HIGH) return { tier: 'high', reason: null };
-  if ((v24 ?? 0) >= VOL24_MEDIUM || (v7 ?? 0) >= VOL1WK_MEDIUM) return { tier: 'medium', reason: `moderate ${window} volume (${usd})` };
+  if (v24n >= VOL24_HIGH || (v7n >= VOL1WK_HIGH && v24n >= VOL24_HIGH_FLOOR)) return { tier: 'high', reason: null };
+  if (v24n >= VOL24_MEDIUM || v7n >= VOL1WK_MEDIUM) return { tier: 'medium', reason: `moderate ${window} volume (${usd})` };
   return { tier: 'low', reason: `thin ${window} volume (${usd})` };
 }
 

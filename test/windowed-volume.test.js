@@ -37,6 +37,17 @@ test('windowedVolumeSignal: just-over-the-line Anthropic is HIGH (24h $51,666 �
   assert.equal(winSig({ volume_24hr: 51_666, volume_1wk: 220_614 }).tier, 'high');
 });
 
+test('F1: a STALE 7d spike on a now-dormant market does NOT read HIGH (24h floor $2K)', () => {
+  // v7 ≥ $200K but 24h is dead → the floor blocks HIGH; it reads MEDIUM (still ≥ $25K/7d).
+  assert.equal(winSig({ volume_24hr: 0, volume_1wk: 250_000 }).tier, 'medium');
+  assert.equal(winSig({ volume_24hr: 1_999, volume_1wk: 250_000 }).tier, 'medium'); // just below the floor
+  // a live market clearing the $2K floor keeps its 7d-driven HIGH (boundary).
+  assert.equal(winSig({ volume_24hr: 2_000, volume_1wk: 250_000 }).tier, 'high'); // exactly at the floor
+  assert.equal(winSig({ volume_24hr: 6_000, volume_1wk: 551_000 }).tier, 'high'); // Silver: $6K ≥ floor
+  // the 24h≥$50K path is unaffected by the floor.
+  assert.equal(winSig({ volume_24hr: 60_000, volume_1wk: 0 }).tier, 'high');
+});
+
 test('windowedVolumeSignal: null when no windowed data (drives the all-time fallback + parity safety)', () => {
   assert.equal(winSig(null), null);
   assert.equal(winSig({ volume_24hr: null, volume_1wk: null }), null);
