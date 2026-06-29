@@ -9,7 +9,7 @@
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { isPlaceholderLeg } from '@/core/categorical.js';
-import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
@@ -82,6 +82,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
             <> · <span className="cat-tag">CATEGORICAL</span></>
           </div>

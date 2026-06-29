@@ -6,7 +6,7 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { HashVerify } from './HashVerify';
@@ -69,6 +69,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
             <> · binary (Yes/No)</>
           </div>

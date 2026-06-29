@@ -49,6 +49,34 @@ export function windowedVolumeSignal(liquidity) {
 }
 
 /**
+ * Increment 3 — time-to-expiry normalized spread tolerance. A wide bid/ask spread near expiry is
+ * market-makers exiting (expected), not genuine illiquidity; the same spread 6 months out is real
+ * illiquidity. So we WIDEN the spread thresholds as expiry approaches:
+ *   > 90d (or unknown) → ×1.0 (standard) · 30–90d → ×1.5 · 7–30d → ×2.5 · < 7d → ×2.5
+ * (< 7d's pinned-rung case is additionally handled by the near-settlement carve-out.) The multiplier
+ * NEVER tightens, so a far-dated market (SpaceX, ~550d → ×1.0) is byte-identical.
+ */
+export function spreadToleranceMultiplier(daysToExpiry) {
+  if (daysToExpiry == null || daysToExpiry > 90) return 1.0;
+  if (daysToExpiry > 30) return 1.5;
+  return 2.5;
+}
+
+/** " — 12d remaining" / "" — the time-to-expiry context appended to a spread reason. */
+export function expiryNote(daysToExpiry) {
+  return daysToExpiry == null ? '' : ` — ${Math.round(daysToExpiry)}d remaining`;
+}
+
+/** Fractional days from `fromIso` to a 'YYYY-MM-DD' resolution date, or null if unknown.
+ *  (Mirrors the local copies in snapshot.js/touch-record.js; exported here for binary/categorical.) */
+export function daysUntil(resolves, fromIso) {
+  if (!resolves) return null;
+  const end = Date.parse(resolves), from = Date.parse(fromIso);
+  if (!Number.isFinite(end) || !Number.isFinite(from)) return null;
+  return (end - from) / 86_400_000;
+}
+
+/**
  * "Near settlement" market state: expiring within 7 days AND a MAJORITY of rungs pinned to
  * ~0/~1 (adjusted_prob ≤0.01 or ≥0.99) — the outcome is essentially decided. Such a market's
  * large monotonicity adjustments and many closed/last-trade rungs are EXPECTED (the book is
@@ -101,6 +129,7 @@ export function scoreConfidence({
   lifecycle = null,
   nearSettled = false,
   windowedVolume = null,
+  daysToExpiry = null,
 }) {
   const reasons = [];
   const tiers = [];
@@ -152,17 +181,23 @@ export function scoreConfidence({
     reasons.push(`${rawViolations} monotonicity adjustments (max ${adjStr}) — noisy quotes`);
   }
 
-  // 3) Spread — liquidity at the touch (live only).
+  // 3) Spread — liquidity at the touch (live only). Tolerance WIDENS near expiry (Increment 3): a
+  //    wide spread on a market expiring soon is MMs exiting, not illiquidity. SpaceX (~550d → ×1.0,
+  //    tight spread → HIGH, no reason) is byte-identical.
+  const spreadMult = spreadToleranceMultiplier(daysToExpiry);
+  const sHigh = SPREAD_HIGH * spreadMult;
+  const sMedium = SPREAD_MEDIUM * spreadMult;
+  const note = expiryNote(daysToExpiry);
   if (priceOnly) {
     tiers.push('medium');
     reasons.push('price-only history (no bid/ask spread)');
-  } else if (spread < SPREAD_HIGH) tiers.push('high');
-  else if (spread <= SPREAD_MEDIUM) {
+  } else if (spread < sHigh) tiers.push('high');
+  else if (spread <= sMedium) {
     tiers.push('medium');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (moderate liquidity)`);
+    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
   } else {
     tiers.push('low');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid)`);
+    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid${note})`);
   }
 
   // 4) Liquidity breadth — how many books are thin.

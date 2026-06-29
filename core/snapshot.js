@@ -98,6 +98,7 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     midpointFallback,
     nearSettled,
     windowedVolume: liquidity, // Increment 1; null on frozen replay → byte-identical
+    daysToExpiry, // Increment 3: widens spread tolerance near expiry (SpaceX ~550d → ×1.0 → identical)
     ...confidenceOpts(config),
   });
   return {

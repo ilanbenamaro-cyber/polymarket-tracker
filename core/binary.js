@@ -9,7 +9,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
-import { windowedVolumeSignal } from './confidence.js';
+import { windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, daysUntil } from './confidence.js';
 
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder's spread thresholds (4pp / 8pp)
@@ -22,23 +22,25 @@ const VOL_MEDIUM = 10_000;
  * lifecycle signals, each surfaced as a reason. No ladder concepts (threshold count,
  * monotonicity) apply. Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null }) {
+export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null, daysToExpiry = null }) {
   const reasons = [];
   const tiers = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
 
-  // 1) Spread at the touch (live only).
+  // 1) Spread at the touch (live only). Tolerance widens near expiry (Increment 3).
   const spread = bestBid != null && bestAsk != null ? Number(bestAsk) - Number(bestBid) : null;
+  const spreadMult = spreadToleranceMultiplier(daysToExpiry);
+  const note = expiryNote(daysToExpiry);
   if (spread == null) {
     if (!settled) { tiers.push('medium'); reasons.push('no live book (price-only)'); }
-  } else if (spread < SPREAD_HIGH) {
+  } else if (spread < SPREAD_HIGH * spreadMult) {
     tiers.push('high');
-  } else if (spread <= SPREAD_MEDIUM) {
+  } else if (spread <= SPREAD_MEDIUM * spreadMult) {
     tiers.push('medium');
-    reasons.push(`spread ${(spread * 100).toFixed(1)}pp (moderate liquidity)`);
+    reasons.push(`spread ${(spread * 100).toFixed(1)}pp (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
   } else {
     tiers.push('low');
-    reasons.push(`spread ${(spread * 100).toFixed(1)}pp (illiquid)`);
+    reasons.push(`spread ${(spread * 100).toFixed(1)}pp (illiquid${note})`);
   }
   // Spread relative to the implied probability — a 5pp spread means much more on a 10%
   // line than a 50% one. Flag (descriptive) when it dominates the smaller tail.
@@ -109,6 +111,7 @@ export function buildBinaryRecord(live, methodologyVersion, config, lifecycle = 
     midpointFallback: live.midpoint_fallback ?? null,
     lifecycle,
     windowedVolume: live.liquidity ?? null, // Increment 1
+    daysToExpiry: daysUntil(config.resolves, live.fetched_at), // Increment 3
   });
 
   const derived = {

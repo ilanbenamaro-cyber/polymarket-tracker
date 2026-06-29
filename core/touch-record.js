@@ -9,7 +9,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
-import { nearSettlement, windowedVolumeSignal } from './confidence.js';
+import { nearSettlement, windowedVolumeSignal, spreadToleranceMultiplier, expiryNote } from './confidence.js';
 
 /** Whole days from `fromIso` to a `YYYY-MM-DD` resolution date, or null if unknown. */
 function daysUntil(resolves, fromIso) {
@@ -37,22 +37,25 @@ function meanSpread(rawInputs) {
  * Score a touch snapshot — worst of spread, volume, midpoint-fallback, lifecycle. The spread
  * reason carries the MEASURED value (Bug 3 language). Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, nearSettled = false, windowedVolume = null }) {
+export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, nearSettled = false, windowedVolume = null, daysToExpiry = null }) {
   const reasons = [];
   const tiers = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
   const spread = meanSpread(rawInputs);
+  // Increment 3: spread tolerance widens near expiry.
+  const spreadMult = spreadToleranceMultiplier(daysToExpiry);
+  const note = expiryNote(daysToExpiry);
 
   if (spread == null) {
     if (!settled) { tiers.push('medium'); reasons.push('no live book (price-only)'); }
-  } else if (spread < SPREAD_HIGH) {
+  } else if (spread < SPREAD_HIGH * spreadMult) {
     tiers.push('high');
-  } else if (spread <= SPREAD_MEDIUM) {
+  } else if (spread <= SPREAD_MEDIUM * spreadMult) {
     tiers.push('medium');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — moderate liquidity`);
+    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
   } else {
     tiers.push('low');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid`);
+    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
   }
 
   // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
@@ -117,6 +120,7 @@ export function buildTouchRecord(live, methodologyVersion, config, lifecycle = n
     rawInputs: live.raw_inputs, totalVolume: live.total_volume,
     midpointFallback: live.midpoint_fallback ?? null, lifecycle, nearSettled: near_settlement,
     windowedVolume: live.liquidity ?? null, // Increment 1
+    daysToExpiry, // Increment 3 (already computed above for near_settlement)
   });
 
   const r = live.implied_range ?? { low: null, high: null, confidence: 0.5 };
