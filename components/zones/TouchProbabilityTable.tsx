@@ -44,8 +44,12 @@ function DataRow({ r, unit }: { r: TouchRow; unit: string }) {
   );
 }
 
-export function TouchProbabilityTable({ rows, near, unit }: { rows: TouchRow[]; near: boolean; unit: string }) {
+export function TouchProbabilityTable({ rows, near, unit, resolves = null }: { rows: TouchRow[]; near: boolean; unit: string; resolves?: string | null }) {
   const [showAll, setShowAll] = useState(false);
+  // Increment 7: barrier-semantics tooltips on the touch columns (a touch is a path event, not settlement).
+  const by = resolves ? `before ${resolves}` : 'before expiry';
+  const tipHigh = `P(price touches or exceeds this level at any point ${by})`;
+  const tipLow = `P(price touches or falls below this level at any point ${by})`;
 
   // NEAR SETTLEMENT: active-only with a show-all toggle.
   if (near) {
@@ -55,7 +59,7 @@ export function TouchProbabilityTable({ rows, near, unit }: { rows: TouchRow[]; 
     return (
       <div className="detail-table-wrap" data-field="touch-table-wrap" data-mode="near">
         <table className="detail-table num" data-field="touch-table">
-          <thead><tr><th className="tl">Level</th><th>P(touch ≥)</th><th>P(touch ≤)</th><th>All-time volume</th></tr></thead>
+          <thead><tr><th className="tl">Level</th><th title={tipHigh} data-field="th-touch-high">P(touch ≥)</th><th title={tipLow} data-field="th-touch-low">P(touch ≤)</th><th>All-time volume</th></tr></thead>
           <tbody>{body.map((r) => <DataRow key={r.level} r={r} unit={unit} />)}</tbody>
         </table>
         {hidden > 0 && (
@@ -75,7 +79,7 @@ export function TouchProbabilityTable({ rows, near, unit }: { rows: TouchRow[]; 
   return (
     <div className="detail-table-wrap" data-field="touch-table-wrap" data-mode="full">
       <table className="detail-table num" data-field="touch-table">
-        <thead><tr><th className="tl">Level</th><th>P(touch ≥)</th><th>P(touch ≤)</th><th>All-time volume</th></tr></thead>
+        <thead><tr><th className="tl">Level</th><th title={tipHigh} data-field="th-touch-high">P(touch ≥)</th><th title={tipLow} data-field="th-touch-low">P(touch ≤)</th><th>All-time volume</th></tr></thead>
         <tbody>
           {items.map((it, i) => 'collapsed' in it
             ? <tr key={`c${i}`} className="touch-collapsed" data-field="touch-collapsed"><td className="tl faint" colSpan={4}>{`${it.collapsed} level${it.collapsed === 1 ? '' : 's'} at 0%`}</td></tr>

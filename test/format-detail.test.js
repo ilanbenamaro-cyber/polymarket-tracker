@@ -266,11 +266,11 @@ test('binaryNarrative: omits Δ sentences gracefully with no history (never a da
 });
 
 // ── touchNarrative ───────────────────────────────────────────────────────────
-test('touchNarrative: range + midpoint move in unit space + no-median note', () => {
+test('touchNarrative: range + midpoint move in unit space + barrier framing (Increment 7)', () => {
   const s = touchNarrative({ lowLabel: '$66.73', highLabel: '$90.00', midChange30: 1.5, unit: '', confidenceTier: 'medium' });
   assert.match(s, /\$66\.73 to \$90\.00/);
   assert.match(s, /midpoint up \$1\.50 over the past month/);
-  assert.match(s, /not a settlement value/);
+  assert.match(s, /not a settlement forecast/); // Increment 7: barrier framing (was "not a settlement value")
   assert.match(s, /Confidence is medium\./);
 });
 
@@ -316,4 +316,24 @@ test('classifyLadderZones: all-active and empty edge cases', () => {
   assert.equal(allActive.settledLow.length, 0);
   const empty = classifyLadderZones([]);
   assert.deepEqual([empty.settledHigh.length, empty.active.length, empty.settledLow.length], [0, 0, 0]);
+});
+
+// ── Increment 7: touch barrier framing ──────────────────────────────────────────
+import { barrierPathUncertainty } from '../lib/format-detail.mjs';
+test('barrierPathUncertainty: wide / moderate / narrow by fraction of the strike axis', () => {
+  assert.equal(barrierPathUncertainty(0.40).label, 'wide');
+  assert.match(barrierPathUncertainty(0.40).detail, /significant price movement/);
+  assert.equal(barrierPathUncertainty(0.20).label, 'moderate');
+  assert.equal(barrierPathUncertainty(0.10).label, 'moderate'); // boundary ≥0.10
+  assert.equal(barrierPathUncertainty(0.05).label, 'narrow');
+  assert.match(barrierPathUncertainty(0.05).detail, /contained movement/);
+  assert.equal(barrierPathUncertainty(null), null); // one-sided range → unknown
+});
+
+test('touchNarrative: explicit barrier-option framing with the expiry date (not "trading range")', () => {
+  const s = touchNarrative({ lowLabel: '$66.73', highLabel: '$90.00', unit: '', resolves: '2026-12-31' });
+  assert.match(s, /implied barrier range runs \$66\.73 to \$90\.00/);
+  assert.match(s, /barrier-option market: each leg prices P\(price touches a level before 2026-12-31\)/);
+  assert.match(s, /not a settlement forecast/);
+  assert.doesNotMatch(s, /trading range/);
 });
