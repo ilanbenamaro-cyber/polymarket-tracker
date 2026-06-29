@@ -7,9 +7,10 @@
 // 50% crossovers) as a horizontal range bar, plus a touch-probability table. The TRUST layer
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, touchNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, touchNarrative, daysToExpiryLabel, barrierPathUncertainty } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { TouchProbabilityTable } from './TouchProbabilityTable';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -78,6 +79,9 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
   const lo = range.low ?? null, hi = range.high ?? null;
   const mid = lo != null && hi != null ? (lo + hi) / 2 : (hi ?? lo);
   const width = lo != null && hi != null ? hi - lo : null;
+  // Increment 7: the barrier range's width as a fraction of the strike axis → PATH uncertainty.
+  const axisSpan = allLevels.length ? Math.max(...allLevels) - Math.min(...allLevels) : null;
+  const pathUncertainty = barrierPathUncertainty(width != null && axisSpan ? width / axisSpan : null);
   const pts = hist?.points ?? [];
   const daysHave = hist?.velocity?.days_have ?? 0;
   const midChange30 = daysHave >= 28 ? pointChange(pts, 30) : null;
@@ -92,6 +96,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
             <> · <span className="touch-tag">TOUCH MARKET</span></>
           </div>
@@ -112,14 +117,16 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
 
       {/* what a touch market IS — so the quant knows exactly what they're reading */}
       <p className="touch-explainer faint" data-field="touch-explainer">
-        This market prices the probability of the price <b>touching</b> levels before expiry — not a
-        settlement value. There is no implied median; the signal is the implied trading range.
+        This is a <b>barrier-option</b> market: each leg prices the probability of the price
+        <b> touching</b> a level before expiry. There is no implied median; the signal is the implied
+        barrier range. <b>These prices reflect the probability of touching a barrier, not where the
+        market expects the price to settle.</b>
       </p>
 
       {/* HEADLINE — the implied range */}
       <div className="detail-headline">
         <div className="detail-metric detail-metric-wide">
-          <span className="label">Implied range <span className="faint">({Math.round((range.confidence ?? 0.5) * 100)}% confidence)</span></span>
+          <span className="label">Implied barrier range <span className="faint">({Math.round((range.confidence ?? 0.5) * 100)}% confidence)</span></span>
           <span className="detail-hero num" data-field="implied-range">{range.low_label ?? '—'} <span className="faint">–</span> {range.high_label ?? '—'}</span>
           <span className="detail-band faint">lower / upper 50% touch crossovers</span>
         </div>
@@ -139,7 +146,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
 
       {/* RANGE BAR — the band within the strike span (no CDF: there is no distribution) */}
       <section className="detail-section">
-        <h2 className="detail-h2">Implied trading range</h2>
+        <h2 className="detail-h2" data-field="barrier-range-heading">Implied barrier range</h2>
         <RangeBar low={range.low ?? null} high={range.high ?? null} lowLabel={range.low_label ?? '—'} highLabel={range.high_label ?? '—'} levels={allLevels} />
       </section>
 
@@ -169,21 +176,17 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
             <div className={`acard-s ${signCls(midChange30)}`}>{midChange30 == null ? <span className="faint">no 30d history</span> : <>{fmtSigned(midChange30)} · 30d</>}</div>
           </div>
           <div className="acard" data-field="pcard-width">
-            <div className="label">Range width</div>
+            <div className="label">Range width <span className="faint">· path uncertainty</span></div>
             <div className="acard-v">{width != null ? `$${width.toFixed(2)}${unit}` : '—'}</div>
-            <div className="acard-s faint">upper − lower bound</div>
+            <div className="acard-s faint" data-field="range-width-interp">{pathUncertainty ? `${pathUncertainty.label} — ${pathUncertainty.detail}` : 'upper − lower bound'}</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
-            <div className="acard-s faint">cumulative, all-time</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={d.total_volume} />
         </div>
       </section>
 
       {/* NARRATIVE (v1 ITEM 1) — the implied range + midpoint move + confidence, built display-side;
           Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{`${touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null, resolves: asset.resolves ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs. Near
           settlement (Bug B) it shows the active range only with a "show all" toggle; otherwise
@@ -191,7 +194,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
       {rows.length > 0 && (
         <section className="detail-section">
           <h2 className="detail-h2">Touch probabilities <span className="faint">· current snapshot</span></h2>
-          <TouchProbabilityTable rows={rows} near={near} unit={unit} />
+          <TouchProbabilityTable rows={rows} near={near} unit={unit} resolves={asset.resolves ?? null} />
         </section>
       )}
 

@@ -6,8 +6,9 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -60,7 +61,6 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
   const daysHave = hist?.velocity?.days_have ?? 0;
   const change30 = daysHave >= 28 ? pointChange(pts, 30) : null;
   const change7 = daysHave >= 7 ? pointChange(pts, 7) : null;
-  const spreadWord = spread == null ? 'no live book' : spread < 0.04 ? 'tight' : spread <= 0.08 ? 'moderate' : 'wide';
 
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="binary" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -69,6 +69,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
             <> · binary (Yes/No)</>
           </div>
@@ -164,17 +165,13 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
             <div className="acard-v">{change7 == null ? 'collecting' : change7 > 0.01 ? 'rising' : change7 < -0.01 ? 'falling' : 'steady'}</div>
             <div className={`acard-s ${deltaSign(change7)}`}>{change7 == null ? <span className="faint">requires ≥7 days</span> : <>{fmtDeltaPp(change7)} pp · 7d</>}</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
-            <div className="acard-s faint">book is {spreadWord}</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={d.total_volume} />
         </div>
       </section>
 
       {/* NARRATIVE (v1 ITEM 1) — probability + 30d/7d move + consensus + confidence, built
           display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{`${binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TREND & HISTORY — YES-probability series (Phase 1); collecting until 7 days accrue */}
       {hist && <TrendHistorySection hist={hist} unit="" label="YES probability" />}

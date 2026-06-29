@@ -31,12 +31,21 @@ export interface ScanRow {
   delta_display: string | null;
   delta_dir: 'up' | 'down' | 'flat';
   volume: number | null; // Enh 2: drives the volume tint
+  volume_24hr: number | null; // Increment 1: 24h primary liquidity signal
   near_settlement: boolean; // Enh 2: near-settlement clock
   has_scan: boolean;
 }
 
 const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const CONF_LABEL: Record<string, string> = { high: 'HIGH', medium: 'MED', low: 'LOW' };
+
+/** Compact 24h volume for the rail liquidity chip ($52K / $1.2M / $478). */
+function fmtVol24(v: number | null): string | null {
+  if (v == null) return null;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${Math.round(v / 1e3)}K`;
+  return `$${Math.round(v)}`;
+}
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 
 function ageLabel(hours: number): string {
@@ -150,6 +159,10 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
               <div className="wl-row-data num">
                 <span className="wl-median" data-field="median">{r.median_display}</span>
                 <span className={`wl-delta is-${r.delta_dir}`} data-field="delta">{r.delta_display ?? '—'}</span>
+                {/* Increment 1: 24h volume — the primary liquidity signal (recent, not all-time). */}
+                {fmtVol24(r.volume_24hr) && (
+                  <span className="wl-vol24 faint" data-field="volume-24h" title="24h volume (recent liquidity)">{fmtVol24(r.volume_24hr)}/24h</span>
+                )}
                 {r.confidence_tier && (
                   <span className={`wl-conf ${confClass}`} data-field="confidence" title={`confidence ${r.confidence_tier}`}>
                     <span className={`wl-conf-dot ${confClass}`} aria-hidden="true" />{CONF_LABEL[r.confidence_tier]}

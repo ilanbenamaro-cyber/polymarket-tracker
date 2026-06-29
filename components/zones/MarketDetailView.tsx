@@ -11,8 +11,8 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveConfidenceTrend } from '@/lib/market-history.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, synthesizeSignals } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -20,6 +20,8 @@ import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
+import { LadderThresholdTable } from './LadderThresholdTable';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import { CategoricalDetailView } from './CategoricalDetailView';
@@ -39,8 +41,6 @@ const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PEN
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
 const pct = (p: number | null | undefined) => (p == null ? '—' : `${Math.round(p * 100)}%`);
-const pct1 = (p: number | null | undefined) => (p == null ? '—' : `${(p * 100).toFixed(1)}%`);
-const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
 
 /** The realized band from a RESOLVED outcome ladder: highest Yes → first No. */
 function resolvedBand(outcome: ResolvedLeg[] | undefined, unit: string): string | null {
@@ -84,7 +84,18 @@ export async function DetailData({ id }: { id: string }) {
     // survival/bucket ladders only (null for binary/touch/categorical → single-line fallback).
     // Built server-side from the record JSONB; only lean {date,value}[] per line ships to the client.
     series: deriveChartSeries(rows),
+    // Increment 2: capture window of the latest datapoint (US-hours vs off-peak) for the data note.
+    snapshotWindow: latestSnapshotWindow(rows) as 'us-hours' | 'off-peak' | null,
   };
+  // Increment 5: the closing cross-signal synthesis sentence (velocity vs dispersion vs confidence
+  // trend), appended to whichever detail view's narrative. Null when signals agree / history < 7d.
+  hist.synthesis = synthesizeSignals({
+    velocity: hist.velocity,
+    dispersion: hist.dispersion,
+    confidenceTrend: deriveConfidenceTrend(rows),
+    currentConfidence: body.record?.snapshot?.derived?.confidence?.tier ?? null,
+    kind: chartKind,
+  }) as string | null;
   // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
   // Survival/PMF only (the ladder view owns the threshold table); the binary/touch/categorical
   // views ignore these props. Thresholds come from the current served record so the Δ rows
@@ -137,6 +148,9 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
   // v1 ITEM 9: the at-the-money rung (P nearest 50%) is the threshold that matters most — the one
   // the market is actually deciding — vs the noise rungs pinned at 0%/100%. Highlight it amber.
   const atmThreshold = nearestThreshold(d.markets, 0.5)?.threshold ?? null;
+  // Increment 1: per-rung 24h volume for the table column (present only on records computed with
+  // windowed volume — older records omit it, and the column is hidden rather than showing dashes).
+  const vol24ByThreshold = d.liquidity?.by_threshold ?? null;
 
   return (
     <article className="detail-view" data-zone="detail-view" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -146,6 +160,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
           </div>
         </div>
@@ -227,7 +242,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
               medianLabel={impliedMedianLabel(d.markets, d.implied_median ?? null, unit)}
               resolvedAt={s?.lifecycle?.as_of ?? s?.fetched_at ?? null}
               unit={unit} />
-          : <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} />
+          : <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} liquidity={d.liquidity ?? null} />
       )}
 
       {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
@@ -243,7 +258,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
       {/* NARRATIVE (v1 ITEM 1) — current median + 30d/7d change + mode bucket + band direction +
           confidence, built display-side from the derived block + history (the stored pipeline
           narrative is unchanged). Δ/band sentences omit gracefully when history is absent. */}
-      <p className="detail-narrative" data-field="narrative">{detailNarrative({
+      <p className="detail-narrative" data-field="narrative">{`${detailNarrative({
         medianLabel: impliedMedianLabel(d.markets, d.implied_median ?? null, unit),
         change30: narrativeBits.change30,
         change7: narrativeBits.change7,
@@ -251,7 +266,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         bandDirection: narrativeBits.bandDirection,
         confidenceTier: conf.tier ?? null,
         unit,
-      })}</p>
+      })}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
           "Collecting" state until enough days accrue; never dashes. */}
@@ -273,32 +288,9 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
       {Array.isArray(d.markets) && d.markets.length > 0 && (
         <section className="detail-section">
           <h2 className="detail-h2">All thresholds <span className="faint">· current snapshot + history Δ</span></h2>
-          <div className="detail-table-wrap">
-            <table className="detail-table num" data-field="ladder">
-              <thead><tr>
-                <th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th>
-                <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th>All-time volume</th>
-              </tr></thead>
-              <tbody>
-                {d.markets.map((m: LadderRow, i: number) => {
-                  const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
-                  const dl = deltaFor(deltas, m.threshold);
-                  const tracked = m.threshold === atmThreshold;
-                  return (
-                    <tr key={`${m.threshold}-${i}`} className={`${tracked ? 'tracked ' : ''}${m.volume_tier === 'low' ? 'thin' : ''}`.trim()}>
-                      <td className="tl">{tracked && <span className="track-dot" aria-hidden="true">● </span>}{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
-                      <td>{pct(m.prob)}</td>
-                      <td>{pct1(m.bucket_prob)}</td>
-                      <DeltaCell delta={dl?.d1 ?? null} />
-                      <DeltaCell delta={dl?.d7 ?? null} />
-                      <DeltaCell delta={dl?.d30 ?? null} />
-                      <td><span className={`vdot v-${m.volume_tier ?? 'na'}`} />{fmtVol(m.volume)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Increment 6: settled zones (P≥95% / ≤5%) collapse behind per-side toggles; active rows
+              + the at-the-money row stay visible. Tiny/near-settlement tables aren't collapsed. */}
+          <LadderThresholdTable markets={d.markets} deltas={deltas} atmThreshold={atmThreshold} vol24ByThreshold={vol24ByThreshold} near={near} />
         </section>
       )}
 
@@ -331,8 +323,8 @@ function nearestThreshold(markets: LadderRow[] | undefined, target: number): Lad
 /** v1 ITEMS 5 + 6: the key-metrics cards — P(>at-the-money) + P(>tail) (current % + 30d change,
  *  green/red) + total volume. The at-the-money rung (P≈0.5) and the tail rung (P≈0.1) bracket the
  *  distribution; the change comes from the same 30d Δ the table uses. */
-function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
-  { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string }) {
+function KeyMetricsSection({ markets, totalVolume, deltas, unit, liquidity }:
+  { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string; liquidity?: { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null } | null }) {
   const atm = nearestThreshold(markets, 0.5);
   const tail = nearestThreshold(markets, 0.1);
   const probCard = (m: LadderRow | null, tag: string) => {
@@ -352,11 +344,7 @@ function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
       <div className="detail-analytics">
         {probCard(atm, 'at-the-money')}
         {probCard(tail, 'tail')}
-        <div className="acard" data-field="total-volume">
-          <div className="label">Total volume</div>
-          <div className="acard-v">{totalVolume != null ? fmtVolHuman(totalVolume) : '—'}</div>
-          <div className="acard-s faint">cumulative, all legs</div>
-        </div>
+        <VolumeCard liquidity={liquidity} allTimeVolume={totalVolume} />
       </div>
     </section>
   );
@@ -402,18 +390,6 @@ function ResolvedMetricsSection({ outcome, medianLabel, resolvedAt, unit }:
         </div>
       </div>
     </section>
-  );
-}
-
-/** One Δ cell: signed percentage points, coloured up/down (neutral inside the deadband), with
- *  a "pp" suffix on hover. A null horizon renders as a faint em dash — never a fake 0. */
-function DeltaCell({ delta }: { delta: number | null }) {
-  const cls = deltaSign(delta);
-  const txt = fmtDeltaPp(delta);
-  return (
-    <td className={`delta-cell ${cls}${txt === '—' ? ' faint' : ''}`} title={txt === '—' ? 'no snapshot at this horizon yet' : `${txt} percentage points`}>
-      {txt}
-    </td>
   );
 }
 

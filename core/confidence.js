@@ -19,6 +19,63 @@ const NEAR_SETTLEMENT_DAYS = 7;
 const EXTREME_LOW = 0.01;
 const EXTREME_HIGH = 0.99;
 
+// Increment 1 — windowed-volume liquidity tiers (operator-calibrated against live markets).
+// Recent activity is a far better liquidity proxy than all-time cumulative (a dormant market shows
+// a huge all-time total but ~0 recent volume). HIGH demands genuine recent flow; LOW catches the
+// dormant-but-historically-traded case (US recession: $478/24h, $16K/7d behind a $1.6M all-time).
+const VOL24_HIGH = 50_000;
+const VOL1WK_HIGH = 200_000;
+const VOL24_MEDIUM = 5_000;
+const VOL1WK_MEDIUM = 25_000;
+
+/**
+ * Windowed-volume liquidity signal from a derived.liquidity object {volume_24hr, volume_1wk}.
+ *   HIGH   : 24h ≥ $50K OR 7d ≥ $200K
+ *   MEDIUM : 24h ≥ $5K  OR 7d ≥ $25K
+ *   LOW    : below both
+ * Returns { tier, reason } (reason null for HIGH — no caveat) or NULL when no windowed data is
+ * present, so callers fall back to the all-time tier and leave the score/tier UNCHANGED. The null
+ * path is what keeps SpaceX's frozen confidence byte-identical (its replay carries no windowed volume).
+ */
+export function windowedVolumeSignal(liquidity) {
+  if (!liquidity) return null;
+  const v24 = liquidity.volume_24hr, v7 = liquidity.volume_1wk;
+  if (v24 == null && v7 == null) return null;
+  const usd = `$${Math.round(v24 ?? v7 ?? 0).toLocaleString('en-US')}`;
+  const window = v24 != null ? '24h' : '7d';
+  if ((v24 ?? 0) >= VOL24_HIGH || (v7 ?? 0) >= VOL1WK_HIGH) return { tier: 'high', reason: null };
+  if ((v24 ?? 0) >= VOL24_MEDIUM || (v7 ?? 0) >= VOL1WK_MEDIUM) return { tier: 'medium', reason: `moderate ${window} volume (${usd})` };
+  return { tier: 'low', reason: `thin ${window} volume (${usd})` };
+}
+
+/**
+ * Increment 3 — time-to-expiry normalized spread tolerance. A wide bid/ask spread near expiry is
+ * market-makers exiting (expected), not genuine illiquidity; the same spread 6 months out is real
+ * illiquidity. So we WIDEN the spread thresholds as expiry approaches:
+ *   > 90d (or unknown) → ×1.0 (standard) · 30–90d → ×1.5 · 7–30d → ×2.5 · < 7d → ×2.5
+ * (< 7d's pinned-rung case is additionally handled by the near-settlement carve-out.) The multiplier
+ * NEVER tightens, so a far-dated market (SpaceX, ~550d → ×1.0) is byte-identical.
+ */
+export function spreadToleranceMultiplier(daysToExpiry) {
+  if (daysToExpiry == null || daysToExpiry > 90) return 1.0;
+  if (daysToExpiry > 30) return 1.5;
+  return 2.5;
+}
+
+/** " — 12d remaining" / "" — the time-to-expiry context appended to a spread reason. */
+export function expiryNote(daysToExpiry) {
+  return daysToExpiry == null ? '' : ` — ${Math.round(daysToExpiry)}d remaining`;
+}
+
+/** Fractional days from `fromIso` to a 'YYYY-MM-DD' resolution date, or null if unknown.
+ *  (Mirrors the local copies in snapshot.js/touch-record.js; exported here for binary/categorical.) */
+export function daysUntil(resolves, fromIso) {
+  if (!resolves) return null;
+  const end = Date.parse(resolves), from = Date.parse(fromIso);
+  if (!Number.isFinite(end) || !Number.isFinite(from)) return null;
+  return (end - from) / 86_400_000;
+}
+
 /**
  * "Near settlement" market state: expiring within 7 days AND a MAJORITY of rungs pinned to
  * ~0/~1 (adjusted_prob ≤0.01 or ≥0.99) — the outcome is essentially decided. Such a market's
@@ -71,6 +128,8 @@ export function scoreConfidence({
   ladderSize = 16,
   lifecycle = null,
   nearSettled = false,
+  windowedVolume = null,
+  daysToExpiry = null,
 }) {
   const reasons = [];
   const tiers = [];
@@ -122,17 +181,23 @@ export function scoreConfidence({
     reasons.push(`${rawViolations} monotonicity adjustments (max ${adjStr}) — noisy quotes`);
   }
 
-  // 3) Spread — liquidity at the touch (live only).
+  // 3) Spread — liquidity at the touch (live only). Tolerance WIDENS near expiry (Increment 3): a
+  //    wide spread on a market expiring soon is MMs exiting, not illiquidity. SpaceX (~550d → ×1.0,
+  //    tight spread → HIGH, no reason) is byte-identical.
+  const spreadMult = spreadToleranceMultiplier(daysToExpiry);
+  const sHigh = SPREAD_HIGH * spreadMult;
+  const sMedium = SPREAD_MEDIUM * spreadMult;
+  const note = expiryNote(daysToExpiry);
   if (priceOnly) {
     tiers.push('medium');
     reasons.push('price-only history (no bid/ask spread)');
-  } else if (spread < SPREAD_HIGH) tiers.push('high');
-  else if (spread <= SPREAD_MEDIUM) {
+  } else if (spread < sHigh) tiers.push('high');
+  else if (spread <= sMedium) {
     tiers.push('medium');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (moderate liquidity)`);
+    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
   } else {
     tiers.push('low');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid)`);
+    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid${note})`);
   }
 
   // 4) Liquidity breadth — how many books are thin.
@@ -186,6 +251,15 @@ export function scoreConfidence({
     }
   }
 
+  // 7) Windowed volume (Increment 1) — recent liquidity. When present it caps/raises the tier like
+  //    any other signal; absent (frozen replay) it's a no-op → SpaceX byte-identical. The all-time
+  //    volume tier in the binary/touch/categorical scorers remains the FALLBACK when this is absent.
+  const winVol = windowedVolumeSignal(windowedVolume);
+  if (winVol) {
+    tiers.push(winVol.tier);
+    if (winVol.reason) reasons.push(winVol.reason);
+  }
+
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
 
   // Smooth 0..1 score for sorting / the badge.
@@ -194,7 +268,11 @@ export function scoreConfidence({
   const monoScore = nearSettled ? 1 : Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
   const spreadScore = priceOnly ? 0.6 : Math.max(0, Math.min(1, 1 - spread / 0.1));
   const liqScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
-  let score = (countScore + monoScore + spreadScore + liqScore) / 4;
+  // Windowed volume joins as a 5th averaged term ONLY when present, so a market without it (frozen
+  // SpaceX replay) keeps the exact 4-term average → byte-identical score.
+  const baseTerms = [countScore, monoScore, spreadScore, liqScore];
+  if (winVol) baseTerms.push(winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15);
+  let score = baseTerms.reduce((a, b) => a + b, 0) / baseTerms.length;
   if (anomalies) {
     if (anomalies.stale) score -= 0.15;
     if (anomalies.closedCount > 0 && !expected) score -= 0.1 * Math.min(3, anomalies.closedCount);

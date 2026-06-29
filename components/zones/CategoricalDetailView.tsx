@@ -9,8 +9,9 @@
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { isPlaceholderLeg } from '@/core/categorical.js';
-import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -81,6 +82,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
           <h1 className="detail-title" data-field="title">{displayTitle(asset.name, envelope?.market_id)}</h1>
           <div className="detail-sub muted">
             {asset.platform ?? 'polymarket'}{asset.resolves ? ` · resolves ${asset.resolves}` : ''}
+            {daysToExpiryLabel(asset.resolves) && <span data-field="days-to-expiry"> · {daysToExpiryLabel(asset.resolves)}</span>}
             {asset.market_url && <> · <a href={asset.market_url} target="_blank" rel="noopener">view market ↗</a></>}
             <> · <span className="cat-tag">CATEGORICAL</span></>
           </div>
@@ -156,17 +158,13 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
             <div className={`acard-v ${consensus.cls}`}>{consensus.label}</div>
             <div className="acard-s faint">{d.entropy != null ? `entropy ${d.entropy.toFixed(2)} · ${d.entropy < 0.5 ? 'lo = agrees' : 'hi = uncertain'}` : '—'}</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{totalVolume ? fmtVolHuman(totalVolume) : '—'}</div>
-            <div className="acard-s faint">cumulative, all outcomes</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={totalVolume} />
         </div>
       </section>
 
       {/* NARRATIVE (v1 ITEM 1) — leading outcome + 30d/7d move + consensus read + confidence,
           built display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{`${categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* OUTCOME DISTRIBUTION — the analytical centerpiece (top 10, "N more" expands) */}
       <section className="detail-section">

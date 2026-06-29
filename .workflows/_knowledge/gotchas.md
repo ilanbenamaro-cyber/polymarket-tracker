@@ -5,6 +5,42 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A NEW always-present field on `derived` breaks SpaceX Gate 2 — omit-when-absent or compute display-side
+**Symptom (anticipated + avoided, repeatedly, across the analytical-depth epic):** the SpaceX parity gate
+`phase1-spacex-parity.test.js` **Gate 2 `deepEqual`s the ENTIRE `derived` block** (rebuilt from the frozen
+inputs) against the frozen oracle. So adding ANY field that is always present on `derived` — `liquidity`
+(windowed volume), `days_to_expiry`, etc. — makes SpaceX's rebuilt derived differ from the frozen one and
+**fails Gate 2**, even though the value is "correct".
+**Reality:** there are only two parity-safe ways to surface a new derived signal:
+1. **OMIT-WHEN-ABSENT** — set the field only when its INPUT is present, and ensure SpaceX's Gate-2 replay
+   has no such input. Gate 2 rebuilds `live` purely from the frozen `raw_inputs` (`{token_id, threshold,
+   midpoint, best_bid, best_ask, volume}`), which carry NO windowed volume → `derived.liquidity` is
+   omitted on SpaceX → byte-identical. This is why windowed volume + confidence's windowed signal are
+   guarded `if (liquidity)` / `windowedVolumeSignal(null) === null`, and the score blend only adds its 5th
+   term when present. (Same family as `near_settlement` omit-when-false and `midpoint_source`-in-raw_inputs.)
+2. **COMPUTE DISPLAY-SIDE** — when the value is always derivable (e.g. days-to-expiry from `asset.resolves`),
+   compute it at RENDER (`format-detail.daysToExpiryLabel`) and never put it in `derived` at all. The
+   prompt's "add `derived.days_to_expiry` like midpoint_source" is a CATEGORY ERROR: midpoint_source lives
+   in `raw_inputs` (ignored by the hash, ABSENT from derived) — it was never deep-equal'd. days_to_expiry
+   on `derived` WOULD be, and SpaceX legitimately has one (can't omit-when-false).
+**Lesson:** before adding a `derived` field, ask "is SpaceX's frozen replay guaranteed not to have this?"
+If no → compute it display-side. A CONFIDENCE input (windowed volume, days-to-expiry) is fine to USE at
+compute time without STORING it, as long as SpaceX's specific inputs make it a no-op (SpaceX: no windowed
+→ null signal; ~550d → spread multiplier ×1.0). Re-run the parity gate after ANY `core/snapshot.js`,
+`core/confidence.js`, or builder change — it caught nothing here because every addition followed this rule.
+
+## Summed per-leg windowed volume EQUALS the event-level windowed volume (gamma) — sum legs, uniformly
+**Symptom (measured, not bitten — pinned during Increment 1):** Gamma returns windowed volume at BOTH the
+event level (`ev.volume24hr`) and per leg (`m.volume24hr`). The question was which to use for the aggregate
+`derived.liquidity`. Measured across Anthropic/Fed/Silver: **Σ(per-leg `volume24hr`) == `ev.volume24hr`
+to the cent (Δ 0.0%)**, same for `volume1wk`. So summing the per-leg windowed values is the authoritative
+aggregate — and it's UNIFORM across all 5 market types (the meta fetchers already iterate legs), avoiding
+ev-level plumbing that differs per fetcher. `aggregateLiquidity(legs)` sums; per-rung 24h for the table
+is a `by_threshold` map keyed by the DERIVED rung (ladder: `threshold`; bucket: `lo/divisor`).
+**Lesson:** for a multi-leg disjoint-market event, per-leg windowed volumes sum to the event total — don't
+plumb the event-level field separately. (Verify with a quick `curl` if a new field's summation is ever in
+doubt; gamma's disjoint Yes/No legs make the sum exact.)
+
 ## TWO `next dev` on one `.next` wedges everything — now blocked by a `predev` guard
 **Symptom:** a second `next dev` started while one was running. Next silently falls back to the
 next port (3000 → 3001), but BOTH share this project's single `.next` dir → webpack-runtime 500s,

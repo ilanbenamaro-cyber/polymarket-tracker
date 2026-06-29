@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
-  deriveChartSeries,
+  deriveChartSeries, headlineChange, latestSnapshotWindow, detectJumps, deriveConfidenceTrend,
   needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
@@ -258,4 +258,118 @@ test('deriveChartSeries: null for binary/touch/categorical (single-line falls ba
 test('deriveChartSeries: null below two points', () => {
   assert.equal(deriveChartSeries([ladderRow(0, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0 })]), null);
   assert.equal(deriveChartSeries([]), null);
+});
+
+// ── Increment 2: two daily captures collapse to one row/day, preferring US-hours ──────────────
+/** A history row with an explicit snapshot_hour (the Increment 2 capture-time key). */
+function hourRow(dayIdx, hour, { median = null, kind = 'survival' } = {}) {
+  return { snapshot_date: dateAt(dayIdx), snapshot_hour: hour, kind, implied_median: median, record: { snapshot: { derived: {} } } };
+}
+
+test('ordered (via headlineChange): a day with both 02:00 and 18:00 rows prefers the US-hours capture', () => {
+  // day 0 baseline (18:00, median 60); day 7 has BOTH a 02:00 (median 70) and an 18:00 (median 65).
+  // Preferring 18:00 → change = 65 − 60 = 5. Preferring 02:00 would give 10.
+  const rows = [
+    hourRow(0, 18, { median: 60 }),
+    hourRow(7, 2, { median: 70 }),
+    hourRow(7, 18, { median: 65 }),
+  ];
+  assert.ok(Math.abs(headlineChange(rows, 7) - 5) < 1e-9);
+});
+
+test('deriveVelocity: two captures per day count as ONE day (no double-counting)', () => {
+  // 7 distinct days, each with a 02:00 AND an 18:00 row → days_have must be 7, not 14.
+  const rows = [];
+  for (let i = 0; i < 7; i++) { rows.push(hourRow(i, 2, { median: 60 + i })); rows.push(hourRow(i, 18, { median: 60 + i })); }
+  const v = deriveVelocity(rows);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.days_have, 7);
+});
+
+test('latestSnapshotWindow: classifies the most recent capture', () => {
+  assert.equal(latestSnapshotWindow([hourRow(0, 18, { median: 60 })]), 'us-hours');
+  assert.equal(latestSnapshotWindow([hourRow(0, 2, { median: 60 })]), 'off-peak');
+  assert.equal(latestSnapshotWindow([hourRow(0, 0, { median: 60 })]), null); // backfill/legacy
+  assert.equal(latestSnapshotWindow([]), null);
+  // when a day has both, the preferred (18:00) capture drives the note
+  assert.equal(latestSnapshotWindow([hourRow(0, 2, { median: 60 }), hourRow(0, 18, { median: 61 })]), 'us-hours');
+});
+
+test('ordered: legacy rows with NO snapshot_hour are treated as hour 0 (one row/day → no collapse)', () => {
+  // mkRow carries no snapshot_hour — the frozen/legacy shape. A 7-day series must still derive normally.
+  const hist = [0, 1, 2, 3, 4, 5, 6].map((i) => mkRow(i, { median: 60 + i }));
+  const v = deriveVelocity(hist);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.days_have, 7);
+});
+
+// ── Increment 4: velocity jump detection ─────────────────────────────────────
+test('detectJumps: no jump on a gradual series (8pp threshold not crossed)', () => {
+  const hist = [0,1,2,3,4,5,6].map((i) => mkRow(i, { kind: 'binary', probability: 0.30 + i * 0.02 })); // +2pp/day
+  assert.equal(detectJumps(hist).hasRecentJump, false);
+});
+
+test('detectJumps: a recent jump + flat after → hasRecentJump, stable', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.70 }));              // jump +0.40
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.70 + (i % 2 ? 0.005 : -0.005) }));
+  const j = detectJumps(rows);
+  assert.equal(j.hasRecentJump, true);
+  assert.equal(j.jumpDate, dateAt(10));
+  assert.ok(Math.abs(j.jumpMagnitude - 0.40) < 1e-9);
+  assert.equal(j.daysSinceJump, 10);
+  assert.equal(j.stable, true); // post-jump σ ≈ 0.005 ≪ 0.5·0.40
+});
+
+test('detectJumps: a jump older than recentDays (21) is NOT recent', () => {
+  const rows = [mkRow(0, { kind: 'binary', probability: 0.30 }), mkRow(1, { kind: 'binary', probability: 0.55 })]; // jump
+  for (let i = 2; i < 26; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.55 })); // 24 flat days after
+  assert.equal(detectJumps(rows).hasRecentJump, false); // daysSinceJump = 24 > 21
+});
+
+test('detectJumps: value-kind uses an 8%-of-value threshold (median ladder)', () => {
+  // +10% move (2.0 → 2.20) is a jump; a +5% move (2.0 → 2.10) is not.
+  const jump = detectJumps([mkRow(0, { median: 2.0 }), mkRow(1, { median: 2.20 })]);
+  assert.equal(jump.hasRecentJump, true);
+  const noJump = detectJumps([mkRow(0, { median: 2.0 }), mkRow(1, { median: 2.10 })]);
+  assert.equal(noJump.hasRecentJump, false);
+});
+
+test('deriveVelocity: recent jump + stable after → trend "converged" (not "rising")', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.70 }));
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.70 }));
+  const v = deriveVelocity(rows);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.trend, 'converged');
+  assert.equal(v.jump.stable, true);
+});
+
+test('deriveVelocity: recent jump + wide post-jump drift → trend "volatile"', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.40 }));               // jump +0.10
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.40 + (i - 10) * 0.02 })); // wide drift, no new jumps
+  const v = deriveVelocity(rows);
+  assert.equal(v.trend, 'volatile'); // post-jump σ ≈ 0.063 > 0.5·0.10
+  assert.equal(v.jump.stable, false);
+});
+
+test('deriveVelocity: gradual series with no jump keeps the linreg trend', () => {
+  const hist = [0,1,2,3,4,5,6].map((i) => mkRow(i, { median: 66 - i }));
+  const v = deriveVelocity(hist);
+  assert.equal(v.trend, 'falling'); // unchanged linreg path
+  assert.equal(v.jump, undefined);
+});
+
+// ── Increment 5: confidence trend (feeds the narrative synthesis) ─────────────
+test('deriveConfidenceTrend: rising / falling / steady / null from the confidence_score series', () => {
+  const row = (i, score) => ({ snapshot_date: dateAt(i), confidence_score: score, kind: 'survival', record: { snapshot: { derived: {} } } });
+  assert.equal(deriveConfidenceTrend([row(0, 0.5), row(1, 0.6), row(2, 0.8)]), 'rising');
+  assert.equal(deriveConfidenceTrend([row(0, 0.8), row(1, 0.6), row(2, 0.4)]), 'falling');
+  assert.equal(deriveConfidenceTrend([row(0, 0.70), row(1, 0.72)]), 'steady'); // <0.05 net
+  assert.equal(deriveConfidenceTrend([row(0, 0.5)]), null); // <2 points
+  assert.equal(deriveConfidenceTrend([]), null);
 });

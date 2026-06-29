@@ -9,31 +9,50 @@
 
 import { HistoryChart, type HistoryPoint, type ChartSeries } from './HistoryChart';
 
-export interface VelocityResult { status: string; kind?: string; trend?: string; period?: string; change?: number; days_have?: number; days_needed?: number; }
+// `jump` (Increment 4): a recent single-day jump in the headline series. When present, the card
+// reports 'converged' (stabilized after the move) or 'volatile' instead of a misleading linreg trend.
+export interface JumpInfo { hasRecentJump?: boolean; jumpDate?: string; jumpMagnitude?: number; daysSinceJump?: number; postJumpStdDev?: number; stable?: boolean; }
+export interface VelocityResult { status: string; kind?: string; trend?: string; period?: string; change?: number; days_have?: number; days_needed?: number; jump?: JumpInfo; }
 export interface DispersionResult { status: string; direction?: string; change_pct?: number; current_width?: number; days_have?: number; days_needed?: number; }
 // `series` (v1 ITEM 7) is the multi-line dual-axis chart data for survival/bucket ladders; null
 // for binary/touch/categorical (the chart falls back to the single `points` headline line).
-export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; }
+// `snapshotWindow` (Increment 2) is the capture time of the latest datapoint: 'us-hours' (18:00 UTC
+// US peak) or 'off-peak' (02:00 UTC), surfaced as a data-quality note. null = backfill/legacy.
+// `synthesis` (Increment 5): the closing cross-signal sentence appended to the narrative (or null).
+export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; synthesis?: string | null; }
 
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */
 function VelocityCard({ v, unit }: { v: VelocityResult; unit: string }) {
+  const isProb = v.kind === 'binary' || v.kind === 'categorical';
+  const fmtMag = (m: number) => isProb
+    ? `${m >= 0 ? '+' : '−'}${Math.abs(m * 100).toFixed(1)}pp`
+    : `${m >= 0 ? '+' : '−'}$${Math.abs(m).toFixed(2)}${unit}`;
   let value = '—';
   let sub = '';
   if (v.status === 'collecting') {
     value = 'Collecting';
     sub = `${v.days_have ?? 0}/${v.days_needed ?? 7} days · populates at 7`;
+  } else if (v.status === 'ok' && v.jump?.hasRecentJump && v.jump.jumpMagnitude != null) {
+    // Increment 4: a recent jump — report convergence/volatility, not a misleading "rising fast".
+    const j = v.jump;
+    const mag = v.jump.jumpMagnitude; // narrowed to number on this access path by the guard above
+    const sigma = isProb ? `${((j.postJumpStdDev ?? 0) * 100).toFixed(1)}pp` : `$${(j.postJumpStdDev ?? 0).toFixed(2)}${unit}`;
+    value = j.stable ? 'converged' : 'volatile';
+    sub = j.stable
+      ? `jumped ${fmtMag(mag)} on ${j.jumpDate} · stable since (σ=${sigma})`
+      : `moved ${fmtMag(mag)} on ${j.jumpDate} · direction unclear`;
   } else if (v.status === 'ok') {
     value = v.trend ?? '—';
     const ch = v.change ?? 0;
-    sub = v.kind === 'binary'
+    sub = isProb
       ? `${ch >= 0 ? '+' : ''}${(ch * 100).toFixed(1)}pp over ${v.period ?? '7d'}`
       : `${ch >= 0 ? '+' : ''}${ch.toFixed(2)} $${unit} over ${v.period ?? '7d'}`;
   }
   return (
     <div className="acard" data-field="velocity-card">
       <div className="label">Velocity (7d)</div>
-      <div className="acard-v">{value}</div>
+      <div className="acard-v" data-field="velocity-value">{value}</div>
       <div className="acard-s faint">{sub}</div>
     </div>
   );
@@ -70,6 +89,15 @@ export function TrendHistorySection({ hist, unit, label }: { hist: HistoryUI; un
         <DispersionCard d={hist.dispersion} unit={unit} />
       </div>
       <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} series={hist.series ?? null} />
+      {/* Increment 2: which daily capture the latest datapoint came from. The 18:00 UTC (US-peak)
+          run is the higher-liquidity point; preferred over the 02:00 off-peak run when both exist. */}
+      {hist.snapshotWindow && (
+        <p className="hist-note" data-field="snapshot-window">
+          {hist.snapshotWindow === 'us-hours'
+            ? 'Latest point captured at 18:00 UTC (US-hours) — preferred where available.'
+            : 'Latest point captured at 02:00 UTC (off-peak); US-hours capture not yet available.'}
+        </p>
+      )}
     </section>
   );
 }

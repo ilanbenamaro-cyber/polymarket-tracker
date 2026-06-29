@@ -14,6 +14,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
+import { windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, daysUntil } from './confidence.js';
 
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder/binary/touch spread thresholds (4pp / 8pp)
@@ -113,25 +114,33 @@ function meanSpread(rawInputs) {
  * Score a categorical snapshot — worst of spread, volume, midpoint-fallback, lifecycle —
  * each surfaced as a reason. Peer to scoreBinary/Touch. Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null }) {
+export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null, daysToExpiry = null }) {
   const reasons = [];
   const tiers = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
   const spread = meanSpread(rawInputs);
+  // Increment 3: spread tolerance widens near expiry.
+  const spreadMult = spreadToleranceMultiplier(daysToExpiry);
+  const note = expiryNote(daysToExpiry);
 
   if (spread == null) {
     if (!settled) { tiers.push('medium'); reasons.push('no live book (price-only)'); }
-  } else if (spread < SPREAD_HIGH) {
+  } else if (spread < SPREAD_HIGH * spreadMult) {
     tiers.push('high');
-  } else if (spread <= SPREAD_MEDIUM) {
+  } else if (spread <= SPREAD_MEDIUM * spreadMult) {
     tiers.push('medium');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — moderate liquidity`);
+    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
   } else {
     tiers.push('low');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid`);
+    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
   }
 
-  if (totalVolume != null) {
+  // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
+  const winVol = windowedVolumeSignal(windowedVolume);
+  if (winVol) {
+    tiers.push(winVol.tier);
+    if (winVol.reason) reasons.push(winVol.reason);
+  } else if (totalVolume != null) {
     const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
     if (totalVolume >= VOL_HIGH) tiers.push('high');
     else if (totalVolume >= VOL_MEDIUM) { tiers.push('medium'); reasons.push(`moderate volume (${v})`); }
@@ -151,7 +160,8 @@ export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFal
 
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
   let score = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
-  if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
+  if (winVol) score = (score + (winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15)) / 2;
+  else if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
   if (midpointFallback) {
     score -= 0.05 * Math.min(2, midpointFallback.lastTradeCount ?? 0);
     score -= 0.1 * Math.min(2, midpointFallback.skippedCount ?? 0);
@@ -184,6 +194,8 @@ export function buildCategoricalRecord(live, methodologyVersion, config, lifecyc
   const confidence = scoreCategoricalConfidence({
     rawInputs: live.raw_inputs, totalVolume: live.total_volume,
     midpointFallback: live.midpoint_fallback ?? null, lifecycle,
+    windowedVolume: live.liquidity ?? null, // Increment 1
+    daysToExpiry: daysUntil(config.resolves, live.fetched_at), // Increment 3
   });
 
   const derived = {
@@ -199,6 +211,7 @@ export function buildCategoricalRecord(live, methodologyVersion, config, lifecyc
     narrative: buildCategoricalNarrative(dominant, entropy, confidence),
     freshness: buildFreshness(live.fetched_at, null, freshnessThresholdHours, lifecycle),
   };
+  if (live.liquidity) derived.liquidity = live.liquidity; // Increment 1: windowed volume, omit-when-absent
 
   const snapshot = {
     snapshot_id: live.fetched_at,

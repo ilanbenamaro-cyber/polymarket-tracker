@@ -79,7 +79,7 @@ function probAt(markets, threshold) {
  * all metrics from the adjusted curve + confidence. `context` carries optional
  * anomaly inputs for confidence.
  */
-function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null }) {
+function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null, liquidity = null }) {
   const adj = adjustSnapshot(markets, floorOpts(config)); // markets carry raw_prob + adjusted_prob + bucket_prob>=0
   const adjusted = adj.markets;
   const impliedMedian = computeImpliedMedian(adjusted);
@@ -97,6 +97,8 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     lifecycle,
     midpointFallback,
     nearSettled,
+    windowedVolume: liquidity, // Increment 1; null on frozen replay → byte-identical
+    daysToExpiry, // Increment 3: widens spread tolerance near expiry (SpaceX ~550d → ×1.0 → identical)
     ...confidenceOpts(config),
   });
   return {
@@ -112,18 +114,20 @@ function buildDerivedCore({ markets, rawInputs = null, anomalies = null, config 
     markets: adjusted,
     _adj: adj, // internal: not serialized at call sites that omit it
     _nearSettled: nearSettled, // internal: surfaced as derived.near_settlement only when true
+    _liquidity: liquidity, // internal: surfaced as derived.liquidity only when windowed data exists
   };
 }
 
 /** Full "current" derived block: core + spread-implied median band + mean sensitivity. */
-export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null }) {
-  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle, midpointFallback, daysToExpiry });
+export function buildDerived({ markets, rawInputs = null, anomalies = null, config = null, lifecycle = null, midpointFallback = null, daysToExpiry = null, liquidity = null }) {
+  const core = buildDerivedCore({ markets, rawInputs, anomalies, config, lifecycle, midpointFallback, daysToExpiry, liquidity });
   const median = medianBand(rawInputs, core.implied_median);
   const mean = meanSensitivity(core.markets, sensitivityOpts(config));
-  const { _adj, _nearSettled, ...clean } = core;
+  const { _adj, _nearSettled, _liquidity, ...clean } = core;
   const derived = { ...clean, median, mean };
-  // OMIT when false so a normal ladder's derived block is byte-identical (SpaceX parity Gate 2).
+  // OMIT when false/absent so a normal ladder's derived block is byte-identical (SpaceX parity Gate 2).
   if (_nearSettled) derived.near_settlement = true;
+  if (_liquidity) derived.liquidity = _liquidity; // Increment 1: windowed volume, omit-when-absent
   return derived;
 }
 
@@ -142,6 +146,7 @@ export function buildSnapshotRecord(live, methodologyVersion, anomalies = null, 
     lifecycle,
     midpointFallback: live.midpoint_fallback ?? null, // absent on history/frozen paths → no-op (SpaceX byte-identical)
     daysToExpiry: daysUntil(config.resolves, live.fetched_at), // Bug 3 near-settlement (SpaceX ~18mo out → false)
+    liquidity: live.liquidity ?? null, // Increment 1 windowed volume; absent on frozen replay → omitted
   });
   // Tier-1 freshness: pure function of this snapshot's own as-of timestamp + a
   // threshold. The cron path passes nothing → the schedule-derived 17h (SpaceX
