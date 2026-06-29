@@ -7,9 +7,10 @@
 // 50% crossovers) as a horizontal range bar, plus a touch-probability table. The TRUST layer
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, touchNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, touchNarrative } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { TouchProbabilityTable } from './TouchProbabilityTable';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -173,11 +174,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
             <div className="acard-v">{width != null ? `$${width.toFixed(2)}${unit}` : '—'}</div>
             <div className="acard-s faint">upper − lower bound</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
-            <div className="acard-s faint">cumulative, all-time</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={d.total_volume} />
         </div>
       </section>
 

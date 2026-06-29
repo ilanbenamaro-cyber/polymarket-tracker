@@ -12,7 +12,7 @@ import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, fmtVolHuman } from '@/lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -20,6 +20,7 @@ import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { BinaryDetailView } from './BinaryDetailView';
 import { TouchDetailView } from './TouchDetailView';
 import { CategoricalDetailView } from './CategoricalDetailView';
@@ -137,6 +138,9 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
   // v1 ITEM 9: the at-the-money rung (P nearest 50%) is the threshold that matters most — the one
   // the market is actually deciding — vs the noise rungs pinned at 0%/100%. Highlight it amber.
   const atmThreshold = nearestThreshold(d.markets, 0.5)?.threshold ?? null;
+  // Increment 1: per-rung 24h volume for the table column (present only on records computed with
+  // windowed volume — older records omit it, and the column is hidden rather than showing dashes).
+  const vol24ByThreshold = d.liquidity?.by_threshold ?? null;
 
   return (
     <article className="detail-view" data-zone="detail-view" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -227,7 +231,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
               medianLabel={impliedMedianLabel(d.markets, d.implied_median ?? null, unit)}
               resolvedAt={s?.lifecycle?.as_of ?? s?.fetched_at ?? null}
               unit={unit} />
-          : <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} />
+          : <KeyMetricsSection markets={d.markets} totalVolume={d.total_volume ?? null} deltas={deltas} unit={unit} liquidity={d.liquidity ?? null} />
       )}
 
       {/* DISTRIBUTION — the analytical centerpiece. Near settlement the CDF is a step from
@@ -277,13 +281,16 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
             <table className="detail-table num" data-field="ladder">
               <thead><tr>
                 <th className="tl">Threshold</th><th>P(&gt;X)</th><th>Bucket %</th>
-                <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th><th>All-time volume</th>
+                <th>24h Δ</th><th>7d Δ</th><th>30d Δ</th>
+                {vol24ByThreshold && <th>24h volume</th>}
+                <th>All-time volume</th>
               </tr></thead>
               <tbody>
                 {d.markets.map((m: LadderRow, i: number) => {
                   const adj = m.raw_prob != null && Math.abs(m.raw_prob - m.adjusted_prob) > 0.005;
                   const dl = deltaFor(deltas, m.threshold);
                   const tracked = m.threshold === atmThreshold;
+                  const v24 = vol24ByThreshold?.[String(m.threshold)];
                   return (
                     <tr key={`${m.threshold}-${i}`} className={`${tracked ? 'tracked ' : ''}${m.volume_tier === 'low' ? 'thin' : ''}`.trim()}>
                       <td className="tl">{tracked && <span className="track-dot" aria-hidden="true">● </span>}{m.label}{adj && <span className="adjmark" title={`isotonic-adjusted from raw ${pct(m.raw_prob)}`}> △</span>}</td>
@@ -292,6 +299,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
                       <DeltaCell delta={dl?.d1 ?? null} />
                       <DeltaCell delta={dl?.d7 ?? null} />
                       <DeltaCell delta={dl?.d30 ?? null} />
+                      {vol24ByThreshold && <td>{v24 != null ? fmtVol(v24) : <span className="faint">—</span>}</td>}
                       <td><span className={`vdot v-${m.volume_tier ?? 'na'}`} />{fmtVol(m.volume)}</td>
                     </tr>
                   );
@@ -331,8 +339,8 @@ function nearestThreshold(markets: LadderRow[] | undefined, target: number): Lad
 /** v1 ITEMS 5 + 6: the key-metrics cards — P(>at-the-money) + P(>tail) (current % + 30d change,
  *  green/red) + total volume. The at-the-money rung (P≈0.5) and the tail rung (P≈0.1) bracket the
  *  distribution; the change comes from the same 30d Δ the table uses. */
-function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
-  { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string }) {
+function KeyMetricsSection({ markets, totalVolume, deltas, unit, liquidity }:
+  { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string; liquidity?: { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null } | null }) {
   const atm = nearestThreshold(markets, 0.5);
   const tail = nearestThreshold(markets, 0.1);
   const probCard = (m: LadderRow | null, tag: string) => {
@@ -352,11 +360,7 @@ function KeyMetricsSection({ markets, totalVolume, deltas, unit }:
       <div className="detail-analytics">
         {probCard(atm, 'at-the-money')}
         {probCard(tail, 'tail')}
-        <div className="acard" data-field="total-volume">
-          <div className="label">Total volume</div>
-          <div className="acard-v">{totalVolume != null ? fmtVolHuman(totalVolume) : '—'}</div>
-          <div className="acard-s faint">cumulative, all legs</div>
-        </div>
+        <VolumeCard liquidity={liquidity} allTimeVolume={totalVolume} />
       </div>
     </section>
   );

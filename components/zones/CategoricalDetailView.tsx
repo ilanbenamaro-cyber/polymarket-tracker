@@ -9,8 +9,9 @@
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { isPlaceholderLeg } from '@/core/categorical.js';
-import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -156,11 +157,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
             <div className={`acard-v ${consensus.cls}`}>{consensus.label}</div>
             <div className="acard-s faint">{d.entropy != null ? `entropy ${d.entropy.toFixed(2)} · ${d.entropy < 0.5 ? 'lo = agrees' : 'hi = uncertain'}` : '—'}</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{totalVolume ? fmtVolHuman(totalVolume) : '—'}</div>
-            <div className="acard-s faint">cumulative, all outcomes</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={totalVolume} />
         </div>
       </section>
 

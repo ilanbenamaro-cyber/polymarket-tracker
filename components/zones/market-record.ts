@@ -85,6 +85,9 @@ export interface Derived {
   low_series?: TouchPoint[];
   unit?: string;
   near_settlement?: boolean; // expiring soon + rungs mostly pinned → amber NEAR SETTLEMENT badge
+  // Increment 1: windowed volume (supplementary — never hashed). Omitted on records computed
+  // before the feature; by_threshold keyed by derived ladder rung for the table's 24h column.
+  liquidity?: { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null; by_threshold?: Record<string, number> };
 }
 
 export interface ResolvedLeg {

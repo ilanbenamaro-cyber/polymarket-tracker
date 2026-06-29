@@ -6,8 +6,9 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtVolHuman, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
+import { VolumeCard } from './VolumeCard';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
@@ -60,7 +61,6 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
   const daysHave = hist?.velocity?.days_have ?? 0;
   const change30 = daysHave >= 28 ? pointChange(pts, 30) : null;
   const change7 = daysHave >= 7 ? pointChange(pts, 7) : null;
-  const spreadWord = spread == null ? 'no live book' : spread < 0.04 ? 'tight' : spread <= 0.08 ? 'moderate' : 'wide';
 
   return (
     <article className="detail-view" data-zone="detail-view" data-kind="binary" data-market-id={envelope?.market_id} data-lifecycle={lifecycleState}>
@@ -164,11 +164,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
             <div className="acard-v">{change7 == null ? 'collecting' : change7 > 0.01 ? 'rising' : change7 < -0.01 ? 'falling' : 'steady'}</div>
             <div className={`acard-s ${deltaSign(change7)}`}>{change7 == null ? <span className="faint">requires ≥7 days</span> : <>{fmtDeltaPp(change7)} pp · 7d</>}</div>
           </div>
-          <div className="acard" data-field="pcard-volume">
-            <div className="label">Volume</div>
-            <div className="acard-v">{d.total_volume != null ? fmtVolHuman(d.total_volume) : '—'}</div>
-            <div className="acard-s faint">book is {spreadWord}</div>
-          </div>
+          <VolumeCard liquidity={d.liquidity} allTimeVolume={d.total_volume} />
         </div>
       </section>
 

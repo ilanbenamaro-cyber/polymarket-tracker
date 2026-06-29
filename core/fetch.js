@@ -57,6 +57,51 @@ export function hashRawInputs(rawInputs) {
   return createHash('sha256').update(canonicalizeRawInputs(rawInputs)).digest('hex');
 }
 
+// ── windowed volume (Increment 1) ────────────────────────────────────────────
+// All-time cumulative volume is a poor liquidity proxy (a market dormant for months but heavily
+// traded last year reads identical to an active one). Gamma also returns WINDOWED volume per leg
+// (`volume24hr`, `volume1wk`). These are SUPPLEMENTARY: they go into a derived.liquidity object,
+// NEVER into raw_inputs — canonicalizeRawInputs (and the frozen SpaceX hash) stay untouched. The
+// numbers are still "what was observed", just recorded outside the canonical, same as midpoint_source.
+
+const numOrNull = (x) => (x != null && Number.isFinite(Number(x)) ? Number(x) : null);
+
+/** Per-leg windowed volume (24h / 7d) from a gamma market leg → { volume_24hr, volume_1wk }. */
+function legWindowed(m) {
+  return { volume_24hr: numOrNull(m.volume24hr), volume_1wk: numOrNull(m.volume1wk) };
+}
+
+/**
+ * Aggregate windowed + all-time volume across a market's legs into the supplementary liquidity
+ * object. The event-level windowed volume EQUALS the sum of per-leg windowed volume (verified
+ * against live gamma to the cent), so summing legs is the authoritative aggregate and is uniform
+ * across every market type. `keyOf(leg)` (optional) maps a leg to its derived threshold for the
+ * per-rung 24h map the ladder table reads. Returns null when NO windowed data is present on any
+ * leg (e.g. SpaceX's frozen replay, whose captured legs predate this feature) — so the caller
+ * OMITS derived.liquidity and the frozen parity block stays byte-identical.
+ */
+export function aggregateLiquidity(legs, keyOf = null) {
+  if (!Array.isArray(legs) || legs.length === 0) return null;
+  const has24 = legs.some((l) => l.volume_24hr != null);
+  const has7 = legs.some((l) => l.volume_1wk != null);
+  if (!has24 && !has7) return null;
+  const sum = (f) => legs.reduce((s, l) => s + (l[f] ?? 0), 0);
+  const liq = {
+    volume_24hr: has24 ? sum('volume_24hr') : null,
+    volume_1wk: has7 ? sum('volume_1wk') : null,
+    volume_all: legs.some((l) => l.volume != null) ? sum('volume') : null,
+  };
+  if (keyOf && has24) {
+    const by = {};
+    for (const l of legs) {
+      const k = keyOf(l);
+      if (k != null && l.volume_24hr != null) by[k] = (by[k] ?? 0) + l.volume_24hr;
+    }
+    liq.by_threshold = by;
+  }
+  return liq;
+}
+
 async function fetchJson(url, init) {
   const res = await fetch(url, init);
   if (!res.ok) throw new Error(`${url} → ${res.status} ${res.statusText}`);
@@ -122,6 +167,7 @@ export async function fetchMarketMeta(config = null) {
         label: labelOf(threshold),
         token_id: ids[0], // YES
         volume: m.volume != null ? Number(m.volume) : null,
+        ...legWindowed(m), // windowed volume — supplementary, never hashed
         // Status + resolution signals — NOT part of raw_inputs / the hash.
         closed: m.closed === true,
         active: m.active !== false,
@@ -246,6 +292,9 @@ export async function fetchLiveSnapshot(config = null) {
     markets,
     status,
     midpoint_fallback,
+    // Windowed volume (Increment 1) — null on a frozen/price-only replay (legs lack the fields)
+    // → derived.liquidity omitted → SpaceX parity byte-identical. by_threshold keyed by rung.
+    liquidity: aggregateLiquidity(meta, (l) => l.threshold),
   };
 }
 
@@ -335,6 +384,7 @@ export async function fetchBinaryMeta(config = null) {
     yes_token: ids[0], // YES
     no_token: ids[1], // NO
     volume: m.volume != null ? Number(m.volume) : null,
+    ...legWindowed(m), // windowed volume — supplementary, never hashed
     closed: m.closed === true,
     active: m.active !== false,
     accepting_orders: m.acceptingOrders !== false,
@@ -418,6 +468,7 @@ export async function fetchBinarySnapshot(config = null) {
     probability: parseFloat(yes.midpoint),
     probability_no: no ? parseFloat(no.midpoint) : null,
     total_volume: meta.volume ?? 0,
+    liquidity: aggregateLiquidity([{ volume: meta.volume, volume_24hr: meta.volume_24hr, volume_1wk: meta.volume_1wk }]),
     title: meta.title,
     end_date: meta.end_date,
     yes_best_bid: yes.best_bid,
@@ -456,6 +507,7 @@ export async function fetchBucketMeta(config) {
     return {
       lo: interval.lo, hi: interval.hi, token_id: ids[0],
       volume: m.volume != null ? Number(m.volume) : null,
+      ...legWindowed(m), // windowed volume — supplementary, never hashed
       closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
       uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
     };
@@ -548,6 +600,7 @@ export async function fetchBucketPmfSnapshot(config) {
     raw_inputs, raw_sha256: hashRawInputs(raw_inputs), markets, status,
     midpoint_fallback: { lastTradeCount: lastTradeThresholds.length, lastTradeThresholds, skippedCount: skippedThresholds.length, skippedThresholds },
     unit, pmf_mean: pmfMean, total_volume: priced.reduce((s, p) => s + (p.l.volume ?? 0), 0),
+    liquidity: aggregateLiquidity(meta.legs, (l) => l.lo / divisor), // by_threshold keyed by derived rung
     title: meta.title, end_date: meta.end_date, excluded_count: meta.excludedCount,
   };
 }
@@ -573,6 +626,7 @@ export async function fetchTouchMeta(config) {
     return {
       side: t.side, level: t.level, token_id: ids[0],
       volume: m.volume != null ? Number(m.volume) : null,
+      ...legWindowed(m), // windowed volume — supplementary, never hashed
       closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
       uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
     };
@@ -645,6 +699,7 @@ export async function fetchTouchSnapshot(config) {
     raw_inputs, raw_sha256: hashRawInputs(raw_inputs),
     high_series: high, low_series: low, implied_range: impliedRange(high, low),
     unit, total_volume: meta.legs.reduce((s, l) => s + (l.volume ?? 0), 0),
+    liquidity: aggregateLiquidity(meta.legs),
     status: meta.legs.map((l, i) => ({
       threshold: i, closed: l.closed, active: l.active, accepting_orders: l.accepting_orders,
       umaResolutionStatus: l.uma_resolution_status, outcomes: l.outcomes, outcomePrices: l.outcome_prices,
@@ -677,6 +732,7 @@ export async function fetchCategoricalMeta(config) {
       label: (m.groupItemTitle != null && String(m.groupItemTitle).trim()) || m.question,
       token_id: ids[0], // YES
       volume: m.volume != null ? Number(m.volume) : null,
+      ...legWindowed(m), // windowed volume — supplementary, never hashed
       closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
       uma_resolution_status: m.umaResolutionStatus ?? null, outcomes: m.outcomes ?? null, outcome_prices: m.outcomePrices ?? null,
     };
@@ -745,6 +801,7 @@ export async function fetchCategoricalSnapshot(config) {
     raw_sha256: hashRawInputs(raw_inputs),
     outcomes,
     total_volume: meta.legs.reduce((s, l) => s + (l.volume ?? 0), 0),
+    liquidity: aggregateLiquidity(meta.legs),
     title: meta.title,
     end_date: meta.end_date,
     status: meta.legs.map((l, i) => ({

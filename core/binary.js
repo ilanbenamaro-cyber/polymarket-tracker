@@ -9,6 +9,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
+import { windowedVolumeSignal } from './confidence.js';
 
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder's spread thresholds (4pp / 8pp)
@@ -21,7 +22,7 @@ const VOL_MEDIUM = 10_000;
  * lifecycle signals, each surfaced as a reason. No ladder concepts (threshold count,
  * monotonicity) apply. Returns { tier, score(0..1), reasons[] }.
  */
-export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolume, midpointFallback = null, lifecycle = null }) {
+export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null }) {
   const reasons = [];
   const tiers = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
@@ -46,8 +47,13 @@ export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolu
     if (rel > 0.5) reasons.push(`spread is ${Math.round(rel * 100)}% of the implied probability`);
   }
 
-  // 2) Volume — a thin binary is easy to push around.
-  if (totalVolume != null) {
+  // 2) Volume — a thin binary is easy to push around. Prefer WINDOWED (recent) volume when present
+  //    (Increment 1); the all-time tier is the fallback when windowed data is unavailable.
+  const winVol = windowedVolumeSignal(windowedVolume);
+  if (winVol) {
+    tiers.push(winVol.tier);
+    if (winVol.reason) reasons.push(winVol.reason);
+  } else if (totalVolume != null) {
     const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
     if (totalVolume >= VOL_HIGH) tiers.push('high');
     else if (totalVolume >= VOL_MEDIUM) { tiers.push('medium'); reasons.push(`moderate volume (${v})`); }
@@ -69,7 +75,8 @@ export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolu
   const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
 
   let score = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
-  if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
+  if (winVol) score = (score + (winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15)) / 2;
+  else if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
   if (midpointFallback) {
     score -= 0.05 * Math.min(2, midpointFallback.lastTradeCount ?? 0);
     score -= 0.1 * Math.min(2, midpointFallback.skippedCount ?? 0);
@@ -101,6 +108,7 @@ export function buildBinaryRecord(live, methodologyVersion, config, lifecycle = 
     totalVolume: live.total_volume,
     midpointFallback: live.midpoint_fallback ?? null,
     lifecycle,
+    windowedVolume: live.liquidity ?? null, // Increment 1
   });
 
   const derived = {
@@ -112,6 +120,7 @@ export function buildBinaryRecord(live, methodologyVersion, config, lifecycle = 
     narrative: buildBinaryNarrative(config.name, live.probability, confidence),
     freshness: buildFreshness(live.fetched_at, null, freshnessThresholdHours, lifecycle),
   };
+  if (live.liquidity) derived.liquidity = live.liquidity; // Increment 1: windowed volume, omit-when-absent
 
   const snapshot = {
     snapshot_id: live.fetched_at,
