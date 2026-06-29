@@ -5,6 +5,39 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Analytical-depth epic: supplementary derived fields, windowed liquidity, horizon-aware confidence
+**Decided (2026-06-29):** a 7-increment pass deepening the analytics, every increment parity-gated
+(`feature/analytical-depth`). The durable decisions:
+- **Windowed volume is SUPPLEMENTARY, never hashed.** Gamma returns per-leg `volume24hr`/`volume1wk`;
+  we aggregate them into a NEW `derived.liquidity` object — NOT into `raw_inputs`/`canonicalizeRawInputs`
+  (frozen recipe + SpaceX hash untouched, same posture as `midpoint_source`). The event-level windowed
+  volume EQUALS the sum of per-leg windowed (verified live to the cent), so summing legs is the
+  authoritative aggregate, uniform across all 5 market types. **All-time volume stays the FALLBACK** in
+  the binary/touch/categorical scorers when windowed is absent. Tiers (operator-calibrated): HIGH 24h≥$50K
+  OR 7d≥$200K; MED 24h≥$5K OR 7d≥$25K; LOW below.
+- **`derived.liquidity` is OMITTED when no windowed data is present** → SpaceX's frozen replay (legs
+  predate the feature) stays byte-identical. Load-bearing parity pattern (see gotcha "a NEW always-present
+  `derived` field breaks Gate 2") — it's why windowed volume could be added at all.
+- **days-to-expiry is computed DISPLAY-SIDE (header), NOT stored in `derived`.** midpoint_source lives in
+  `raw_inputs` (not the deep-equal'd derived block); an always-present new `derived` field would break
+  Gate 2 and SpaceX legitimately has a days-to-expiry (can't omit-when-false). So
+  `format-detail.daysToExpiryLabel` derives it at render from `asset.resolves`. The CONFIDENCE spread
+  normalization still uses days-to-expiry at COMPUTE time (not stored) — SpaceX ~550d → ×1.0 → identical.
+- **Time-to-expiry normalizes spread tolerance** (`spreadToleranceMultiplier`): >90d ×1.0 / 30–90d ×1.5 /
+  7–30d ×2.5 / <7d ×2.5. NEVER tightens. The relaxation near expiry is backstopped by the independent
+  windowed-volume signal (worst-of) — a genuinely-illiquid near-expiry market still reads LOW via volume.
+- **Two daily cron captures** (02:00 + 18:00 UTC) keyed by `snapshot_hour` (migration 0009); `ordered()`
+  COLLAPSES to one row/day preferring the nearest-US-peak capture — every derive fn prefers US-hours, no
+  double-counting. Frozen history (no snapshot_hour → 0, one row/day) → collapse is a no-op.
+- **Velocity is jump-aware** (`detectJumps`): with a recent jump (≤21d) the slope is computed on POST-JUMP
+  data; trend reads 'converged' (post-jump σ < ½·|jump|) or 'volatile' instead of a misleading linreg.
+- **The narrative closes with ONE cross-signal synthesis sentence** (`synthesizeSignals`) which OWNS the
+  jump mention (the standalone jump line was removed to avoid duplication; the velocity card keeps it).
+**Constrains:** any future `derived` addition must be omit-when-absent or display-side (never an
+always-present new key). History-derived analytics live in `lib/market-history.mjs` (display layer, NOT
+`core/`) → never touch the record/hash/parity. **PROD-STANDUP now needs migrations 0001–0009 + CRON_SECRET
++ the SECOND cron entry (18:00 UTC) in vercel.json (Pro plan).**
+
 ## The lifecycle PROBE must classify market shape first (audit F1) + the cron self-heals backfills
 **Decided (2026-06-26):** `lib/compute.probeLifecycle` (the cheap gamma-meta probe `serveMarket`
 runs on the within-TTL path to confirm a market hasn't resolved) now **classifies the market shape
