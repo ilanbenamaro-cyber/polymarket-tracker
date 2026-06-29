@@ -8,6 +8,52 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-29): ANALYTICAL-DEPTH PASS (7 increments) — MERGED to main (`--no-ff` `2c3f56c`) + PUSHED
+- **MERGED & PUSHED** (`2c3f56c`; `74c4f72..2c3f56c`; **320/320** on merged main; **SpaceX parity 3/3
+  byte-identical**; tsc + build clean; in sync). 7-increment `/ship`-style pass on
+  `feature/analytical-depth`, EACH increment approval-gated + parity-gated. Research-first (live
+  Gamma/CLOB via curl + Context7 Vercel-cron). **The discipline that made it parity-safe: every new
+  derived signal is OMIT-WHEN-ABSENT or DISPLAY-SIDE — never an always-present new `derived` key, and
+  no `core/` formula or `canonicalizeRawInputs` change.** See [[decisions]] "Analytical-depth epic" +
+  [[gotchas]] "A NEW always-present field on `derived` breaks SpaceX Gate 2".
+- **INC 1 — windowed (24h/7d) volume:** all-time volume is a poor liquidity proxy (US-recession $1.6M
+  all-time hid $627/24h). Gamma per-leg `volume24hr`/`volume1wk` → summed into a NEW supplementary
+  `derived.liquidity` (NOT hashed; Σlegs == event-level, verified). Confidence uses it (HIGH 24h≥$50K
+  OR 7d≥$200K; MED 24h≥$5K OR 7d≥$25K; LOW), all-time = FALLBACK. VolumeCard "24h · 7d · all-time";
+  rail 24h chip; ladder 24h column. `core/confidence.windowedVolumeSignal`.
+- **INC 2 — cron timing:** 2nd cron 18:00 UTC (US peak) + **migration 0009** `snapshot_hour`; `ordered()`
+  collapses to one row/day preferring US-hours. **⚠ OPERATOR: apply 0009 + add the 18:00 cron is already
+  in vercel.json (Pro plan); live-verify two rows at hours 2 & 18.**
+- **INC 3 — time-to-expiry confidence:** `spreadToleranceMultiplier` widens spread tolerance near expiry
+  (>90d ×1.0 / 30–90d ×1.5 / 7–30d ×2.5); reasons read "expected near expiry — 12d remaining" vs
+  "illiquid — 180d remaining". days-to-expiry header label is DISPLAY-SIDE (`daysToExpiryLabel`).
+- **INC 4 — velocity jump detection:** `detectJumps` (8pp/8% threshold, ≤21d recent); deriveVelocity →
+  'converged' (post-jump σ<½|jump|) / 'volatile'; slope on post-jump data.
+- **INC 5 — narrative synthesis:** `synthesizeSignals` one closing conflict/reinforcement/jump sentence
+  (owns the jump mention; the standalone INC-4 jump line was removed — no dup).
+- **INC 6 — threshold table S/N:** `classifyLadderZones` (SETTLED_HIGH ≥95% / ACTIVE / SETTLED_LOW ≤5%);
+  client `LadderThresholdTable` collapses settled zones behind per-side toggles (2 context rows kept;
+  not collapsed when near-settlement or <3 active); settled Δ muted.
+- **INC 7 — touch barrier framing:** "implied trading range" → **"IMPLIED BARRIER RANGE"**; barrier-option
+  explainer + narrative ("…not a settlement forecast") + header tooltips; `barrierPathUncertainty`
+  (width as %-of-axis → path uncertainty; omits on a one-sided range).
+- **EPIC CLOSE:** **/redteam** on the confidence scoring (Inc 1+3) — NO vulns; defensively layered
+  (worst-of; volume backstops the relaxed spread). ⚠ ONE calibration flag: the windowed `v7≥$200K` OR
+  can read HIGH when 24h is dead (stale-spike) — operator to decide a 24h floor. **/sync** updated
+  decisions+gotchas. **Playwright** (single clean dev `:3000`, **0 console errors all 3**): SpaceX
+  survival (resolved → resolution cards + table + "549d to expiry"; live windowed/synthesis/collapse
+  N/A on a resolved/sparse-history market, covered by unit tests), us-recession binary (LOW "thin 24h
+  volume ($627)", card "$627 / 7d $16K / all-time $1.6M", "215d to expiry"), Anthropic touch (barrier
+  heading/explainer/tooltip/narrative, "185d to expiry", card "$30K / 7d $198K"). Screenshots
+  `epic-verify-{1,2,3}-*.png`.
+- **⚠ BEFORE/AFTER confidence (volume signal, the 5 research markets):** all-time tier → windowed tier —
+  **US-recession HIGH→LOW** ($1.6M all-time vs $627/24h), **CT-primary MED→LOW** ($21.7K vs $0/$0);
+  Fed/SpaceX-touch/Silver stay HIGH (real recent flow); Anthropic HIGH→MED (volume drifted under $50K/24h
+  + $200K/7d). The dormant-market unmasking is the whole point.
+- **NEXT:** the INC-1 red-team calibration call (24h floor for the v7-OR HIGH); optional "backfilling
+  history…" UI signal; live-verify INC 2 after applying 0009. PROD-STANDUP: migrations 0001–0009 +
+  CRON_SECRET + the 18:00 cron.
+
 ## ⮕ DIRECTION (2026-06-26): CATEGORICAL DE-VIG + DETAIL CLEANUPS (Bug Zero/A/B/C + title) — MERGED to main (`--no-ff` `b95d73d`) + PUSHED
 - **MERGED & PUSHED** (`b95d73d`; `d589729..b95d73d`; **283/283** on merged main; **SpaceX parity 3/3**;
   tsc + build clean; in sync). Clean topology (main an ancestor of `fix/categorical-devig-touch-resolved`,
