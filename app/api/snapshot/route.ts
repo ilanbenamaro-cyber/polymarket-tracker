@@ -48,6 +48,9 @@ export async function GET(req: Request): Promise<Response> {
 
   const startedAt = new Date().toISOString();
   const today = startedAt.slice(0, 10); // UTC date
+  // Increment 2: two daily crons (02:00 + 18:00 UTC) — the run hour keys the history row so both
+  // coexist, and the US-hours (18:00) capture is later preferred for velocity/dispersion.
+  const snapshotHour = new Date(startedAt).getUTCHours();
 
   let ids: string[];
   try {
@@ -56,10 +59,10 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({ error: `watchlist read failed: ${(e as Error).message}` }, { status: 500, headers: NO_STORE });
   }
 
-  // Dedup guard: skip markets already snapshotted today (idempotent re-runs after a partial
-  // failure don't recompute the ones that succeeded). writeHistory upserts anyway, so this is
-  // a cost optimization, not the correctness guarantee.
-  const already = await marketsSnapshottedOn(today, ids);
+  // Dedup guard: skip markets already snapshotted in THIS hour-slot (idempotent re-runs after a
+  // partial failure don't recompute the ones that succeeded; the 18:00 run does NOT skip the 02:00
+  // rows). writeHistory upserts anyway, so this is a cost optimization, not the correctness guarantee.
+  const already = await marketsSnapshottedOn(today, snapshotHour, ids);
   const todo = ids.filter((id) => !already.has(id));
 
   let success = 0;
@@ -82,7 +85,7 @@ export async function GET(req: Request): Promise<Response> {
         resolved++; // frozen — no new data to record
         continue;
       }
-      await writeHistory(id, body.record);
+      await writeHistory(id, body.record, snapshotHour);
       success++;
     } catch (e) {
       failed++;

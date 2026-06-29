@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
-  deriveChartSeries,
+  deriveChartSeries, headlineChange, latestSnapshotWindow,
   needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
@@ -258,4 +258,47 @@ test('deriveChartSeries: null for binary/touch/categorical (single-line falls ba
 test('deriveChartSeries: null below two points', () => {
   assert.equal(deriveChartSeries([ladderRow(0, { markets: [{ threshold: 2.0, prob: 0.5 }], median: 2.0 })]), null);
   assert.equal(deriveChartSeries([]), null);
+});
+
+// ── Increment 2: two daily captures collapse to one row/day, preferring US-hours ──────────────
+/** A history row with an explicit snapshot_hour (the Increment 2 capture-time key). */
+function hourRow(dayIdx, hour, { median = null, kind = 'survival' } = {}) {
+  return { snapshot_date: dateAt(dayIdx), snapshot_hour: hour, kind, implied_median: median, record: { snapshot: { derived: {} } } };
+}
+
+test('ordered (via headlineChange): a day with both 02:00 and 18:00 rows prefers the US-hours capture', () => {
+  // day 0 baseline (18:00, median 60); day 7 has BOTH a 02:00 (median 70) and an 18:00 (median 65).
+  // Preferring 18:00 → change = 65 − 60 = 5. Preferring 02:00 would give 10.
+  const rows = [
+    hourRow(0, 18, { median: 60 }),
+    hourRow(7, 2, { median: 70 }),
+    hourRow(7, 18, { median: 65 }),
+  ];
+  assert.ok(Math.abs(headlineChange(rows, 7) - 5) < 1e-9);
+});
+
+test('deriveVelocity: two captures per day count as ONE day (no double-counting)', () => {
+  // 7 distinct days, each with a 02:00 AND an 18:00 row → days_have must be 7, not 14.
+  const rows = [];
+  for (let i = 0; i < 7; i++) { rows.push(hourRow(i, 2, { median: 60 + i })); rows.push(hourRow(i, 18, { median: 60 + i })); }
+  const v = deriveVelocity(rows);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.days_have, 7);
+});
+
+test('latestSnapshotWindow: classifies the most recent capture', () => {
+  assert.equal(latestSnapshotWindow([hourRow(0, 18, { median: 60 })]), 'us-hours');
+  assert.equal(latestSnapshotWindow([hourRow(0, 2, { median: 60 })]), 'off-peak');
+  assert.equal(latestSnapshotWindow([hourRow(0, 0, { median: 60 })]), null); // backfill/legacy
+  assert.equal(latestSnapshotWindow([]), null);
+  // when a day has both, the preferred (18:00) capture drives the note
+  assert.equal(latestSnapshotWindow([hourRow(0, 2, { median: 60 }), hourRow(0, 18, { median: 61 })]), 'us-hours');
+});
+
+test('ordered: legacy rows with NO snapshot_hour are treated as hour 0 (one row/day → no collapse)', () => {
+  // mkRow carries no snapshot_hour — the frozen/legacy shape. A 7-day series must still derive normally.
+  const hist = [0, 1, 2, 3, 4, 5, 6].map((i) => mkRow(i, { median: 60 + i }));
+  const v = deriveVelocity(hist);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.days_have, 7);
 });

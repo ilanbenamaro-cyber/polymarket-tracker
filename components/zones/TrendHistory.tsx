@@ -13,7 +13,9 @@ export interface VelocityResult { status: string; kind?: string; trend?: string;
 export interface DispersionResult { status: string; direction?: string; change_pct?: number; current_width?: number; days_have?: number; days_needed?: number; }
 // `series` (v1 ITEM 7) is the multi-line dual-axis chart data for survival/bucket ladders; null
 // for binary/touch/categorical (the chart falls back to the single `points` headline line).
-export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; }
+// `snapshotWindow` (Increment 2) is the capture time of the latest datapoint: 'us-hours' (18:00 UTC
+// US peak) or 'off-peak' (02:00 UTC), surfaced as a data-quality note. null = backfill/legacy.
+export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; }
 
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */
@@ -70,6 +72,15 @@ export function TrendHistorySection({ hist, unit, label }: { hist: HistoryUI; un
         <DispersionCard d={hist.dispersion} unit={unit} />
       </div>
       <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} series={hist.series ?? null} />
+      {/* Increment 2: which daily capture the latest datapoint came from. The 18:00 UTC (US-peak)
+          run is the higher-liquidity point; preferred over the 02:00 off-peak run when both exist. */}
+      {hist.snapshotWindow && (
+        <p className="hist-note" data-field="snapshot-window">
+          {hist.snapshotWindow === 'us-hours'
+            ? 'Latest point captured at 18:00 UTC (US-hours) — preferred where available.'
+            : 'Latest point captured at 02:00 UTC (off-peak); US-hours capture not yet available.'}
+        </p>
+      )}
     </section>
   );
 }

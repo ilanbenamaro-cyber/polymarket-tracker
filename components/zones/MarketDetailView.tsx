@@ -11,7 +11,7 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange } from '@/lib/market-history.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
@@ -85,6 +85,8 @@ export async function DetailData({ id }: { id: string }) {
     // survival/bucket ladders only (null for binary/touch/categorical → single-line fallback).
     // Built server-side from the record JSONB; only lean {date,value}[] per line ships to the client.
     series: deriveChartSeries(rows),
+    // Increment 2: capture window of the latest datapoint (US-hours vs off-peak) for the data note.
+    snapshotWindow: latestSnapshotWindow(rows) as 'us-hours' | 'off-peak' | null,
   };
   // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
   // Survival/PMF only (the ladder view owns the threshold table); the binary/touch/categorical
