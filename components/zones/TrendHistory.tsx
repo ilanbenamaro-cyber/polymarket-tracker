@@ -18,7 +18,8 @@ export interface DispersionResult { status: string; direction?: string; change_p
 // for binary/touch/categorical (the chart falls back to the single `points` headline line).
 // `snapshotWindow` (Increment 2) is the capture time of the latest datapoint: 'us-hours' (18:00 UTC
 // US peak) or 'off-peak' (02:00 UTC), surfaced as a data-quality note. null = backfill/legacy.
-export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; }
+// `synthesis` (Increment 5): the closing cross-signal sentence appended to the narrative (or null).
+export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; synthesis?: string | null; }
 
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */

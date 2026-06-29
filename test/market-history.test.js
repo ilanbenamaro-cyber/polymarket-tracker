@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
-  deriveChartSeries, headlineChange, latestSnapshotWindow, detectJumps,
+  deriveChartSeries, headlineChange, latestSnapshotWindow, detectJumps, deriveConfidenceTrend,
   needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
@@ -362,4 +362,14 @@ test('deriveVelocity: gradual series with no jump keeps the linreg trend', () =>
   const v = deriveVelocity(hist);
   assert.equal(v.trend, 'falling'); // unchanged linreg path
   assert.equal(v.jump, undefined);
+});
+
+// ── Increment 5: confidence trend (feeds the narrative synthesis) ─────────────
+test('deriveConfidenceTrend: rising / falling / steady / null from the confidence_score series', () => {
+  const row = (i, score) => ({ snapshot_date: dateAt(i), confidence_score: score, kind: 'survival', record: { snapshot: { derived: {} } } });
+  assert.equal(deriveConfidenceTrend([row(0, 0.5), row(1, 0.6), row(2, 0.8)]), 'rising');
+  assert.equal(deriveConfidenceTrend([row(0, 0.8), row(1, 0.6), row(2, 0.4)]), 'falling');
+  assert.equal(deriveConfidenceTrend([row(0, 0.70), row(1, 0.72)]), 'steady'); // <0.05 net
+  assert.equal(deriveConfidenceTrend([row(0, 0.5)]), null); // <2 points
+  assert.equal(deriveConfidenceTrend([]), null);
 });

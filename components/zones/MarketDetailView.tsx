@@ -11,8 +11,8 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, jumpNarrative } from '@/lib/format-detail.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveConfidenceTrend } from '@/lib/market-history.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, synthesizeSignals } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -88,6 +88,15 @@ export async function DetailData({ id }: { id: string }) {
     // Increment 2: capture window of the latest datapoint (US-hours vs off-peak) for the data note.
     snapshotWindow: latestSnapshotWindow(rows) as 'us-hours' | 'off-peak' | null,
   };
+  // Increment 5: the closing cross-signal synthesis sentence (velocity vs dispersion vs confidence
+  // trend), appended to whichever detail view's narrative. Null when signals agree / history < 7d.
+  hist.synthesis = synthesizeSignals({
+    velocity: hist.velocity,
+    dispersion: hist.dispersion,
+    confidenceTrend: deriveConfidenceTrend(rows),
+    currentConfidence: body.record?.snapshot?.derived?.confidence?.tier ?? null,
+    kind: chartKind,
+  }) as string | null;
   // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
   // Survival/PMF only (the ladder view owns the threshold table); the binary/touch/categorical
   // views ignore these props. Thresholds come from the current served record so the Δ rows
@@ -258,7 +267,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         bandDirection: narrativeBits.bandDirection,
         confidenceTier: conf.tier ?? null,
         unit,
-      })}${jumpNarrative(hist?.velocity?.jump, hist?.kind, unit) ? ` ${jumpNarrative(hist?.velocity?.jump, hist?.kind, unit)}` : ''}`}</p>
+      })}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
           "Collecting" state until enough days accrue; never dashes. */}

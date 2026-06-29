@@ -6,7 +6,7 @@
 // ladder detail (reusing HashVerify + DetailFreshness), and the RESOLVED banner shows the
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel, jumpNarrative } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { HashVerify } from './HashVerify';
@@ -171,7 +171,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
 
       {/* NARRATIVE (v1 ITEM 1) — probability + 30d/7d move + consensus + confidence, built
           display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{`${binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative || ''}${jumpNarrative(hist?.velocity?.jump, 'binary', '') ? ` ${jumpNarrative(hist?.velocity?.jump, 'binary', '')}` : ''}`}</p>
+      <p className="detail-narrative" data-field="narrative">{`${binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TREND & HISTORY — YES-probability series (Phase 1); collecting until 7 days accrue */}
       {hist && <TrendHistorySection hist={hist} unit="" label="YES probability" />}
