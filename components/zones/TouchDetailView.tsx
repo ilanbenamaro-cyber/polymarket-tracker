@@ -7,7 +7,7 @@
 // 50% crossovers) as a horizontal range bar, plus a touch-probability table. The TRUST layer
 // (confidence, freshness, provenance + hash-verify) is identical to every other detail.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { fmtEastern, displayTitle, pointChange, touchNarrative, daysToExpiryLabel } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, touchNarrative, daysToExpiryLabel, jumpNarrative } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
@@ -181,7 +181,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
 
       {/* NARRATIVE (v1 ITEM 1) — the implied range + midpoint move + confidence, built display-side;
           Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{`${touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null }) || d.narrative || ''}${jumpNarrative(hist?.velocity?.jump, 'directional_touch', unit) ? ` ${jumpNarrative(hist?.velocity?.jump, 'directional_touch', unit)}` : ''}`}</p>
 
       {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs. Near
           settlement (Bug B) it shows the active range only with a "show all" toggle; otherwise

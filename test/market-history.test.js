@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import {
   linregSlope, headlineValue,
   deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves,
-  deriveChartSeries, headlineChange, latestSnapshotWindow,
+  deriveChartSeries, headlineChange, latestSnapshotWindow, detectJumps,
   needsBackfill,
   MIN_VELOCITY_DAYS, MIN_DISPERSION_DAYS,
 } from '../lib/market-history.mjs';
@@ -301,4 +301,65 @@ test('ordered: legacy rows with NO snapshot_hour are treated as hour 0 (one row/
   const v = deriveVelocity(hist);
   assert.equal(v.status, 'ok');
   assert.equal(v.days_have, 7);
+});
+
+// ── Increment 4: velocity jump detection ─────────────────────────────────────
+test('detectJumps: no jump on a gradual series (8pp threshold not crossed)', () => {
+  const hist = [0,1,2,3,4,5,6].map((i) => mkRow(i, { kind: 'binary', probability: 0.30 + i * 0.02 })); // +2pp/day
+  assert.equal(detectJumps(hist).hasRecentJump, false);
+});
+
+test('detectJumps: a recent jump + flat after → hasRecentJump, stable', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.70 }));              // jump +0.40
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.70 + (i % 2 ? 0.005 : -0.005) }));
+  const j = detectJumps(rows);
+  assert.equal(j.hasRecentJump, true);
+  assert.equal(j.jumpDate, dateAt(10));
+  assert.ok(Math.abs(j.jumpMagnitude - 0.40) < 1e-9);
+  assert.equal(j.daysSinceJump, 10);
+  assert.equal(j.stable, true); // post-jump σ ≈ 0.005 ≪ 0.5·0.40
+});
+
+test('detectJumps: a jump older than recentDays (21) is NOT recent', () => {
+  const rows = [mkRow(0, { kind: 'binary', probability: 0.30 }), mkRow(1, { kind: 'binary', probability: 0.55 })]; // jump
+  for (let i = 2; i < 26; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.55 })); // 24 flat days after
+  assert.equal(detectJumps(rows).hasRecentJump, false); // daysSinceJump = 24 > 21
+});
+
+test('detectJumps: value-kind uses an 8%-of-value threshold (median ladder)', () => {
+  // +10% move (2.0 → 2.20) is a jump; a +5% move (2.0 → 2.10) is not.
+  const jump = detectJumps([mkRow(0, { median: 2.0 }), mkRow(1, { median: 2.20 })]);
+  assert.equal(jump.hasRecentJump, true);
+  const noJump = detectJumps([mkRow(0, { median: 2.0 }), mkRow(1, { median: 2.10 })]);
+  assert.equal(noJump.hasRecentJump, false);
+});
+
+test('deriveVelocity: recent jump + stable after → trend "converged" (not "rising")', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.70 }));
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.70 }));
+  const v = deriveVelocity(rows);
+  assert.equal(v.status, 'ok');
+  assert.equal(v.trend, 'converged');
+  assert.equal(v.jump.stable, true);
+});
+
+test('deriveVelocity: recent jump + wide post-jump drift → trend "volatile"', () => {
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.30 }));
+  rows.push(mkRow(10, { kind: 'binary', probability: 0.40 }));               // jump +0.10
+  for (let i = 11; i < 21; i++) rows.push(mkRow(i, { kind: 'binary', probability: 0.40 + (i - 10) * 0.02 })); // wide drift, no new jumps
+  const v = deriveVelocity(rows);
+  assert.equal(v.trend, 'volatile'); // post-jump σ ≈ 0.063 > 0.5·0.10
+  assert.equal(v.jump.stable, false);
+});
+
+test('deriveVelocity: gradual series with no jump keeps the linreg trend', () => {
+  const hist = [0,1,2,3,4,5,6].map((i) => mkRow(i, { median: 66 - i }));
+  const v = deriveVelocity(hist);
+  assert.equal(v.trend, 'falling'); // unchanged linreg path
+  assert.equal(v.jump, undefined);
 });

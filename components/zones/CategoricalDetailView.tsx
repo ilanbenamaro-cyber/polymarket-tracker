@@ -9,7 +9,7 @@
 // canonicalizes raw_inputs server-side for the in-browser verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { isPlaceholderLeg } from '@/core/categorical.js';
-import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
+import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel, jumpNarrative } from '@/lib/format-detail.mjs';
 import { ConfidenceBasis } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
@@ -164,7 +164,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
 
       {/* NARRATIVE (v1 ITEM 1) — leading outcome + 30d/7d move + consensus read + confidence,
           built display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative}</p>
+      <p className="detail-narrative" data-field="narrative">{`${categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative || ''}${jumpNarrative(hist?.velocity?.jump, 'categorical', '') ? ` ${jumpNarrative(hist?.velocity?.jump, 'categorical', '')}` : ''}`}</p>
 
       {/* OUTCOME DISTRIBUTION — the analytical centerpiece (top 10, "N more" expands) */}
       <section className="detail-section">

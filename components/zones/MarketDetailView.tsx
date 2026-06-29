@@ -12,7 +12,7 @@ import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow } from '@/lib/market-history.mjs';
-import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel } from '@/lib/format-detail.mjs';
+import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, jumpNarrative } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
 import { TrendHistorySection, type HistoryUI, type VelocityResult, type DispersionResult } from './TrendHistory';
@@ -250,7 +250,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
       {/* NARRATIVE (v1 ITEM 1) — current median + 30d/7d change + mode bucket + band direction +
           confidence, built display-side from the derived block + history (the stored pipeline
           narrative is unchanged). Δ/band sentences omit gracefully when history is absent. */}
-      <p className="detail-narrative" data-field="narrative">{detailNarrative({
+      <p className="detail-narrative" data-field="narrative">{`${detailNarrative({
         medianLabel: impliedMedianLabel(d.markets, d.implied_median ?? null, unit),
         change30: narrativeBits.change30,
         change7: narrativeBits.change7,
@@ -258,7 +258,7 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         bandDirection: narrativeBits.bandDirection,
         confidenceTier: conf.tier ?? null,
         unit,
-      })}</p>
+      })}${jumpNarrative(hist?.velocity?.jump, hist?.kind, unit) ? ` ${jumpNarrative(hist?.velocity?.jump, hist?.kind, unit)}` : ''}`}</p>
 
       {/* TREND & HISTORY — the daily series (Phase 1). Velocity/dispersion show an explicit
           "Collecting" state until enough days accrue; never dashes. */}

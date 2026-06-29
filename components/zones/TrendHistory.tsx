@@ -9,7 +9,10 @@
 
 import { HistoryChart, type HistoryPoint, type ChartSeries } from './HistoryChart';
 
-export interface VelocityResult { status: string; kind?: string; trend?: string; period?: string; change?: number; days_have?: number; days_needed?: number; }
+// `jump` (Increment 4): a recent single-day jump in the headline series. When present, the card
+// reports 'converged' (stabilized after the move) or 'volatile' instead of a misleading linreg trend.
+export interface JumpInfo { hasRecentJump?: boolean; jumpDate?: string; jumpMagnitude?: number; daysSinceJump?: number; postJumpStdDev?: number; stable?: boolean; }
+export interface VelocityResult { status: string; kind?: string; trend?: string; period?: string; change?: number; days_have?: number; days_needed?: number; jump?: JumpInfo; }
 export interface DispersionResult { status: string; direction?: string; change_pct?: number; current_width?: number; days_have?: number; days_needed?: number; }
 // `series` (v1 ITEM 7) is the multi-line dual-axis chart data for survival/bucket ladders; null
 // for binary/touch/categorical (the chart falls back to the single `points` headline line).
@@ -20,22 +23,35 @@ export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionRes
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */
 function VelocityCard({ v, unit }: { v: VelocityResult; unit: string }) {
+  const isProb = v.kind === 'binary' || v.kind === 'categorical';
+  const fmtMag = (m: number) => isProb
+    ? `${m >= 0 ? '+' : '−'}${Math.abs(m * 100).toFixed(1)}pp`
+    : `${m >= 0 ? '+' : '−'}$${Math.abs(m).toFixed(2)}${unit}`;
   let value = '—';
   let sub = '';
   if (v.status === 'collecting') {
     value = 'Collecting';
     sub = `${v.days_have ?? 0}/${v.days_needed ?? 7} days · populates at 7`;
+  } else if (v.status === 'ok' && v.jump?.hasRecentJump && v.jump.jumpMagnitude != null) {
+    // Increment 4: a recent jump — report convergence/volatility, not a misleading "rising fast".
+    const j = v.jump;
+    const mag = v.jump.jumpMagnitude; // narrowed to number on this access path by the guard above
+    const sigma = isProb ? `${((j.postJumpStdDev ?? 0) * 100).toFixed(1)}pp` : `$${(j.postJumpStdDev ?? 0).toFixed(2)}${unit}`;
+    value = j.stable ? 'converged' : 'volatile';
+    sub = j.stable
+      ? `jumped ${fmtMag(mag)} on ${j.jumpDate} · stable since (σ=${sigma})`
+      : `moved ${fmtMag(mag)} on ${j.jumpDate} · direction unclear`;
   } else if (v.status === 'ok') {
     value = v.trend ?? '—';
     const ch = v.change ?? 0;
-    sub = v.kind === 'binary'
+    sub = isProb
       ? `${ch >= 0 ? '+' : ''}${(ch * 100).toFixed(1)}pp over ${v.period ?? '7d'}`
       : `${ch >= 0 ? '+' : ''}${ch.toFixed(2)} $${unit} over ${v.period ?? '7d'}`;
   }
   return (
     <div className="acard" data-field="velocity-card">
       <div className="label">Velocity (7d)</div>
-      <div className="acard-v">{value}</div>
+      <div className="acard-v" data-field="velocity-value">{value}</div>
       <div className="acard-s faint">{sub}</div>
     </div>
   );
