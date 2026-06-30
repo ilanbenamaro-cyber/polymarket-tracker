@@ -5,6 +5,66 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Confidence SPLIT into two independent tiers — RELIABILITY + LIQUIDITY (Increment A)
+**Decided (2026-06-30):** The single confidence tier conflated two genuinely orthogonal questions, so
+a 98%-consensus market with no recent volume (CT Republican Primary — Ryan Fazio at 98%) read LOW and
+looked like a bug. `derived.confidence` is now `{ reliability, liquidity }`, each a `{tier,score,
+reasons}`:
+- **RELIABILITY** (is the displayed NUMBER trustworthy): threshold count, monotonicity, spread (+expiry
+  tolerance), last-trade fallback, missing rungs, stale-feed. Near-settlement carve-out lives HERE.
+- **LIQUIDITY** (can you TRANSACT at this price): book-thin breadth, windowed volume (all-time
+  fallback), closed/not-accepting-orders rungs, liquidity-drop.
+- **The signals are REPARTITIONED, not retuned** — every threshold/reason string is unchanged, just
+  moved to the dimension it belongs to. The old single tier == `worst(reliability, liquidity)`
+  (`collapseConfidenceTier`), so nothing is lost.
+- **`closedCount` → LIQUIDITY** (you literally cannot trade a closed rung); its stale-price aspect is
+  already covered separately by last-trade fallback under RELIABILITY. **Near-settlement → RELIABILITY
+  only**: it must not drag the number's trustworthiness, but liquidity stays genuinely low (you can't
+  trade a settling market — and that reads through the windowed-volume signal, not the carve-out).
+- Result for the CT case: **RELIABILITY HIGH + LIQUIDITY LOW** (verified: tight spread → HIGH;
+  $120/24h → LOW), no longer a single misleading LOW. (Increment B will add entropy→reliability so the
+  consensus itself explicitly lifts reliability; Increment C folds book-depth into liquidity.)
+**Why:** A quant must be told WHICH problem a market has — an untradeable-but-trustworthy price
+(everyone agrees, nobody trades) is the opposite situation from a deeply-traded-but-unreliable one, and
+collapsing both into one tier hides which is true. The number a fund acts on must not be flagged
+untrustworthy merely because it's illiquid.
+**The SpaceX parity strategy (the load-bearing part — a PROVABLE shape migration, NOT fixture-editing
+to mask a regression):** Gate 1 (raw_sha256) and Gate 3 (history curve math) are byte-identical and
+untouched — the split is entirely downstream of `raw_inputs`. Gate 2 deep-equals the whole `derived`
+block including confidence, so it diffs ONLY in the confidence sub-block, intentionally. The fixture's
+`derived.confidence` was surgically regenerated to the new shape by RUNNING the new builder (only that
+sub-block changed; median/mean/iqr/buckets/markets/analytics/narrative/scenarios/freshness stay
+byte-identical — confirmed by the diff). **The regen is made legitimate by a new automated GATE 2b**
+(`phase1-spacex-parity.test.js`) that hardcodes the OLD frozen tier/reasons (independent of the moved
+fixture) and proves the split is FAITHFUL: `reliability.tier === 'high'` (the old tier),
+`liquidity.tier === 'high'`, `worst(reliability,liquidity) === 'high'`, and the two new reason lists'
+UNION === the old reasons (`"…tight spreads"` + `"deep books"` == `"…tight spreads, deep books"`), with
+no reason double-counted. This is why this is not the forbidden "edit the fixture to pass" — the
+semantic content is proven preserved, only the shape moved.
+**Constrains:**
+- **schema 2.0.0** (BREAKING confidence shape) + `validate.js` (`validateHistoryEntry` requires both
+  `reliability.tier` + `liquidity.tier`); **methodology 1.5.0** (signals repartitioned, no curve-math
+  change). Per the firewall-versioning rule a breaking field reshape would warrant `/api/v2/`, but the
+  product has a single live consumer mid-rebuild (the PIVOT's no-parallel-fallback posture), so we bump
+  schema MAJOR in place rather than fork the directory.
+- **Migration 0010** adds `reliability_/liquidity_` tier+score to `market_snapshots` + `market_history`;
+  legacy `confidence_*` columns are KEPT (written with the collapsed worst, back-compat). **We do NOT
+  backfill the old single value into both new columns** — the old tier conflated the dimensions, so
+  copying it into `liquidity_tier` would FABRICATE a liquidity reading never computed (the trust rule).
+  Legacy rows keep new columns NULL; the display shows "—" for the missing half until new data accrues.
+  `market_latest` is `select … *` so the columns surface automatically (no view recreation).
+- **Published legacy artifacts:** `latest.json` is regenerated (recomputed from its raw_inputs → new
+  shape, schema-validated by firewall/analytics tests). `history-full.json` is split IN PLACE (every
+  historical reason is a reliability signal; liquidity = the benign `deep books` default these days
+  always had) — NOT re-derived, because re-deriving without the original raw_inputs would downgrade the
+  captured live-spread reliability to price-only (a dishonest rewrite). `history.csv` is untouched
+  (still CSV-safe; not cross-checked).
+- The split must stay ATOMIC across all 4 scorers + schema + display (a half-migration breaks the
+  shape). `worstTier`/`collapseConfidenceTier` exported from `core/confidence.js`. `deriveConfidenceTrend`
+  → `deriveReliabilityTrend` + `deriveLiquidityTrend` (legacy kept for pre-0010 rows). Narrative trend
+  claims key off RELIABILITY (the number's trustworthiness), not liquidity. See [[gotchas]] "A breaking
+  derived shape change…" and "Changing a .mjs signature breaks the consuming .tsx via JSDoc".
+
 ## Analytical-depth epic: supplementary derived fields, windowed liquidity, horizon-aware confidence
 **Decided (2026-06-29):** a 7-increment pass deepening the analytics, every increment parity-gated
 (`feature/analytical-depth`). The durable decisions:

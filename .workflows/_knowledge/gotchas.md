@@ -5,6 +5,42 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A breaking `derived` SHAPE change must also update the committed `docs/api/v1/` artifacts the tests validate
+**Symptom (hit during the confidence split):** after reshaping `derived.confidence` to `{reliability,
+liquidity}`, three tests failed that had nothing obviously to do with the change — `firewall.test.js`
+and `analytics-scenarios.test.js` (`schema /snapshot/derived/confidence must have required property
+'reliability'`) and `history-invariants.test.js` (`history … missing confidence.reliability.tier`).
+**Reality:** those tests load the COMMITTED published artifacts as real-data fixtures — `latest.json`
+(run through `validateRecord` → schema) and `history-full.json` (run through `validateHistoryEntry`).
+A breaking shape change to `derived` makes the OLD-shape committed artifacts fail the CURRENT validators.
+`snapshot.js` can't regenerate them offline (it needs live gamma). So you must transform the artifacts:
+- `latest.json` is the current record → RECOMPUTE its confidence from its own `raw_inputs` (it shares
+  SpaceX's `raw_sha256`, so it reproduces cleanly) and replace only the confidence sub-block.
+- `history-full.json` is HISTORICAL → do NOT re-derive (re-deriving without each day's original
+  `raw_inputs` downgrades captured live-spread confidence to price-only — a dishonest rewrite). SPLIT
+  the existing reasons IN PLACE: every historical reason here is a reliability signal, liquidity = the
+  `deep books` default. Preserves each captured tier exactly.
+- `history.csv` only gets a CSV-safety/field-count check → leave it (tier strings stay CSV-safe).
+**Lesson:** a breaking `derived` reshape is not just code + the frozen fixture — grep `docs/api/v1/`
+for the field and transform every committed artifact a test reads, choosing RECOMPUTE (current record)
+vs IN-PLACE SPLIT (historical, un-reconstructable) per whether the source inputs still exist. See
+[[decisions]] "Confidence SPLIT into two independent tiers".
+
+## Changing a `.mjs` function signature breaks the consuming `.tsx` via JSDoc — update `@param`, not just the body
+**Symptom (hit during the confidence split):** `core/` unit tests + `node --test` were all green and
+`scoreConfidence` etc. were fully migrated, but `npx tsc --noEmit` then failed in the React layer:
+`Object literal may only specify known properties, and 'reliabilityTier' does not exist in type '{ …
+confidenceTier?: string … }'` at `BinaryDetailView.tsx`/`CategoricalDetailView.tsx`/`MarketDetailView.tsx`.
+**Reality:** `lib/format-detail.mjs` is plain JS, but its exported functions are TYPED FOR TS CONSUMERS
+BY THEIR JSDOC. I renamed the `binaryNarrative({…confidenceTier})` param in the function body but left
+the `* @param {string|null} [o.confidenceTier]` JSDoc — so TS still inferred the OLD param object type
+and rejected the new `reliabilityTier`/`liquidityTier` keys the `.tsx` call sites now pass. The runtime
+was correct; only the TS contract (the JSDoc) was stale.
+**Lesson:** when you change a `.mjs` function's destructured params, update its `@param` JSDoc IN THE
+SAME EDIT — that JSDoc is the type contract the `.tsx` callers compile against. `node --test` won't
+catch it (no type-check); `tsc --noEmit` / `next build` will. Run tsc after any `.mjs` signature change
+that a component imports, not just the unit tests.
+
 ## A NEW always-present field on `derived` breaks SpaceX Gate 2 — omit-when-absent or compute display-side
 **Symptom (anticipated + avoided, repeatedly, across the analytical-depth epic):** the SpaceX parity gate
 `phase1-spacex-parity.test.js` **Gate 2 `deepEqual`s the ENTIRE `derived` block** (rebuilt from the frozen
