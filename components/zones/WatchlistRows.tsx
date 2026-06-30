@@ -23,7 +23,10 @@ export interface ScanRow {
   personal: boolean;
   org_id: string | null;
   median_display: string; // probability % for binary, $median for ladder (kind-formatted server-side)
-  confidence_tier: 'high' | 'medium' | 'low' | null;
+  // Two-dimension confidence (0010): reliability (trustworthy number) + liquidity (can transact).
+  // Null for a pre-split row → that dot renders neutral ("—").
+  reliability_tier: 'high' | 'medium' | 'low' | null;
+  liquidity_tier: 'high' | 'medium' | 'low' | null;
   lifecycle_state: 'OPEN' | 'CLOSED_PENDING' | 'RESOLVED' | null;
   is_final: boolean;
   stale_after: string | null;
@@ -134,7 +137,10 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
       {rows.map((r, i) => {
         const isSel = r.market_id === selected;
         const isFocus = i === focus;
-        const confClass = r.confidence_tier ? CONF_CLASS[r.confidence_tier] : '';
+        const relClass = r.reliability_tier ? CONF_CLASS[r.reliability_tier] : 'conf-none';
+        const liqClass = r.liquidity_tier ? CONF_CLASS[r.liquidity_tier] : 'conf-none';
+        const relLabel = r.reliability_tier ? CONF_LABEL[r.reliability_tier] : '—';
+        const liqLabel = r.liquidity_tier ? CONF_LABEL[r.liquidity_tier] : '—';
         const lifeClass = r.lifecycle_state ? LIFECYCLE_CLASS[r.lifecycle_state] : 'is-flat';
         const volTint = (r.volume ?? 0) / maxVol; // 0..1 relative liquidity
         return (
@@ -163,9 +169,13 @@ export function WatchlistRows({ rows }: { rows: ScanRow[] }) {
                 {fmtVol24(r.volume_24hr) && (
                   <span className="wl-vol24 faint" data-field="volume-24h" title="24h volume (recent liquidity)">{fmtVol24(r.volume_24hr)}/24h</span>
                 )}
-                {r.confidence_tier && (
-                  <span className={`wl-conf ${confClass}`} data-field="confidence" title={`confidence ${r.confidence_tier}`}>
-                    <span className={`wl-conf-dot ${confClass}`} aria-hidden="true" />{CONF_LABEL[r.confidence_tier]}
+                {/* Two-dimension confidence (0010): two small tier-colored dots — reliability then
+                    liquidity. Compact for the rail; the detail view carries the full split + reasons. */}
+                {(r.reliability_tier || r.liquidity_tier) && (
+                  <span className="wl-conf2" data-field="confidence"
+                    title={`Reliability ${relLabel} · Liquidity ${liqLabel}`}>
+                    <span className={`wl-conf-dot ${relClass}`} data-field="reliability" aria-hidden="true" />
+                    <span className={`wl-conf-dot ${liqClass}`} data-field="liquidity" aria-hidden="true" />
                   </span>
                 )}
                 <Freshness staleAfter={r.stale_after} fetchedAt={r.fetched_at} isFinal={r.is_final} />

@@ -97,7 +97,9 @@ test('record: a settled market is not dragged to low confidence by its closed ru
   // closedCount == every rung, but lifecycle is non-OPEN → "closed" is expected,
   // not a data-quality anomaly. (An OPEN market with all rungs closed WOULD be.)
   const settled = recordWith({ state: 'CLOSED_PENDING', resolved_outcome: null, as_of: fx.fetched_at });
-  const reasons = settled.snapshot.derived.confidence.reasons.join(' ');
+  // "closed / not accepting" is now a LIQUIDITY reason; for a non-OPEN market it is suppressed there.
+  const c = settled.snapshot.derived.confidence;
+  const reasons = [...c.reliability.reasons, ...c.liquidity.reasons].join(' ');
   assert.doesNotMatch(reasons, /closed \/ not accepting/);
 });
 

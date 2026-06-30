@@ -53,7 +53,12 @@ const CSV_HOSTILE = /[,"\r\n]/;
 test('no producible CSV field can contain a comma, quote, or newline', () => {
   for (const e of history) {
     assert.ok(!CSV_HOSTILE.test(e.date), `date ${e.date}`);
-    assert.ok(!CSV_HOSTILE.test(e.confidence.tier), `tier ${e.confidence.tier} @ ${e.date}`);
+    // Tolerate both shapes: new split { reliability, liquidity } and legacy single { tier } — pre-0010
+    // published history is NOT rewritten (the migration keeps legacy data as-is; see decisions).
+    const tiers = e.confidence.reliability
+      ? [e.confidence.reliability.tier, e.confidence.liquidity.tier]
+      : [e.confidence.tier];
+    for (const t of tiers) assert.ok(!CSV_HOSTILE.test(t), `tier ${t} @ ${e.date}`);
     for (const m of e.markets) {
       assert.ok(!CSV_HOSTILE.test(m.label), `label ${m.label} @ ${e.date}`);
     }

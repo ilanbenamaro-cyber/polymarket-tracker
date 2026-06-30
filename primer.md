@@ -8,6 +8,32 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A DONE, on branch, awaiting review
+- **Branch `feature/confidence-split-reliability-liquidity`** (off `572e02c`), **NOT merged, NOT pushed.**
+  Three commits: core (`1cb1383`), display (`7e356a6`), knowledge (this). **324/324** `node --test`;
+  **SpaceX parity 4/4** (Gate 1 hash + Gate 2 derived + **Gate 2b faithfulness proof** + Gate 3 history,
+  all byte-identical except the intentional confidence shape); **tsc + next build clean.**
+- **What shipped (Increment A — the atomic shape split):** `derived.confidence` is now
+  `{ reliability, liquidity }`, each `{tier,score,reasons}`. RELIABILITY = is the number trustworthy
+  (threshold count, monotonicity, spread, last-trade fallback, missing rungs, stale-feed, near-settlement
+  carve-out); LIQUIDITY = can you transact (book-thin breadth, windowed volume + all-time fallback,
+  closed-rungs, liquidity-drop). Signals REPARTITIONED not retuned; old tier == `worst(rel,liq)`.
+  **Fixes the CT-Governor case** (Ryan Fazio 98% consensus, dead recent volume): was a single misleading
+  LOW, now **RELIABILITY HIGH / LIQUIDITY LOW** (verified). All 4 scorers (ladder/binary/touch/categorical)
+  + narrative (reliability-keyed) + 4 detail views (two badges + two basis rows + 3×3 synthesis sentence)
+  + rail (Option B: two tier-dots, "Reliability X · Liquidity Y" tooltip).
+- **schema 2.0.0** (breaking confidence shape), **methodology 1.5.0**, **migration 0010** (reliability_/
+  liquidity_ tier+score on market_snapshots + market_history; legacy confidence_* kept = collapsed worst;
+  NO backfill of the missing half — never fabricate; display "—" until new data accrues).
+- **⚠ OPERATOR:** apply **migration 0010** before deploy (rail/detail read the new columns; legacy rows
+  render "—" for the missing half until the cron accrues split rows). `latest.json` regenerated;
+  `history-full.json` split in place; `history.csv` untouched.
+- **NEXT (awaiting review before proceeding): Increment B** — entropy→reliability (categorical, makes the
+  consensus itself lift reliability) + extreme-prob→reliability (binary). **Increment C** — book-depth into
+  liquidity (⚠ no gamma book-depth field is currently fetched — only ladder thinShare + spread exist; C
+  must reuse those or add a fetch). See [[decisions]] "Confidence SPLIT into two independent tiers" +
+  [[gotchas]] "A breaking `derived` SHAPE change…" / "Changing a `.mjs` signature breaks the consuming `.tsx`".
+
 ## ⮕ DIRECTION (2026-06-29): ANALYTICAL-DEPTH PASS (7 increments) — MERGED to main (`--no-ff` `2c3f56c`) + PUSHED
 - **MERGED & PUSHED** (`2c3f56c`; `74c4f72..2c3f56c`; **320/320** on merged main; **SpaceX parity 3/3
   byte-identical**; tsc + build clean; in sync). 7-increment `/ship`-style pass on

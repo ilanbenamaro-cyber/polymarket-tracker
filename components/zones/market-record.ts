@@ -14,10 +14,19 @@ export interface LadderRow {
   volume_tier?: string;
 }
 
-export interface Confidence {
-  tier?: 'high' | 'medium' | 'low';
+export type Tier = 'high' | 'medium' | 'low';
+
+export interface ConfidenceDimension {
+  tier?: Tier;
   score?: number;
   reasons?: string[];
+}
+
+// Two INDEPENDENT trust dimensions (the conceptual split): reliability = is the displayed number
+// trustworthy; liquidity = can you transact at this price. See migration 0010 / methodology 1.5.0.
+export interface Confidence {
+  reliability?: ConfidenceDimension;
+  liquidity?: ConfidenceDimension;
 }
 
 export interface Range {

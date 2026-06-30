@@ -67,7 +67,9 @@ test('second market: adjusted CDF is monotone non-increasing with non-negative b
 
 test('second market: confidence computed; hash reproduces; lifecycle OPEN', () => {
   const { rec, lifecycle } = buildRecord();
-  assert.ok(['high', 'medium', 'low'].includes(rec.snapshot.derived.confidence.tier));
+  const conf = rec.snapshot.derived.confidence;
+  assert.ok(['high', 'medium', 'low'].includes(conf.reliability.tier));
+  assert.ok(['high', 'medium', 'low'].includes(conf.liquidity.tier));
   assert.equal(hashRawInputs(rec.snapshot.raw_inputs), fx.raw_sha256);
   assert.equal(lifecycle.state, LIFECYCLE.OPEN);
 });

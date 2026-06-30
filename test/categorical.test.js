@@ -123,8 +123,9 @@ test('scoreCategoricalConfidence: deep, tight, liquid book scores high', () => {
     { best_bid: '0.79', best_ask: '0.80' }, { best_bid: '0.13', best_ask: '0.14' },
   ];
   const c = scoreCategoricalConfidence({ rawInputs, totalVolume: 5_000_000, midpointFallback: null });
-  assert.equal(c.tier, 'high');
-  assert.ok(c.score > 0.5);
+  assert.equal(c.reliability.tier, 'high'); // tight spread
+  assert.equal(c.liquidity.tier, 'high');   // deep volume
+  assert.ok(c.reliability.score > 0.5 && c.liquidity.score > 0.5);
 });
 
 test('scoreCategoricalConfidence: thin volume + last-trade fallback degrades + explains', () => {
@@ -133,9 +134,10 @@ test('scoreCategoricalConfidence: thin volume + last-trade fallback degrades + e
     totalVolume: 500,
     midpointFallback: { lastTradeCount: 1, skippedCount: 0 },
   });
-  assert.equal(c.tier, 'low'); // thin volume forces low
-  assert.ok(c.reasons.some((r) => /thin volume/.test(r)));
-  assert.ok(c.reasons.some((r) => /last trade/.test(r)));
+  assert.equal(c.liquidity.tier, 'low'); // thin volume forces liquidity low
+  assert.ok(c.liquidity.reasons.some((r) => /thin volume/.test(r)));
+  // last-trade fallback is a RELIABILITY signal (the price provenance)
+  assert.ok(c.reliability.reasons.some((r) => /last trade/.test(r)));
 });
 
 // ── buildCategoricalRecord ───────────────────────────────────────────────────
@@ -174,7 +176,7 @@ test('buildCategoricalRecord: produces a kind=categorical derived block with dom
   assert.ok(d.entropy >= 0 && d.entropy <= 1);
   assert.equal(d.consensus_strength, 'HIGH');
   assert.equal(d.implied_winner, '0 cuts'); // dominant > 0.5
-  assert.ok(d.confidence.tier);
+  assert.ok(d.confidence.reliability.tier && d.confidence.liquidity.tier);
   assert.ok(typeof d.narrative === 'string' && d.narrative.length > 0);
 });
 

@@ -46,12 +46,13 @@ const wideSpread = ladder(16).map(() => ({ best_bid: '0.41', best_ask: '0.59' })
 test('scoreConfidence: an 18% spread is ILLIQUID far from expiry but EXPECTED near it', () => {
   const far = scoreConfidence({ markets: ladder(16), rawInputs: wideSpread, daysToExpiry: 180 });
   const near = scoreConfidence({ markets: ladder(16), rawInputs: wideSpread, daysToExpiry: 12 });
+  // Spread drives RELIABILITY (how well-defined the displayed price is).
   // far out: 18% > 8% standard medium → LOW, illiquid
-  assert.equal(far.tier, 'low');
-  assert.ok(far.reasons.some((r) => /illiquid — 180d remaining/.test(r)));
+  assert.equal(far.reliability.tier, 'low');
+  assert.ok(far.reliability.reasons.some((r) => /illiquid — 180d remaining/.test(r)));
   // near expiry (×2.5 → medium band is 20%): 18% ≤ 20% → MEDIUM, "expected near expiry"
-  assert.equal(near.tier, 'medium');
-  assert.ok(near.reasons.some((r) => /expected near expiry — 12d remaining/.test(r)));
+  assert.equal(near.reliability.tier, 'medium');
+  assert.ok(near.reliability.reasons.some((r) => /expected near expiry — 12d remaining/.test(r)));
 });
 
 test('scoreConfidence: a far-dated market with no daysToExpiry is unchanged (SpaceX parity safety)', () => {

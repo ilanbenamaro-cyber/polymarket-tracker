@@ -9,7 +9,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
-import { nearSettlement, windowedVolumeSignal, spreadToleranceMultiplier, expiryNote } from './confidence.js';
+import { nearSettlement, windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, worstTier } from './confidence.js';
 
 /** Whole days from `fromIso` to a `YYYY-MM-DD` resolution date, or null if unknown. */
 function daysUntil(resolves, fromIso) {
@@ -19,11 +19,11 @@ function daysUntil(resolves, fromIso) {
   return (end - from) / 86_400_000;
 }
 
-const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder/binary spread thresholds (4pp / 8pp)
 const SPREAD_MEDIUM = 0.08;
 const VOL_HIGH = 100_000;
 const VOL_MEDIUM = 10_000;
+const TIER_SCORE = { high: 1, medium: 0.5, low: 0.15 };
 
 /** Mean bid/ask spread across the priced touch legs, or null if no book data. */
 function meanSpread(rawInputs) {
@@ -34,62 +34,74 @@ function meanSpread(rawInputs) {
 }
 
 /**
- * Score a touch snapshot — worst of spread, volume, midpoint-fallback, lifecycle. The spread
- * reason carries the MEASURED value (Bug 3 language). Returns { tier, score(0..1), reasons[] }.
+ * Score a touch snapshot into the two independent dimensions:
+ *   RELIABILITY — spread (well-defined price; Bug 3 measured-value language), last-trade fallback.
+ *   LIQUIDITY   — windowed (recent) volume, with all-time volume as the fallback.
+ * Returns { reliability:{tier,score,reasons}, liquidity:{tier,score,reasons} }.
  */
 export function scoreTouchConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, nearSettled = false, windowedVolume = null, daysToExpiry = null }) {
-  const reasons = [];
-  const tiers = [];
+  const relTiers = [], relReasons = [];
+  const liqTiers = [], liqReasons = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
   const spread = meanSpread(rawInputs);
   // Increment 3: spread tolerance widens near expiry.
   const spreadMult = spreadToleranceMultiplier(daysToExpiry);
   const note = expiryNote(daysToExpiry);
 
+  // ════ RELIABILITY ════
   if (spread == null) {
-    if (!settled) { tiers.push('medium'); reasons.push('no live book (price-only)'); }
+    if (!settled) { relTiers.push('medium'); relReasons.push('no live book (price-only)'); }
   } else if (spread < SPREAD_HIGH * spreadMult) {
-    tiers.push('high');
+    relTiers.push('high');
   } else if (spread <= SPREAD_MEDIUM * spreadMult) {
-    tiers.push('medium');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
+    relTiers.push('medium');
+    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
   } else {
-    tiers.push('low');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
-  }
-
-  // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
-  const winVol = windowedVolumeSignal(windowedVolume);
-  if (winVol) {
-    tiers.push(winVol.tier);
-    if (winVol.reason) reasons.push(winVol.reason);
-  } else if (totalVolume != null) {
-    const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
-    if (totalVolume >= VOL_HIGH) tiers.push('high');
-    else if (totalVolume >= VOL_MEDIUM) { tiers.push('medium'); reasons.push(`moderate volume (${v})`); }
-    else { tiers.push('low'); reasons.push(`thin volume (${v})`); }
+    relTiers.push('low');
+    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
   }
 
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
-      // A leg off the live book is EXPECTED for a settled/near-settled market (the book is
-      // winding down), not a data-quality red flag — so say "settled", don't read as illiquid.
+      // A leg off the live book is EXPECTED for a settled/near-settled market (winding down),
+      // not a data-quality red flag — so say "settled", don't read as a defect.
       const expected = settled || nearSettled;
-      tiers.push('medium');
-      reasons.push(expected
+      relTiers.push('medium');
+      relReasons.push(expected
         ? `${midpointFallback.lastTradeCount} settled leg(s) (priced from last trade)`
         : `${midpointFallback.lastTradeCount} leg(s) priced from last trade (no live book)`);
     }
-    if (midpointFallback.skippedCount > 0) { tiers.push('low'); reasons.push(`${midpointFallback.skippedCount} leg(s) had no price`); }
+    if (midpointFallback.skippedCount > 0) { relTiers.push('low'); relReasons.push(`${midpointFallback.skippedCount} leg(s) had no price`); }
   }
 
-  const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
-  let score = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
-  if (winVol) score = (score + (winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15)) / 2;
-  else if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
-  score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
-  if (reasons.length === 0) reasons.push('tight spreads, deep books');
-  return { tier, score, reasons };
+  // ════ LIQUIDITY ════
+  // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
+  const winVol = windowedVolumeSignal(windowedVolume);
+  if (winVol) {
+    liqTiers.push(winVol.tier);
+    if (winVol.reason) liqReasons.push(winVol.reason);
+  } else if (totalVolume != null) {
+    const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
+    if (totalVolume >= VOL_HIGH) liqTiers.push('high');
+    else if (totalVolume >= VOL_MEDIUM) { liqTiers.push('medium'); liqReasons.push(`moderate volume (${v})`); }
+    else { liqTiers.push('low'); liqReasons.push(`thin volume (${v})`); }
+  }
+
+  // ── reliability score ──
+  let relScore = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
+  relScore = Number(Math.max(0, Math.min(1, relScore)).toFixed(3));
+  // ── liquidity score ──
+  let liqScore = winVol ? TIER_SCORE[winVol.tier]
+    : totalVolume != null ? Math.min(1, totalVolume / VOL_HIGH) : 0.6;
+  liqScore = Number(Math.max(0, Math.min(1, liqScore)).toFixed(3));
+
+  if (relReasons.length === 0) relReasons.push('tight spreads');
+  if (liqReasons.length === 0) liqReasons.push('deep books');
+
+  return {
+    reliability: { tier: worstTier(relTiers), score: relScore, reasons: relReasons },
+    liquidity: { tier: worstTier(liqTiers), score: liqScore, reasons: liqReasons },
+  };
 }
 
 /** Display string for a range bound, including the honest "outside the strike ladder" cases
@@ -107,7 +119,7 @@ function boundLabel(value, series, kind, unit) {
 }
 
 function buildTouchNarrative(name, rangeLabelLow, rangeLabelHigh, confidence) {
-  return `Touch market: the implied 50% trading range for "${name}" is ${rangeLabelLow} to ${rangeLabelHigh} before expiry. This prices the probability of touching price levels, not a settlement value. Confidence is ${confidence.tier}.`;
+  return `Touch market: the implied 50% trading range for "${name}" is ${rangeLabelLow} to ${rangeLabelHigh} before expiry. This prices the probability of touching price levels, not a settlement value. Reliability is ${confidence.reliability.tier}; liquidity is ${confidence.liquidity.tier}.`;
 }
 
 /** Build the full canonical directional-touch record from a fetchTouchSnapshot result. */

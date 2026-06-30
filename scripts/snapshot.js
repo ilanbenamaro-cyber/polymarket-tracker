@@ -178,7 +178,7 @@ async function main() {
   console.log(
     `✓ snapshot ${today}: median $${d.implied_median?.toFixed(2)}T ` +
       `[$${d.median?.low?.toFixed(2)}–$${d.median?.high?.toFixed(2)}T], ` +
-      `conf ${d.confidence.tier} (${d.confidence.score}), ` +
+      `conf R:${d.confidence.reliability.tier}/${d.confidence.reliability.score} L:${d.confidence.liquidity.tier}/${d.confidence.liquidity.score}, ` +
       `adj ${d.adjustment.monotonicity_violations} (max ${(d.adjustment.max_adjustment * 100).toFixed(1)}%), ` +
       `${history.length} days`
   );

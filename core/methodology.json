@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -117,6 +117,11 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.5.0",
+      "date": "2026-06-30",
+      "change": "Confidence SPLIT into two independent dimensions (Increment A), NO change to the underlying signals/thresholds — they are REPARTITIONED, not retuned. derived.confidence is now { reliability, liquidity }, each a {tier,score,reasons}. RELIABILITY (is the displayed number trustworthy) owns: threshold count, monotonicity, spread (+expiry tolerance), last-trade fallback, missing rungs, stale feed. LIQUIDITY (can you transact at this price) owns: book-thin breadth, windowed volume (all-time fallback), closed/not-accepting-orders rungs, liquidity drop. The two are orthogonal — a market can be HIGH reliability + LOW liquidity (strong consensus, nobody trading) or the reverse. The old single tier is recoverable as worst(reliability, liquidity). Schema 2.0.0 (BREAKING: confidence shape). SpaceX frozen output: reliability HIGH + liquidity HIGH; the parity gate's faithfulness proof asserts reliability.tier === the frozen single tier, worst(reliability,liquidity) === it, and the two reason lists' union === the frozen reasons."
+    },
     {
       "version": "1.4.0",
       "date": "2026-06-17",

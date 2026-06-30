@@ -216,6 +216,10 @@ a:hover { text-decoration: underline; }
 .wl-conf-dot.conf-high { background: var(--c-high); }
 .wl-conf-dot.conf-med { background: var(--c-med); opacity: 0.85; }
 .wl-conf-dot.conf-low { background: transparent; box-shadow: inset 0 0 0 1px var(--c-low); } /* empty ring = lowest */
+.wl-conf-dot.conf-none { background: transparent; box-shadow: inset 0 0 0 1px var(--border); opacity: 0.5; } /* unknown half */
+/* Confidence split (0010): two adjacent dots in the rail — reliability then liquidity. */
+.wl-conf2 { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.wl-conf2 .wl-conf-dot { margin-right: 0; }
 .wl-near { color: var(--accent-amber); flex: 0 0 auto; font-size: var(--fs-tiny); line-height: 1; }
 .wl-chip-kind { color: var(--accent-blue); border-color: var(--accent-blue); }
 
@@ -276,6 +280,12 @@ a:hover { text-decoration: underline; }
 .detail-sec { font-size: var(--fs-sec); font-weight: 700; }
 .detail-conf { font-size: var(--fs-emph); font-weight: 700; letter-spacing: var(--track-label); }
 .detail-band { font-size: var(--fs-micro); }
+/* Confidence split (0010): the headline cell stacks two small badges (reliability + liquidity),
+   each its own label + tier, so the two independent dimensions read at a glance. */
+.detail-conf-split { display: flex; flex-direction: column; gap: var(--sp-1); }
+.detail-conf-badge { display: flex; align-items: baseline; gap: var(--sp-2); justify-content: space-between; }
+.detail-conf-badge-label { font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-muted); }
+.detail-conf-badge .detail-conf { font-size: var(--fs-sec); }
 
 .detail-trust { margin-top: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--bg-card-2);
   border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: var(--sp-2); }

@@ -14,13 +14,13 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
-import { windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, daysUntil } from './confidence.js';
+import { windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, daysUntil, worstTier } from './confidence.js';
 
-const TIER_RANK = { low: 0, medium: 1, high: 2 };
 const SPREAD_HIGH = 0.04; // mirror the ladder/binary/touch spread thresholds (4pp / 8pp)
 const SPREAD_MEDIUM = 0.08;
 const VOL_HIGH = 100_000;
 const VOL_MEDIUM = 10_000;
+const TIER_SCORE = { high: 1, medium: 0.5, low: 0.15 };
 const CONSENSUS_HIGH = 0.7;
 const CONSENSUS_MEDIUM = 0.4;
 
@@ -111,64 +111,77 @@ function meanSpread(rawInputs) {
 }
 
 /**
- * Score a categorical snapshot — worst of spread, volume, midpoint-fallback, lifecycle —
- * each surfaced as a reason. Peer to scoreBinary/Touch. Returns { tier, score(0..1), reasons[] }.
+ * Score a categorical snapshot into the two independent dimensions:
+ *   RELIABILITY — spread (well-defined leg prices), last-trade fallback, missing outcomes.
+ *                 (Increment B will add: strong consensus / low entropy → HIGH reliability.)
+ *   LIQUIDITY   — windowed (recent) volume, with all-time volume as the fallback.
+ * Returns { reliability:{tier,score,reasons}, liquidity:{tier,score,reasons} }.
  */
 export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null, daysToExpiry = null }) {
-  const reasons = [];
-  const tiers = [];
+  const relTiers = [], relReasons = [];
+  const liqTiers = [], liqReasons = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
   const spread = meanSpread(rawInputs);
   // Increment 3: spread tolerance widens near expiry.
   const spreadMult = spreadToleranceMultiplier(daysToExpiry);
   const note = expiryNote(daysToExpiry);
 
+  // ════ RELIABILITY ════
   if (spread == null) {
-    if (!settled) { tiers.push('medium'); reasons.push('no live book (price-only)'); }
+    if (!settled) { relTiers.push('medium'); relReasons.push('no live book (price-only)'); }
   } else if (spread < SPREAD_HIGH * spreadMult) {
-    tiers.push('high');
+    relTiers.push('high');
   } else if (spread <= SPREAD_MEDIUM * spreadMult) {
-    tiers.push('medium');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
+    relTiers.push('medium');
+    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
   } else {
-    tiers.push('low');
-    reasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
-  }
-
-  // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
-  const winVol = windowedVolumeSignal(windowedVolume);
-  if (winVol) {
-    tiers.push(winVol.tier);
-    if (winVol.reason) reasons.push(winVol.reason);
-  } else if (totalVolume != null) {
-    const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
-    if (totalVolume >= VOL_HIGH) tiers.push('high');
-    else if (totalVolume >= VOL_MEDIUM) { tiers.push('medium'); reasons.push(`moderate volume (${v})`); }
-    else { tiers.push('low'); reasons.push(`thin volume (${v})`); }
+    relTiers.push('low');
+    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
   }
 
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
-      tiers.push('medium');
-      reasons.push(`${midpointFallback.lastTradeCount} outcome(s) priced from last trade (no live book)`);
+      relTiers.push('medium');
+      relReasons.push(`${midpointFallback.lastTradeCount} outcome(s) priced from last trade (no live book)`);
     }
     if (midpointFallback.skippedCount > 0) {
-      tiers.push('low');
-      reasons.push(`${midpointFallback.skippedCount} outcome(s) had no price`);
+      relTiers.push('low');
+      relReasons.push(`${midpointFallback.skippedCount} outcome(s) had no price`);
     }
   }
 
-  const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
-  let score = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
-  if (winVol) score = (score + (winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15)) / 2;
-  else if (totalVolume != null) score = (score + Math.min(1, totalVolume / VOL_HIGH)) / 2;
-  if (midpointFallback) {
-    score -= 0.05 * Math.min(2, midpointFallback.lastTradeCount ?? 0);
-    score -= 0.1 * Math.min(2, midpointFallback.skippedCount ?? 0);
+  // ════ LIQUIDITY ════
+  // Windowed (recent) volume when present (Increment 1); all-time is the fallback.
+  const winVol = windowedVolumeSignal(windowedVolume);
+  if (winVol) {
+    liqTiers.push(winVol.tier);
+    if (winVol.reason) liqReasons.push(winVol.reason);
+  } else if (totalVolume != null) {
+    const v = `$${Math.round(totalVolume).toLocaleString('en-US')}`;
+    if (totalVolume >= VOL_HIGH) liqTiers.push('high');
+    else if (totalVolume >= VOL_MEDIUM) { liqTiers.push('medium'); liqReasons.push(`moderate volume (${v})`); }
+    else { liqTiers.push('low'); liqReasons.push(`thin volume (${v})`); }
   }
-  score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
-  if (reasons.length === 0) reasons.push('tight spreads, deep books');
-  return { tier, score, reasons };
+
+  // ── reliability score ──
+  let relScore = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
+  if (midpointFallback) {
+    relScore -= 0.05 * Math.min(2, midpointFallback.lastTradeCount ?? 0);
+    relScore -= 0.1 * Math.min(2, midpointFallback.skippedCount ?? 0);
+  }
+  relScore = Number(Math.max(0, Math.min(1, relScore)).toFixed(3));
+  // ── liquidity score ──
+  let liqScore = winVol ? TIER_SCORE[winVol.tier]
+    : totalVolume != null ? Math.min(1, totalVolume / VOL_HIGH) : 0.6;
+  liqScore = Number(Math.max(0, Math.min(1, liqScore)).toFixed(3));
+
+  if (relReasons.length === 0) relReasons.push('tight spreads');
+  if (liqReasons.length === 0) liqReasons.push('deep books');
+
+  return {
+    reliability: { tier: worstTier(relTiers), score: relScore, reasons: relReasons },
+    liquidity: { tier: worstTier(liqTiers), score: liqScore, reasons: liqReasons },
+  };
 }
 
 /** Deterministic one-liner — only claims backed by the computed distribution. */
@@ -176,7 +189,7 @@ function buildCategoricalNarrative(dominant, entropy, confidence) {
   const pct = dominant ? `${Math.round(dominant.probability * 100)}%` : 'an unknown';
   const label = dominant?.label ?? 'the leading outcome';
   const conc = entropy < 0.5 ? 'a concentrated consensus' : entropy < 0.78 ? 'a moderately contested field' : 'a wide-open field';
-  return `The market assigns ${pct} probability to "${label}" — ${conc} (entropy ${entropy.toFixed(2)}). Confidence is ${confidence.tier}.`;
+  return `The market assigns ${pct} probability to "${label}" — ${conc} (entropy ${entropy.toFixed(2)}). Reliability is ${confidence.reliability.tier}; liquidity is ${confidence.liquidity.tier}.`;
 }
 
 /**

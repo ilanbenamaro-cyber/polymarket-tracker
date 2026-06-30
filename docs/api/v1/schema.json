@@ -340,29 +340,28 @@
             },
             "confidence": {
               "type": "object",
+              "description": "Two INDEPENDENT trust dimensions. reliability = is the displayed number itself trustworthy; liquidity = can you actually transact at this price. Each is a {tier,score,reasons}. (Breaking shape change from the legacy single {tier,score,reasons}.)",
               "required": [
-                "tier",
-                "score",
-                "reasons"
+                "reliability",
+                "liquidity"
               ],
               "properties": {
-                "tier": {
-                  "type": "string",
-                  "enum": [
-                    "high",
-                    "medium",
-                    "low"
-                  ]
+                "reliability": {
+                  "type": "object",
+                  "required": ["tier", "score", "reasons"],
+                  "properties": {
+                    "tier": { "type": "string", "enum": ["high", "medium", "low"] },
+                    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "reasons": { "type": "array", "items": { "type": "string" } }
+                  }
                 },
-                "score": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 1
-                },
-                "reasons": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
+                "liquidity": {
+                  "type": "object",
+                  "required": ["tier", "score", "reasons"],
+                  "properties": {
+                    "tier": { "type": "string", "enum": ["high", "medium", "low"] },
+                    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "reasons": { "type": "array", "items": { "type": "string" } }
                   }
                 }
               }

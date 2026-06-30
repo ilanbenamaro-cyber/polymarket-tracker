@@ -15,13 +15,22 @@
       "max_adjustment": 0.02250000000000002
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.564,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 2.3%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.564,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 2.3%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -102,13 +111,22 @@
       "max_adjustment": 0.046666666666666634
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.519,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 4.7%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.519,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 4.7%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -189,12 +207,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -275,13 +302,22 @@
       "max_adjustment": 0.007500000000000007
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.592,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 0.8%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.592,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 0.8%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -362,13 +398,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.597,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.597,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -449,13 +494,22 @@
       "max_adjustment": 0.007500000000000007
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.592,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 0.8%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.592,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 0.8%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -536,12 +590,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -622,12 +685,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -708,12 +780,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -794,12 +875,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -880,12 +970,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -966,12 +1065,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1052,12 +1160,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1138,12 +1255,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1224,12 +1350,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1310,12 +1445,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1396,12 +1540,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1482,12 +1635,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1568,12 +1730,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1654,12 +1825,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1740,12 +1920,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1826,12 +2015,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1912,12 +2110,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -1998,12 +2205,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2084,12 +2300,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2170,13 +2395,22 @@
       "max_adjustment": 0.017500000000000016
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.573,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 1.8%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.573,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 1.8%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2257,12 +2491,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2343,13 +2586,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.597,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.597,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2430,13 +2682,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.597,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.597,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2517,12 +2778,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2603,12 +2873,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2689,12 +2968,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2775,12 +3063,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2861,12 +3158,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -2947,12 +3253,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3033,12 +3348,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3119,12 +3443,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3205,12 +3538,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3291,12 +3633,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3377,12 +3728,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3463,12 +3823,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3549,12 +3918,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3635,12 +4013,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3721,12 +4108,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3807,12 +4203,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3893,12 +4298,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -3979,12 +4393,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4065,12 +4488,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4151,12 +4583,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4237,12 +4678,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4323,12 +4773,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4409,12 +4868,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4495,12 +4963,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4581,12 +5058,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "low",
-      "score": 0.669,
-      "reasons": [
-        "only 6 active thresholds (sparse CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "low",
+        "score": 0.669,
+        "reasons": [
+          "only 6 active thresholds (sparse CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4667,13 +5153,22 @@
       "max_adjustment": 0.10599999999999998
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.466,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "2 monotonicity adjustment(s) today (max 10.6%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.466,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "2 monotonicity adjustment(s) today (max 10.6%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4784,12 +5279,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -4900,12 +5404,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5016,12 +5529,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5132,12 +5654,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5248,13 +5779,22 @@
       "max_adjustment": 0.0975
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.47,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 9.8%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.47,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 9.8%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5365,13 +5905,22 @@
       "max_adjustment": 0.010000000000000009
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.634,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 1.0%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.634,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 1.0%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5482,13 +6031,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.644,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.644,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5599,13 +6157,22 @@
       "max_adjustment": 0.09500000000000003
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.475,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 9.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.475,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 9.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5716,12 +6283,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5832,12 +6408,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -5948,12 +6533,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6064,13 +6658,22 @@
       "max_adjustment": 0.015000000000000013
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.625,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 1.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.625,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 1.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6181,12 +6784,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6297,13 +6909,22 @@
       "max_adjustment": 0.04249999999999998
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.573,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 4.2%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.573,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 4.2%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6414,12 +7035,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6530,12 +7160,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6646,13 +7285,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.644,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.644,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6763,12 +7411,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6879,12 +7536,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -6995,12 +7661,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7111,12 +7786,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7227,12 +7911,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7343,12 +8036,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7459,12 +8161,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7575,13 +8286,22 @@
       "max_adjustment": 0.030000000000000027
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.597,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 3.0%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.597,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 3.0%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7692,12 +8412,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7808,12 +8537,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -7924,12 +8662,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8040,12 +8787,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8156,12 +8912,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8272,12 +9037,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8388,12 +9162,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8504,12 +9287,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8620,12 +9412,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8736,12 +9537,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8852,12 +9662,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -8968,12 +9787,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9084,12 +9912,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9200,12 +10037,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9316,12 +10162,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9432,12 +10287,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9548,12 +10412,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9664,13 +10537,22 @@
       "max_adjustment": 0.0050000000000000044
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.644,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 0.5%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.644,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 0.5%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9781,13 +10663,22 @@
       "max_adjustment": 0.007500000000000062
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.639,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "1 monotonicity adjustment(s) today (max 0.8%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.639,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "1 monotonicity adjustment(s) today (max 0.8%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -9898,12 +10789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10014,12 +10914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10130,12 +11039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10246,12 +11164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10362,12 +11289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10478,12 +11414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10594,12 +11539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10710,12 +11664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10826,12 +11789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -10942,12 +11914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11058,12 +12039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11174,12 +12164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11290,12 +12289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11406,12 +12414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11522,12 +12539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11638,12 +12664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11754,12 +12789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11870,12 +12914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -11986,12 +13039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12102,12 +13164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12218,12 +13289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12334,12 +13414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12450,12 +13539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12566,12 +13664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12682,12 +13789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12798,12 +13914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -12914,12 +14039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13030,12 +14164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13146,12 +14289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13262,12 +14414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13378,12 +14539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13494,12 +14664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13610,12 +14789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13726,12 +14914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13842,12 +15039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -13958,12 +15164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14074,12 +15289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14190,12 +15414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14306,12 +15539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14422,12 +15664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14538,12 +15789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14654,12 +15914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14770,12 +16039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -14886,12 +16164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15002,12 +16289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15118,12 +16414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15234,12 +16539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15350,12 +16664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15466,12 +16789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15582,12 +16914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15698,12 +17039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15814,12 +17164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -15930,12 +17289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16046,12 +17414,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16162,12 +17539,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16278,12 +17664,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16394,12 +17789,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16510,12 +17914,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16626,12 +18039,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16742,12 +18164,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16858,12 +18289,21 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.716,
-      "reasons": [
-        "9 active thresholds (coarser CDF)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.716,
+        "reasons": [
+          "9 active thresholds (coarser CDF)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -16974,11 +18414,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -17159,11 +18608,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -17344,11 +18802,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -17529,11 +18996,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -17714,11 +19190,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -17899,12 +19384,21 @@
       "max_adjustment": 0.0012500000000000011
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.76,
-      "reasons": [
-        "1 monotonicity adjustment(s) today (max 0.1%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.76,
+        "reasons": [
+          "1 monotonicity adjustment(s) today (max 0.1%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -18085,12 +19579,21 @@
       "max_adjustment": 0.0007500000000000284
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.761,
-      "reasons": [
-        "1 monotonicity adjustment(s) today (max 0.1%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.761,
+        "reasons": [
+          "1 monotonicity adjustment(s) today (max 0.1%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -18271,12 +19774,21 @@
       "max_adjustment": 0.0007500000000000007
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.761,
-      "reasons": [
-        "1 monotonicity adjustment(s) today (max 0.1%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.761,
+        "reasons": [
+          "1 monotonicity adjustment(s) today (max 0.1%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -18457,11 +19969,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -18642,12 +20163,21 @@
       "max_adjustment": 0.0010000000000000009
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.699,
-      "reasons": [
-        "2 monotonicity adjustment(s) today (max 0.1%)",
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.699,
+        "reasons": [
+          "2 monotonicity adjustment(s) today (max 0.1%)",
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -18828,11 +20358,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19013,11 +20552,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19198,11 +20746,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19383,11 +20940,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19568,11 +21134,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "medium",
-      "score": 0.825,
-      "reasons": [
-        "price-only history (no bid/ask spread)"
-      ]
+      "reliability": {
+        "tier": "medium",
+        "score": 0.825,
+        "reasons": [
+          "price-only history (no bid/ask spread)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19753,11 +21328,20 @@
       "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.962,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.962,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -19938,11 +21522,20 @@
       "max_adjustment": 0.0015903966639557489
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.918,
-      "reasons": [
-        "1 negligible monotonicity tweak(s) (max 0.2%)"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.918,
+        "reasons": [
+          "1 negligible monotonicity tweak(s) (max 0.2%)"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -20123,11 +21716,20 @@
       "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.983,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.983,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -20308,11 +21910,20 @@
       "max_adjustment": 5.551115123125783e-17
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.985,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.985,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -20493,11 +22104,20 @@
       "max_adjustment": 0
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.984,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.984,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -20678,11 +22298,20 @@
       "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.981,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.981,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -20863,11 +22492,20 @@
       "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.977,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.977,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
@@ -21048,11 +22686,20 @@
       "max_adjustment": 1.1102230246251565e-16
     },
     "confidence": {
-      "tier": "high",
-      "score": 0.997,
-      "reasons": [
-        "full threshold set, monotonic, tight spreads, deep books"
-      ]
+      "reliability": {
+        "tier": "high",
+        "score": 0.997,
+        "reasons": [
+          "full threshold set, monotonic, tight spreads"
+        ]
+      },
+      "liquidity": {
+        "tier": "high",
+        "score": 1,
+        "reasons": [
+          "deep books"
+        ]
+      }
     },
     "markets": [
       {
