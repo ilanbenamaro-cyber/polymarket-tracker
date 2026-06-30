@@ -8,11 +8,12 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A DONE, on branch, awaiting review
-- **Branch `feature/confidence-split-reliability-liquidity`** (off `572e02c`), **NOT merged, NOT pushed.**
-  Three commits: core (`1cb1383`), display (`7e356a6`), knowledge (this). **324/324** `node --test`;
-  **SpaceX parity 4/4** (Gate 1 hash + Gate 2 derived + **Gate 2b faithfulness proof** + Gate 3 history,
-  all byte-identical except the intentional confidence shape); **tsc + next build clean.**
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A MERGED + PUSHED; B in progress
+- **MERGED to main** (`--no-ff` `4462960`; `572e02c..4462960`; **pushed, in sync**). Three commits on
+  `feature/confidence-split-reliability-liquidity`: core (`1cb1383`), display (`7e356a6`), knowledge
+  (`822d997`). **324/324** on merged main; **SpaceX parity 4/4** (Gate 1 hash + Gate 2 derived + **Gate 2b
+  faithfulness proof** + Gate 3 history — byte-identical except the intentional confidence shape);
+  **tsc + next build clean.** Migration 0010 **operator-applied to dev + prod.**
 - **What shipped (Increment A — the atomic shape split):** `derived.confidence` is now
   `{ reliability, liquidity }`, each `{tier,score,reasons}`. RELIABILITY = is the number trustworthy
   (threshold count, monotonicity, spread, last-trade fallback, missing rungs, stale-feed, near-settlement
