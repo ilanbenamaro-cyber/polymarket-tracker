@@ -11,7 +11,7 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveConfidenceTrend } from '@/lib/market-history.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveReliabilityTrend } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, synthesizeSignals } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
@@ -19,7 +19,7 @@ import { TrendHistorySection, type HistoryUI, type VelocityResult, type Dispersi
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
 import { RefreshButton } from './RefreshButton';
-import { ConfidenceBasis } from './ConfidenceBasis';
+import { ConfidenceBadges, ConfidenceBasisGroup } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { LadderThresholdTable } from './LadderThresholdTable';
 import { BinaryDetailView } from './BinaryDetailView';
@@ -36,7 +36,6 @@ interface HistoryRow {
   record: MarketRecord;
 }
 
-const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
@@ -92,8 +91,8 @@ export async function DetailData({ id }: { id: string }) {
   hist.synthesis = synthesizeSignals({
     velocity: hist.velocity,
     dispersion: hist.dispersion,
-    confidenceTrend: deriveConfidenceTrend(rows),
-    currentConfidence: body.record?.snapshot?.derived?.confidence?.tier ?? null,
+    confidenceTrend: deriveReliabilityTrend(rows),
+    currentConfidence: body.record?.snapshot?.derived?.confidence?.reliability?.tier ?? null,
     kind: chartKind,
   }) as string | null;
   // Phase 3: per-threshold Δ columns + biggest movers, derived from the same daily series.
@@ -207,17 +206,14 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         </div>
         <div className="detail-metric">
           <span className="label">Confidence</span>
-          <span className={`detail-conf ${conf.tier ? CONF_CLASS[conf.tier] : ''}`} data-field="confidence" title={conf.score != null ? `score ${conf.score}` : ''}>
-            {conf.tier ? conf.tier.toUpperCase() : '—'}
-          </span>
-          <span className="detail-band faint">{conf.score != null ? `score ${conf.score}` : ''}</span>
+          <ConfidenceBadges confidence={conf} />
         </div>
       </div>
 
       {/* TRUST BAND — prominent, before the distribution */}
       <div className="detail-trust" data-field="trust">
-        {/* v1 ITEM 11: the confidence basis as a tier-marked checklist (shared component). */}
-        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
+        {/* v1 ITEM 11: the confidence basis as a tier-marked checklist — one row per dimension. */}
+        <ConfidenceBasisGroup confidence={conf} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -264,7 +260,8 @@ function MarketDetailView({ record, envelope, hist, deltas, movers, narrativeBit
         change7: narrativeBits.change7,
         mode: modeBucket(d.markets, unit),
         bandDirection: narrativeBits.bandDirection,
-        confidenceTier: conf.tier ?? null,
+        reliabilityTier: conf.reliability?.tier ?? null,
+        liquidityTier: conf.liquidity?.tier ?? null,
         unit,
       })}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 

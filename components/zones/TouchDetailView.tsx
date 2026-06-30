@@ -9,7 +9,7 @@
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { fmtEastern, displayTitle, pointChange, touchNarrative, daysToExpiryLabel, barrierPathUncertainty } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
-import { ConfidenceBasis } from './ConfidenceBasis';
+import { ConfidenceBadges, ConfidenceBasisGroup } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { TouchProbabilityTable } from './TouchProbabilityTable';
 import { HashVerify } from './HashVerify';
@@ -18,7 +18,6 @@ import { RefreshButton } from './RefreshButton';
 import { TrendHistorySection, type HistoryUI } from './TrendHistory';
 import type { MarketRecord, ServeBody, TouchPoint } from './market-record';
 
-const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
@@ -132,10 +131,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
         </div>
         <div className="detail-metric">
           <span className="label">Confidence</span>
-          <span className={`detail-conf ${conf.tier ? CONF_CLASS[conf.tier] : ''}`} data-field="confidence" title={conf.score != null ? `score ${conf.score}` : ''}>
-            {conf.tier ? conf.tier.toUpperCase() : '—'}
-          </span>
-          <span className="detail-band faint">{conf.score != null ? `score ${conf.score}` : ''}</span>
+          <ConfidenceBadges confidence={conf} />
         </div>
         <div className="detail-metric">
           <span className="label">Volume</span>
@@ -152,7 +148,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
 
       {/* TRUST BAND — identical to the ladder/binary detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
+        <ConfidenceBasisGroup confidence={conf} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -186,7 +182,7 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
 
       {/* NARRATIVE (v1 ITEM 1) — the implied range + midpoint move + confidence, built display-side;
           Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{`${touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, confidenceTier: conf.tier ?? null, resolves: asset.resolves ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
+      <p className="detail-narrative" data-field="narrative">{`${touchNarrative({ lowLabel: range.low_label ?? '', highLabel: range.high_label ?? '', midChange30, midChange7, unit, reliabilityTier: conf.reliability?.tier ?? null, liquidityTier: conf.liquidity?.tier ?? null, resolves: asset.resolves ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TOUCH PROBABILITY TABLE — P(touch ≥) for HIGH legs, P(touch ≤) for LOW legs. Near
           settlement (Bug B) it shows the active range only with a "show all" toggle; otherwise

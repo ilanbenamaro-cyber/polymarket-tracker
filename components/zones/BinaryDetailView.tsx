@@ -7,7 +7,7 @@
 // settled Yes/No outcome. Server component; canonicalizes raw_inputs server-side for verify.
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { fmtEastern, displayTitle, pointChange, binaryNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
-import { ConfidenceBasis } from './ConfidenceBasis';
+import { ConfidenceBadges, ConfidenceBasisGroup } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { HashVerify } from './HashVerify';
 import { DetailFreshness } from './DetailFreshness';
@@ -15,7 +15,6 @@ import { RefreshButton } from './RefreshButton';
 import { TrendHistorySection, type HistoryUI } from './TrendHistory';
 import type { MarketRecord, ServeBody, ResolvedLeg } from './market-record';
 
-const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
@@ -99,10 +98,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
         </div>
         <div className="detail-metric">
           <span className="label">Confidence</span>
-          <span className={`detail-conf ${conf.tier ? CONF_CLASS[conf.tier] : ''}`} data-field="confidence" title={conf.score != null ? `score ${conf.score}` : ''}>
-            {conf.tier ? conf.tier.toUpperCase() : '—'}
-          </span>
-          <span className="detail-band faint">{conf.score != null ? `score ${conf.score}` : ''}</span>
+          <ConfidenceBadges confidence={conf} />
         </div>
         <div className="detail-metric">
           <span className="label">Volume</span>
@@ -135,7 +131,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
 
       {/* TRUST BAND — identical to the ladder detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
+        <ConfidenceBasisGroup confidence={conf} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -171,7 +167,7 @@ export function BinaryDetailView({ record, envelope, hist }: { record: MarketRec
 
       {/* NARRATIVE (v1 ITEM 1) — probability + 30d/7d move + consensus + confidence, built
           display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{`${binaryNarrative({ prob: p ?? undefined, change30, change7, confidenceTier: conf.tier ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
+      <p className="detail-narrative" data-field="narrative">{`${binaryNarrative({ prob: p ?? undefined, change30, change7, reliabilityTier: conf.reliability?.tier ?? null, liquidityTier: conf.liquidity?.tier ?? null }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* TREND & HISTORY — YES-probability series (Phase 1); collecting until 7 days accrue */}
       {hist && <TrendHistorySection hist={hist} unit="" label="YES probability" />}

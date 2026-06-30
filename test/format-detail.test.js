@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, settlementZone, settlementZoneLabel,
-  pointChange, binaryNarrative, touchNarrative, categoricalNarrative } from '../lib/format-detail.mjs';
+  pointChange, binaryNarrative, touchNarrative, categoricalNarrative, confidenceSentence } from '../lib/format-detail.mjs';
 
 test('derives T from a trillions ladder (SpaceX-style)', () => {
   assert.equal(unitFromLadder([{ label: '>$1T' }, { label: '>$1.8T' }]), 'T');
@@ -217,18 +217,40 @@ test('modeBucket: the density bucket with the most mass, with a clean label', ()
 
 test('detailNarrative: full paragraph with history; omits Δ/band sentences without it (no "—")', () => {
   const full = detailNarrative({ medianLabel: '$2.10T', change30: -0.07, change7: -0.03,
-    mode: { prob: 1.0, label: '$2–2.2T' }, bandDirection: 'narrowing', confidenceTier: 'high', unit: 'T' });
+    mode: { prob: 1.0, label: '$2–2.2T' }, bandDirection: 'narrowing', reliabilityTier: 'high', liquidityTier: 'high', unit: 'T' });
   assert.match(full, /median of \$2\.10T, down \$0\.07T over the past month and down \$0\.03T this week\./);
   assert.match(full, /largest single concentration of probability \(100%\) sits in the \$2–2\.2T range\./);
   assert.match(full, /25–75% band is narrowing — the market is converging on a view\./);
-  assert.match(full, /Confidence is high\./);
+  assert.match(full, /trustworthy and the market is liquid enough to trade at it\./);
 
   const noHist = detailNarrative({ medianLabel: '$2.10T', change30: null, change7: null,
-    mode: { prob: 0.9, label: '$2–2.2T' }, bandDirection: null, confidenceTier: 'medium', unit: 'T' });
+    mode: { prob: 0.9, label: '$2–2.2T' }, bandDirection: null, reliabilityTier: 'medium', liquidityTier: 'medium', unit: 'T' });
   assert.match(noHist, /^The market implies a median of \$2\.10T\./); // no Δ clause
   assert.doesNotMatch(noHist, /band is/);  // no band sentence
   assert.doesNotMatch(noHist, /—/);        // never a dash in prose
-  assert.match(noHist, /Confidence is medium\./);
+  assert.match(noHist, /Moderate confidence in both/);
+});
+
+// ── confidenceSentence (the 3×3 reliability×liquidity synthesis) ──────────────
+test('confidenceSentence: all 9 cells produce a distinct sentence; divergent cells are bespoke', () => {
+  const tiers = ['high', 'medium', 'low'];
+  const seen = new Set();
+  for (const r of tiers) for (const l of tiers) {
+    const s = confidenceSentence(r, l);
+    assert.ok(typeof s === 'string' && s.length > 0, `${r}/${l} has a sentence`);
+    seen.add(s);
+  }
+  assert.equal(seen.size, 9, 'all 9 combinations are distinct');
+  // The CT-Governor case: trustworthy number, untradeable.
+  assert.match(confidenceSentence('high', 'low'), /trustworthy, but thin liquidity/);
+  // The inverse: deeply traded but the number is unreliable.
+  assert.match(confidenceSentence('low', 'high'), /deeply traded, but the displayed price itself is unreliable/);
+});
+
+test('confidenceSentence: legacy single-half data states only the known half; null when neither', () => {
+  assert.match(confidenceSentence('high', null), /^Reliability is high\.$/);
+  assert.match(confidenceSentence(null, 'low'), /^Liquidity is low\.$/);
+  assert.equal(confidenceSentence(null, null), null);
 });
 
 // ── pointChange (v1 ITEM 1: lean-series Δ for the non-ladder views) ───────────
@@ -250,28 +272,30 @@ test('pointChange: null below two points', () => {
 
 // ── binaryNarrative ──────────────────────────────────────────────────────────
 test('binaryNarrative: probability + 30d/7d move + consensus + confidence', () => {
-  const s = binaryNarrative({ prob: 0.82, change30: 0.05, change7: -0.02, confidenceTier: 'high' });
+  const s = binaryNarrative({ prob: 0.82, change30: 0.05, change7: -0.02, reliabilityTier: 'high', liquidityTier: 'high' });
   assert.match(s, /82% chance of YES/);
   assert.match(s, /up 5\.0pp over the past month/);
   assert.match(s, /down 2\.0pp this week/);
   assert.match(s, /strong YES consensus/);
-  assert.match(s, /Confidence is high\./);
+  assert.match(s, /trustworthy and the market is liquid enough/);
 });
 
 test('binaryNarrative: omits Δ sentences gracefully with no history (never a dash)', () => {
-  const s = binaryNarrative({ prob: 0.5, change30: null, change7: null, confidenceTier: 'low' });
+  const s = binaryNarrative({ prob: 0.5, change30: null, change7: null, reliabilityTier: 'low', liquidityTier: 'low' });
   assert.match(s, /50% chance of YES\./);
   assert.doesNotMatch(s, /—|month|week/);
   assert.match(s, /contested book/);
+  assert.match(s, /Low confidence in both/);
 });
 
 // ── touchNarrative ───────────────────────────────────────────────────────────
 test('touchNarrative: range + midpoint move in unit space + barrier framing (Increment 7)', () => {
-  const s = touchNarrative({ lowLabel: '$66.73', highLabel: '$90.00', midChange30: 1.5, unit: '', confidenceTier: 'medium' });
+  const s = touchNarrative({ lowLabel: '$66.73', highLabel: '$90.00', midChange30: 1.5, unit: '', reliabilityTier: 'high', liquidityTier: 'low' });
   assert.match(s, /\$66\.73 to \$90\.00/);
   assert.match(s, /midpoint up \$1\.50 over the past month/);
   assert.match(s, /not a settlement forecast/); // Increment 7: barrier framing (was "not a settlement value")
-  assert.match(s, /Confidence is medium\./);
+  // CT-Governor synthesis: trustworthy price, thin liquidity.
+  assert.match(s, /trustworthy, but thin liquidity may make it hard to actually trade at\./);
 });
 
 test('touchNarrative: empty when a bound label is missing', () => {
@@ -280,10 +304,12 @@ test('touchNarrative: empty when a bound label is missing', () => {
 
 // ── categoricalNarrative ─────────────────────────────────────────────────────
 test('categoricalNarrative: leader + move + entropy consensus read', () => {
-  const s = categoricalNarrative({ dominantOutcome: '0 (0 bps)', dominantProb: 0.80, change30: 0.03, entropy: 0.29, confidenceTier: 'high' });
+  const s = categoricalNarrative({ dominantOutcome: '0 (0 bps)', dominantProb: 0.80, change30: 0.03, entropy: 0.29, reliabilityTier: 'high', liquidityTier: 'low' });
   assert.match(s, /most likely outcome is 0 \(0 bps\) at 80%/);
   assert.match(s, /up 3\.0pp over the past month/);
   assert.match(s, /high consensus/);
+  // CT-Governor: strong consensus (trustworthy) but thin liquidity.
+  assert.match(s, /trustworthy, but thin liquidity/);
 });
 
 test('categoricalNarrative: no-consensus framing when nothing clears 50%', () => {

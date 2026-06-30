@@ -10,7 +10,7 @@
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { isPlaceholderLeg } from '@/core/categorical.js';
 import { fmtEastern, displayTitle, pointChange, categoricalNarrative, fmtDeltaPp, deltaSign, daysToExpiryLabel } from '@/lib/format-detail.mjs';
-import { ConfidenceBasis } from './ConfidenceBasis';
+import { ConfidenceBadges, ConfidenceBasisGroup } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { CategoricalOutcomeBars } from './CategoricalOutcomeBars';
 import { HashVerify } from './HashVerify';
@@ -19,7 +19,6 @@ import { RefreshButton } from './RefreshButton';
 import { TrendHistorySection, type HistoryUI } from './TrendHistory';
 import type { MarketRecord, ServeBody, ResolvedLeg, CategoricalOutcome } from './market-record';
 
-const CONF_CLASS: Record<string, string> = { high: 'conf-high', medium: 'conf-med', low: 'conf-low' };
 const LIFECYCLE_CLASS: Record<string, string> = { OPEN: 'state-open', CLOSED_PENDING: 'state-pending', RESOLVED: 'state-resolved' };
 const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 'CLOSED · PENDING', RESOLVED: 'RESOLVED' };
 
@@ -121,16 +120,13 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
         </div>
         <div className="detail-metric">
           <span className="label">Confidence</span>
-          <span className={`detail-conf ${conf.tier ? CONF_CLASS[conf.tier] : ''}`} data-field="confidence" title={conf.score != null ? `score ${conf.score}` : ''}>
-            {conf.tier ? conf.tier.toUpperCase() : '—'}
-          </span>
-          <span className="detail-band faint">{conf.score != null ? `score ${conf.score}` : ''}</span>
+          <ConfidenceBadges confidence={conf} />
         </div>
       </div>
 
       {/* TRUST BAND — identical to every other detail (v1 ITEM 11 confidence checklist) */}
       <div className="detail-trust" data-field="trust">
-        <ConfidenceBasis reasons={conf.reasons} tier={conf.tier} />
+        <ConfidenceBasisGroup confidence={conf} />
         <div className="trust-prov">
           <span className="label">As of</span>
           <span className="num" data-field="as-of">{fmtEastern(s.fetched_at)}</span>
@@ -164,7 +160,7 @@ export function CategoricalDetailView({ record, envelope, hist }: { record: Mark
 
       {/* NARRATIVE (v1 ITEM 1) — leading outcome + 30d/7d move + consensus read + confidence,
           built display-side; Δ sentences omit gracefully when history is absent (never a dash). */}
-      <p className="detail-narrative" data-field="narrative">{`${categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, confidenceTier: conf.tier ?? null, noConsensus }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
+      <p className="detail-narrative" data-field="narrative">{`${categoricalNarrative({ dominantOutcome: dominant?.label ?? null, dominantProb, change30, change7, entropy: d.entropy ?? null, reliabilityTier: conf.reliability?.tier ?? null, liquidityTier: conf.liquidity?.tier ?? null, noConsensus }) || d.narrative || ''}${hist?.synthesis ? ` ${hist.synthesis}` : ''}`}</p>
 
       {/* OUTCOME DISTRIBUTION — the analytical centerpiece (top 10, "N more" expands) */}
       <section className="detail-section">
