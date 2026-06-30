@@ -5,6 +5,42 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Red-team of the confidence tuning constants — ledger + outcomes
+**Decided (2026-06-30):** A calibration red-team on every tuning constant introduced across the
+confidence-split epic — windowed volume ($50K/$5K, the $2K 24h floor), B's reliability (entropy 0.40,
+leader 0.70, rel-spread 0.50), C's depth ($100K/$10K) — driving the real scorer functions with
+adversarial inputs (boundary, manipulation, interaction) + a fresh 280-market live re-survey (overfit,
+flicker). **Outcome: no threshold moved** — the worst-of composition held up; one design fix (F1) and
+three accept-and-document decisions. The ledger:
+- **F1 (FIXED — P2): MAX-per-leg book depth over-credited a non-headline leg.** A deep book on an obscure
+  low-volume longshot made a market read LIQUIDITY HIGH when the headline (leader) leg was thin —
+  over-credit, the wrong direction for a trust signal. Fixed: `book_depth` = the DOMINANT-outcome leg's
+  depth (most-traded leg proxy), max-fallback only when the leader has no book. See the Increment-C
+  entry + the F1 lock test.
+- **F2 (ACCEPTED — no hysteresis): the $10K depth boundary is the most flicker-prone** (~5% of live
+  markets within ±15%, vs ≤1% at the bimodal volume boundaries). **Why accept:** both sides of the
+  boundary mean the SAME actionable thing — "not HIGH liquidity, be careful" — so a MED↔LOW flicker
+  doesn't change the signal a user acts on. Hysteresis would add state + complexity for no actionable
+  gain. Not worth it.
+- **F3 (ACCEPTED — conservative by design): a deep book + ZERO recent volume reads LIQUIDITY LOW**
+  (worst-of caps it). You can technically trade against resting orders, but a deep book with no trades
+  is suspect (stale/wide orders), and **the 280-market survey found ZERO such markets** — the case is
+  theoretical. Understating liquidity here is the safe direction. Deliberate.
+- **F4 (ACCEPTED — inherent, not a gap): faking HIGH liquidity requires faking BOTH volume AND depth.**
+  Worst-of means wash-traded volume alone is caught by the depth signal and a spoofed book alone is
+  caught by the volume signal (both verified). That an attacker who fakes *both* can still score HIGH is
+  an inherent property of any composed market-data signal, not a residual risk — composition RAISES the
+  bar, it was never claimed to be unspoofable. Documented as deliberate.
+- **F5 (NO ACTION — redundant-but-harmless): the `leader ≥ 0.70` guard rarely binds** — `entropy ≤ 0.40`
+  already implies a leader well above 0.70 for typical N (e.g. `[0.7,0.3]` → entropy 0.88). Kept as a
+  cheap defensive guard; correct, just seldom the binding constraint.
+**Strengths confirmed (the design working):** depth worst-of catches wash-traded volume; volume worst-of
+catches spoofed depth; the spread guard blocks the consensus lift on a manipulated wide-book market; a
+last-trade-priced leader caps reliability even under strong consensus (the lift never masks a stale
+headline); depth complements the F1 stale-7d-spike floor. **Constrains:** the constants are validated as
+of this survey — re-run the live re-survey if Polymarket's market mix shifts materially before trusting
+them long-term. Any future change to a tuning constant re-runs the parity gate + full suite.
+
 ## Order-book DEPTH → LIQUIDITY (confidence split, Increment C)
 **Decided (2026-06-30):** "Can you transact at this price" needs resting-order depth, not just recent
 flow. Gamma exposes a per-market `liquidity` field ($ of resting orders) **in the same meta response
