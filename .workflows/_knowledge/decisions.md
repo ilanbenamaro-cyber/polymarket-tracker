@@ -46,10 +46,11 @@ them long-term. Any future change to a tuning constant re-runs the parity gate +
 flow. Gamma exposes a per-market `liquidity` field ($ of resting orders) **in the same meta response
 `core/fetch.js` already pulls** (verified live — no extra call, no per-leg CLOB hit), so Increment C
 adds it via the proven Increment-1 supplementary pattern: `legWindowed` reads `m.liquidity ??
-m.liquidityClob`; `aggregateLiquidity` records `derived.liquidity.book_depth` = the **MAX per-leg**
-value. **Max, NOT a sum** — resting orders don't aggregate across mutually-exclusive legs the way
-volume does (a 128-leg event summed would massively over-count; max ≈ the depth of the leg the
-headline rests on, leg-count-invariant). `bookDepthSignal` tiers (operator-calibrated on ~150 live
+m.liquidityClob`; `aggregateLiquidity` records `derived.liquidity.book_depth` = a per-leg value, **NOT a
+sum** — resting orders don't aggregate across mutually-exclusive legs (a 128-leg event summed would
+massively over-count). **[SUPERSEDED by red-team F1, above]** the initial selection was the MAX per-leg;
+F1 changed it to the DOMINANT-outcome (most-traded) leg's depth, because a blind max over-credited a
+market whose deepest book sat on an obscure longshot, not the headline. `bookDepthSignal` tiers (operator-calibrated on ~150 live
 markets, depth p50 ≈ $62K / p75 ≈ $352K): **HIGH ≥ $100K, MED ≥ $10K, LOW below.** It feeds the
 LIQUIDITY dimension of all 4 scorers **worst-of with windowed volume** (a thin book caps liquidity even
 at high recent volume — e.g. a real market with $3.15M/24h but a $53K book reads MED, not HIGH; you

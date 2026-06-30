@@ -8,17 +8,20 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — epic DONE + RED-TEAMED
-- **EPIC COMPLETE + RED-TEAMED.** A (`4462960`) + B (`cf0c185`) + C (`545d1ce`) all merged/pushed; then a
-  calibration red-team on every tuning constant (5 classes, 280-market live re-survey). **No threshold
-  moved** — worst-of held. **F1 FIXED** (`0878378`, on `fix/book-depth-leader-leg`, **awaiting merge**):
-  book_depth was a blind MAX-per-leg → over-credited an obscure deep longshot; now the DOMINANT-outcome
-  (most-traded) leg's depth, max-fallback only when the leader has no book. F2–F4 accepted-and-documented,
-  F5 no-action. **333/333; parity 4/4 byte-identical; live-verified** (fed market reads its leader leg's
-  $496K, not a non-headline $707K). Full ledger in [[decisions]] "Red-team of the confidence tuning
-  constants". **NEXT: merge F1, then the epic is fully closed.**
-- **Increment C MERGED** (`545d1ce`). Order-book DEPTH → LIQUIDITY: gamma's per-market `liquidity` field ($ resting orders) is in the
-  meta we already fetch (no extra call); `derived.liquidity.book_depth` = MAX per-leg (not a sum). Tiers
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — EPIC CLOSED (A+B+C + red-team, all merged)
+- **EPIC COMPLETE + RED-TEAMED + ALL MERGED.** A (`4462960`) + B (`cf0c185`) + C (`545d1ce`) + the
+  red-team F1 fix (`d834af4`) all **merged --no-ff, pushed, in sync.** A calibration red-team on every
+  tuning constant (5 classes, 280-market live re-survey) **moved no threshold** — worst-of held. **F1
+  FIXED + MERGED:** book_depth was a blind MAX-per-leg → over-credited an obscure deep longshot; now the
+  DOMINANT-outcome (most-traded) leg's depth, max-fallback only when the leader has no book. F2–F4
+  accepted-and-documented, F5 no-action. **333/333; parity 4/4 byte-identical; live-verified** (fed market
+  reads its leader leg's $496K, not a non-headline $707K). Full ledger in [[decisions]] "Red-team of the
+  confidence tuning constants". **The confidence-split epic is fully closed.** Migration 0010 applied
+  dev+prod. methodology now 1.7.0; schema 2.0.0.
+- **Increment C MERGED** (`545d1ce`; book_depth selection later refined by F1 — see the red-team entry).
+  Order-book DEPTH → LIQUIDITY: gamma's per-market `liquidity` field ($ resting orders) is in the
+  meta we already fetch (no extra call); `derived.liquidity.book_depth` = the leader leg's depth (F1; was
+  MAX per-leg). Tiers
   HIGH ≥$100K / MED ≥$10K / LOW (calibrated on ~150 live markets), fed worst-of with windowed volume into
   LIQUIDITY across all 4 scorers — a thin book caps liquidity even at high volume (real case: $3.15M/24h +
   $53K book → MED). Supplementary, omit-when-absent → SpaceX **parity 4/4 byte-identical.** VolumeCard shows
