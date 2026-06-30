@@ -8,15 +8,21 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increments A + B MERGED + PUSHED; C = planning
-- **Increment B MERGED** (`--no-ff` `cf0c185`; `0b9db23..cf0c185`; **pushed, in sync**). Consensus/
-  decisiveness → RELIABILITY: categorical strong consensus (entropy ≤0.40 + ≥70% leader) LIFTS a
-  spread-medium reliability to high (never over a real defect); binary decisive prob (≤0.02/≥0.98) with a
-  tail-minority spread adds a "well-determined" reason (no tier lift — single-book asymmetry). CT case now
-  reads RELIABILITY HIGH *because of consensus*. methodology **1.6.0**; **329/329; parity 4/4; tsc clean.**
-  ⚠ **RED-TEAM TODO:** B's tuning constants (entropy 0.40, leader 0.70, rel-spread 0.50) want a pressure-test.
-- **NEXT: Increment C** (book-depth → liquidity) is in PLANNING (research-first: does gamma expose a
-  book-depth field at all, vs a per-leg CLOB call). See [[decisions]] "Consensus + decisiveness".
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — A + B MERGED; C DONE on branch, awaiting review
+- **Increment C — DONE, on `feature/confidence-book-depth`, awaiting review** (code `9f95693`, knowledge
+  follows). Order-book DEPTH → LIQUIDITY: gamma's per-market `liquidity` field ($ resting orders) is in the
+  meta we already fetch (no extra call); `derived.liquidity.book_depth` = MAX per-leg (not a sum). Tiers
+  HIGH ≥$100K / MED ≥$10K / LOW (calibrated on ~150 live markets), fed worst-of with windowed volume into
+  LIQUIDITY across all 4 scorers — a thin book caps liquidity even at high volume (real case: $3.15M/24h +
+  $53K book → MED). Supplementary, omit-when-absent → SpaceX **parity 4/4 byte-identical.** VolumeCard shows
+  "book $X". methodology **1.7.0**; **332/332; tsc + build clean.** ⚠ Operator live-verify a served record
+  carries `book_depth` (Increment-1 posture).
+- **Increment B MERGED** (`--no-ff` `cf0c185`). Consensus/decisiveness → RELIABILITY (entropy ≤0.40 +
+  ≥70% leader lift; binary decisive + tail-minority spread reason). methodology 1.6.0.
+- **⚠ RED-TEAM TODO (consolidated tuning constants):** B's entropy **0.40** / leader **0.70** / rel-spread
+  **0.50**; C's depth **$100K / $10K**. Pressure-test these in the eventual red-team pass.
+- **NEXT (after C review/merge):** the confidence-split epic (A→B→C) is complete; a red-team pass on the
+  tuning constants is the natural follow-up. See [[decisions]] "Order-book DEPTH → LIQUIDITY".
 
 ## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A MERGED + PUSHED
 - **MERGED to main** (`--no-ff` `4462960`; `572e02c..4462960`; **pushed, in sync**). Three commits on

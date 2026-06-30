@@ -49,6 +49,30 @@ const VOL1WK_MEDIUM = 25_000;
 // on a now-dormant market (24h ≈ dead) can't read HIGH on week-old activity. Absent v24 counts as 0.
 const VOL24_HIGH_FLOOR = 2_000;
 
+// Increment C — order-book DEPTH tiers (max per-leg gamma `liquidity`, $ of resting orders). Depth
+// answers "can you transact at SIZE right now", complementing windowed volume ("was there recent
+// flow"); they go worst-of in the LIQUIDITY dimension. Operator-calibrated against ~150 live markets
+// (depth p50 ≈ $62K, p75 ≈ $352K): HIGH ≥ $100K (move real size), MED ≥ $10K (usable), LOW below
+// (thin book, easy to push). ⚠ RED-TEAM TODO: pressure-test these cutoffs (with Increment B's
+// entropy 0.40 / leader 0.70 / rel-spread 0.50).
+const DEPTH_HIGH = 100_000;
+const DEPTH_MEDIUM = 10_000;
+
+/**
+ * Book-depth liquidity signal from a derived.liquidity object's `book_depth` (max per-leg resting
+ * order $). Returns { tier, reason } (reason null for HIGH) or NULL when no depth is present, so the
+ * caller leaves the tier unchanged — the null path keeps SpaceX's frozen replay byte-identical (a
+ * resolved market carries no gamma liquidity field → book_depth omitted → null signal).
+ */
+export function bookDepthSignal(liquidity) {
+  if (!liquidity || liquidity.book_depth == null) return null;
+  const d = liquidity.book_depth;
+  const usd = `$${Math.round(d).toLocaleString('en-US')}`;
+  if (d >= DEPTH_HIGH) return { tier: 'high', reason: null };
+  if (d >= DEPTH_MEDIUM) return { tier: 'medium', reason: `moderate order book (${usd} depth)` };
+  return { tier: 'low', reason: `thin order book (${usd} depth)` };
+}
+
 /**
  * Windowed-volume liquidity signal from a derived.liquidity object {volume_24hr, volume_1wk}.
  *   HIGH   : 24h ≥ $50K  OR  (7d ≥ $200K AND 24h ≥ $2K)   ← the $2K floor blocks a stale 7d spike
@@ -289,6 +313,13 @@ export function scoreConfidence({
     liqTiers.push(winVol.tier);
     if (winVol.reason) liqReasons.push(winVol.reason);
   }
+  // L4) Book depth (Increment C) — can you transact at SIZE right now, worst-of with windowed volume.
+  //    Absent (frozen replay / resolved) → no-op → SpaceX byte-identical.
+  const depth = bookDepthSignal(windowedVolume);
+  if (depth) {
+    liqTiers.push(depth.tier);
+    if (depth.reason) liqReasons.push(depth.reason);
+  }
 
   // ── reliability score (0..1) ──
   const countScore = Math.min(1, count / ladderSize);
@@ -307,6 +338,7 @@ export function scoreConfidence({
   const liqTerms = [liqBreadthScore];
   if (winVol) liqTerms.push(TIER_SCORE[winVol.tier]);
   let liqScore = liqTerms.reduce((a, b) => a + b, 0) / liqTerms.length;
+  if (depth) liqScore = Math.min(liqScore, TIER_SCORE[depth.tier]); // worst-of: a thin book caps the score
   if (anomalies) {
     if (anomalies.closedCount > 0 && !expected) liqScore -= 0.1 * Math.min(3, anomalies.closedCount);
     if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) liqScore -= 0.1;

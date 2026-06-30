@@ -5,6 +5,32 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Order-book DEPTH → LIQUIDITY (confidence split, Increment C)
+**Decided (2026-06-30):** "Can you transact at this price" needs resting-order depth, not just recent
+flow. Gamma exposes a per-market `liquidity` field ($ of resting orders) **in the same meta response
+`core/fetch.js` already pulls** (verified live — no extra call, no per-leg CLOB hit), so Increment C
+adds it via the proven Increment-1 supplementary pattern: `legWindowed` reads `m.liquidity ??
+m.liquidityClob`; `aggregateLiquidity` records `derived.liquidity.book_depth` = the **MAX per-leg**
+value. **Max, NOT a sum** — resting orders don't aggregate across mutually-exclusive legs the way
+volume does (a 128-leg event summed would massively over-count; max ≈ the depth of the leg the
+headline rests on, leg-count-invariant). `bookDepthSignal` tiers (operator-calibrated on ~150 live
+markets, depth p50 ≈ $62K / p75 ≈ $352K): **HIGH ≥ $100K, MED ≥ $10K, LOW below.** It feeds the
+LIQUIDITY dimension of all 4 scorers **worst-of with windowed volume** (a thin book caps liquidity even
+at high recent volume — e.g. a real market with $3.15M/24h but a $53K book reads MED, not HIGH; you
+can't transact $3M at the touch). Never touches reliability. Surfaced in `VolumeCard` ("book $X") + the
+liquidity basis chips (the reason flows automatically).
+**Why:** windowed volume answers "was there flow"; depth answers "is there a book to trade against NOW"
+— complementary. The survey found **0** markets with a deep book but no recent volume (MMs pull books
+when trading dies) and a meaningful tail of high-volume-but-thin-book markets that worst-of now catches.
+**Constrains:** SUPPLEMENTARY — `book_depth` is outside `raw_inputs`, never hashed; **omit-when-absent**
+(a resolved market carries no gamma `liquidity` field → SpaceX frozen replay omits it → `derived`
+byte-identical → **parity 4/4**). `bookDepthSignal(null)` / no-`book_depth` → null → no-op (the
+parity-safety path, identical to `windowedVolumeSignal`). methodology 1.7.0 (no schema change — `derived`
+is open, no `additionalProperties`). ⚠ **RED-TEAM TODO (carried):** the $100K/$10K depth cutoffs join
+Increment B's entropy 0.40 / leader 0.70 / rel-spread 0.50. **Operator live-verify:** confirm a live
+market's served record carries `derived.liquidity.book_depth` (same live-gate posture as Increment 1's
+windowed volume). See [[gotchas]] "A NEW always-present field on `derived` breaks SpaceX Gate 2".
+
 ## Consensus + decisiveness → RELIABILITY (confidence split, Increment B)
 **Decided (2026-06-30):** Strong agreement makes the HEADLINE number reliable even on a thin book, so
 it feeds RELIABILITY (additive; no schema change). **Categorical:** a concentrated distribution (norm.

@@ -66,9 +66,15 @@ export function hashRawInputs(rawInputs) {
 
 const numOrNull = (x) => (x != null && Number.isFinite(Number(x)) ? Number(x) : null);
 
-/** Per-leg windowed volume (24h / 7d) from a gamma market leg → { volume_24hr, volume_1wk }. */
+/** Per-leg supplementary liquidity fields from a gamma market leg: windowed volume (24h / 7d) AND
+ *  (Increment C) order-book depth `m.liquidity` (resting-order $ value; `liquidityClob` is the same
+ *  number). All SUPPLEMENTARY — recorded outside raw_inputs, never hashed. */
 function legWindowed(m) {
-  return { volume_24hr: numOrNull(m.volume24hr), volume_1wk: numOrNull(m.volume1wk) };
+  return {
+    volume_24hr: numOrNull(m.volume24hr),
+    volume_1wk: numOrNull(m.volume1wk),
+    book_depth: numOrNull(m.liquidity ?? m.liquidityClob), // Increment C: order-book depth ($)
+  };
 }
 
 /**
@@ -84,13 +90,20 @@ export function aggregateLiquidity(legs, keyOf = null) {
   if (!Array.isArray(legs) || legs.length === 0) return null;
   const has24 = legs.some((l) => l.volume_24hr != null);
   const has7 = legs.some((l) => l.volume_1wk != null);
-  if (!has24 && !has7) return null;
+  // Increment C: book depth is the MAX per-leg `m.liquidity` (the deepest tradable book — the leg the
+  // headline rests on), NOT a sum: resting orders don't aggregate across mutually-exclusive legs the
+  // way volume does (a 128-leg event would over-count). Omit-when-absent: SpaceX's frozen replay and
+  // any resolved market carry no liquidity field → book_depth null → the whole object omitted below.
+  const depths = legs.map((l) => l.book_depth).filter((d) => d != null);
+  const hasDepth = depths.length > 0;
+  if (!has24 && !has7 && !hasDepth) return null;
   const sum = (f) => legs.reduce((s, l) => s + (l[f] ?? 0), 0);
   const liq = {
     volume_24hr: has24 ? sum('volume_24hr') : null,
     volume_1wk: has7 ? sum('volume_1wk') : null,
     volume_all: legs.some((l) => l.volume != null) ? sum('volume') : null,
   };
+  if (hasDepth) liq.book_depth = Math.max(...depths); // deepest per-leg book ($)
   if (keyOf && has24) {
     const by = {};
     for (const l of legs) {
@@ -468,7 +481,7 @@ export async function fetchBinarySnapshot(config = null) {
     probability: parseFloat(yes.midpoint),
     probability_no: no ? parseFloat(no.midpoint) : null,
     total_volume: meta.volume ?? 0,
-    liquidity: aggregateLiquidity([{ volume: meta.volume, volume_24hr: meta.volume_24hr, volume_1wk: meta.volume_1wk }]),
+    liquidity: aggregateLiquidity([{ volume: meta.volume, volume_24hr: meta.volume_24hr, volume_1wk: meta.volume_1wk, book_depth: meta.book_depth }]),
     title: meta.title,
     end_date: meta.end_date,
     yes_best_bid: yes.best_bid,

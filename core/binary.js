@@ -9,7 +9,7 @@
 
 import { buildFreshness } from './freshness.js';
 import { SCHEMA_VERSION } from './snapshot.js';
-import { windowedVolumeSignal, spreadToleranceMultiplier, expiryNote, daysUntil, worstTier } from './confidence.js';
+import { windowedVolumeSignal, bookDepthSignal, spreadToleranceMultiplier, expiryNote, daysUntil, worstTier } from './confidence.js';
 
 const SPREAD_HIGH = 0.04; // mirror the ladder's spread thresholds (4pp / 8pp)
 const SPREAD_MEDIUM = 0.08;
@@ -98,6 +98,12 @@ export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolu
     else if (totalVolume >= VOL_MEDIUM) { liqTiers.push('medium'); liqReasons.push(`moderate volume (${v})`); }
     else { liqTiers.push('low'); liqReasons.push(`thin volume (${v})`); }
   }
+  // L2) Book depth (Increment C) — can you transact at SIZE, worst-of with volume. Null → no-op.
+  const depth = bookDepthSignal(windowedVolume);
+  if (depth) {
+    liqTiers.push(depth.tier);
+    if (depth.reason) liqReasons.push(depth.reason);
+  }
 
   // ── reliability score ──
   let relScore = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
@@ -110,6 +116,7 @@ export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolu
   // ── liquidity score ──
   let liqScore = winVol ? TIER_SCORE[winVol.tier]
     : totalVolume != null ? Math.min(1, totalVolume / VOL_HIGH) : 0.6;
+  if (depth) liqScore = Math.min(liqScore, TIER_SCORE[depth.tier]); // worst-of: a thin book caps it
   liqScore = Number(Math.max(0, Math.min(1, liqScore)).toFixed(3));
 
   if (relReasons.length === 0) relReasons.push('tight spread');
