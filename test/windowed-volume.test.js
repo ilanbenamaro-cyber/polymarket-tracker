@@ -115,19 +115,33 @@ test('bookDepthSignal: HIGH ≥ $100K, MED ≥ $10K, LOW below; null when absent
   assert.equal(depthSig({ volume_24hr: 999 }), null); // no depth field → null
 });
 
-test('aggregateLiquidity: book_depth is the MAX per-leg liquidity (not a sum); omit-when-absent', () => {
+test('aggregateLiquidity: book_depth is the DOMINANT-outcome (most-traded) leg depth, not a sum nor blind max; omit-when-absent', () => {
   const legs = [
-    { volume_24hr: 100, book_depth: 20_000 },
-    { volume_24hr: 200, book_depth: 350_000 }, // the deepest book — the leg the headline rests on
-    { volume_24hr: 50 }, // a leg with no depth field
+    { volume: 100, book_depth: 20_000 },
+    { volume: 900, book_depth: 60_000 },   // leader (most traded) → its book IS the headline depth
+    { volume: 5,   book_depth: 999_000 },  // a deep book on an obscure longshot — must NOT win
   ];
-  assert.equal(aggregateLiquidity(legs).book_depth, 350_000); // MAX, not 370_000 sum
+  assert.equal(aggregateLiquidity(legs).book_depth, 60_000); // leader's book — not 999_000, not the sum
+  // FALLBACK: the leader leg has no book → deepest available across legs
+  assert.equal(aggregateLiquidity([{ volume: 900 }, { volume: 5, book_depth: 12_345 }]).book_depth, 12_345);
   // depth alone (no windowed) still yields an object (a live market with only a depth field)
-  assert.equal(aggregateLiquidity([{ book_depth: 12_345 }]).book_depth, 12_345);
+  assert.equal(aggregateLiquidity([{ volume: 900, book_depth: 12_345 }]).book_depth, 12_345);
   // NO depth on any leg → key omitted entirely
   assert.equal('book_depth' in aggregateLiquidity([{ volume_24hr: 100 }]), false);
   // NOTHING present (windowed nor depth) → null (SpaceX frozen replay → omits derived.liquidity)
   assert.equal(aggregateLiquidity([{ volume: 5000 }]), null);
+});
+
+test('aggregateLiquidity: red-team F1 lock — a thin LEADER leg + a deep LONGSHOT leg reads the leader depth', () => {
+  // The exact red-team repro: the headline outcome (most-traded, $900K vol) has a THIN $5K book; an
+  // obscure longshot ($100 vol) rests a DEEP $200K book. book_depth must be the leader's $5K (so the
+  // market reads liquidity LOW — you can't transact the headline at size), NOT the longshot's $200K.
+  const legs = [
+    { volume: 900_000, volume_24hr: 50_000, book_depth: 5_000 },   // leader — thin book
+    { volume: 100,     volume_24hr: 0,      book_depth: 200_000 }, // longshot — deep book, irrelevant
+  ];
+  assert.equal(aggregateLiquidity(legs).book_depth, 5_000); // the headline leg's depth, not 200_000
+  assert.equal(depthSig(aggregateLiquidity(legs)).tier, 'low'); // → LIQUIDITY LOW, not a false HIGH
 });
 
 test('scoreConfidence (worst-of): a thin book drags LIQUIDITY down despite HIGH recent volume', () => {
