@@ -23,6 +23,11 @@ const VOL_MEDIUM = 10_000;
 const TIER_SCORE = { high: 1, medium: 0.5, low: 0.15 };
 const CONSENSUS_HIGH = 0.7;
 const CONSENSUS_MEDIUM = 0.4;
+// Increment B: a strong consensus (low normalized entropy AND a clear leader) makes the HEADLINE
+// number reliable even when long-tail legs have wider books — so it LIFTS a spread-driven 'medium'
+// reliability to 'high'. Tuned to "clearly concentrated": entropy ≤ 0.40 with a ≥70% leader.
+const CONSENSUS_RELIABILITY_ENTROPY = 0.40;
+const CONSENSUS_RELIABILITY_LEADER = 0.70;
 
 // Polymarket seeds categorical events with PLACEHOLDER / UNTRADED legs — generic "Candidate C"
 // through "Candidate Z" (also "Choice X" / "Option X"), plus catch-all legs like "Other" — that
@@ -112,12 +117,13 @@ function meanSpread(rawInputs) {
 
 /**
  * Score a categorical snapshot into the two independent dimensions:
- *   RELIABILITY — spread (well-defined leg prices), last-trade fallback, missing outcomes.
- *                 (Increment B will add: strong consensus / low entropy → HIGH reliability.)
+ *   RELIABILITY — spread (well-defined leg prices), last-trade fallback, missing outcomes, AND
+ *                 (Increment B) strong consensus: low entropy + a clear leader LIFTS a spread-driven
+ *                 'medium' to 'high' (the headline is decisive even when tail legs have wider books).
  *   LIQUIDITY   — windowed (recent) volume, with all-time volume as the fallback.
  * Returns { reliability:{tier,score,reasons}, liquidity:{tier,score,reasons} }.
  */
-export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null, daysToExpiry = null }) {
+export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFallback = null, lifecycle = null, windowedVolume = null, daysToExpiry = null, entropy = null, dominantProb = null }) {
   const relTiers = [], relReasons = [];
   const liqTiers = [], liqReasons = [];
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
@@ -125,19 +131,34 @@ export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFal
   // Increment 3: spread tolerance widens near expiry.
   const spreadMult = spreadToleranceMultiplier(daysToExpiry);
   const note = expiryNote(daysToExpiry);
+  // Increment B: a strongly-concentrated distribution (low entropy + a clear leader) — the headline
+  // outcome is a well-formed agreement, reliable even if long-tail legs are thin/wide.
+  const strongConsensus = entropy != null && entropy <= CONSENSUS_RELIABILITY_ENTROPY
+    && dominantProb != null && dominantProb >= CONSENSUS_RELIABILITY_LEADER;
 
   // ════ RELIABILITY ════
+  // Spread → (tier, reason), as a local so Increment B's consensus lift can upgrade it.
+  let spreadTier = null, spreadReason = null;
   if (spread == null) {
-    if (!settled) { relTiers.push('medium'); relReasons.push('no live book (price-only)'); }
+    if (!settled) { spreadTier = 'medium'; spreadReason = 'no live book (price-only)'; }
   } else if (spread < SPREAD_HIGH * spreadMult) {
-    relTiers.push('high');
+    spreadTier = 'high';
   } else if (spread <= SPREAD_MEDIUM * spreadMult) {
-    relTiers.push('medium');
-    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`);
+    spreadTier = 'medium';
+    spreadReason = `wide bid-ask spread (${(spread * 100).toFixed(1)}%) — ${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'}`;
   } else {
-    relTiers.push('low');
-    relReasons.push(`wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`);
+    spreadTier = 'low';
+    spreadReason = `wide bid-ask spread (${(spread * 100).toFixed(1)}%) — illiquid${note}`;
   }
+  // Strong consensus LIFTS a spread-driven 'medium' to 'high' (the leader is decisive; wide tail-leg
+  // books don't make the headline unreliable). It never lifts 'low' (a genuinely illiquid >8% book) or
+  // price-only (no book at all), and a missing/last-trade outcome still caps reliability separately.
+  const consensusLifted = strongConsensus && spreadTier === 'medium' && spread != null;
+  if (consensusLifted) {
+    spreadTier = 'high';
+    spreadReason = `strong consensus (entropy ${entropy.toFixed(2)}, leader ${Math.round(dominantProb * 100)}%) — headline well-determined despite wider tail books`;
+  }
+  if (spreadTier) { relTiers.push(spreadTier); if (spreadReason) relReasons.push(spreadReason); }
 
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
@@ -165,6 +186,9 @@ export function scoreCategoricalConfidence({ rawInputs, totalVolume, midpointFal
 
   // ── reliability score ──
   let relScore = spread != null ? Math.max(0, Math.min(1, 1 - spread / 0.1)) : 0.6;
+  // Strong consensus lifted the tier — keep the score consistent with a HIGH read (the wide tail-leg
+  // book that depressed the spread-based score is not what the headline rests on).
+  if (consensusLifted) relScore = Math.max(relScore, 0.85);
   if (midpointFallback) {
     relScore -= 0.05 * Math.min(2, midpointFallback.lastTradeCount ?? 0);
     relScore -= 0.1 * Math.min(2, midpointFallback.skippedCount ?? 0);
@@ -209,6 +233,7 @@ export function buildCategoricalRecord(live, methodologyVersion, config, lifecyc
     midpointFallback: live.midpoint_fallback ?? null, lifecycle,
     windowedVolume: live.liquidity ?? null, // Increment 1
     daysToExpiry: daysUntil(config.resolves, live.fetched_at), // Increment 3
+    entropy, dominantProb, // Increment B: strong consensus → reliability
   });
 
   const derived = {

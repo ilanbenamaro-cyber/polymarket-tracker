@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -117,6 +117,11 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.6.0",
+      "date": "2026-06-30",
+      "change": "Consensus/decisiveness → RELIABILITY (Increment B), additive (no schema change; confidence shape unchanged). CATEGORICAL: a strongly-concentrated distribution (normalized entropy ≤ 0.40 AND a ≥70% leader) LIFTS a spread-driven 'medium' reliability to 'high' — the headline outcome is a well-formed agreement, reliable even when long-tail legs have wider books (the mean-spread averaging that depressed it isn't what the headline rests on). It never overrides a genuine defect: a >8% averaged book stays 'low', and a missing/last-trade outcome still caps. BINARY: a decisive probability (≤0.02 or ≥0.98) whose spread is a MINORITY of the smaller tail (≤50%) adds a 'price well-determined' reliability basis; there is NO tier lift for binary (a single book has no wide-tail-leg averaging to correct, and a medium-band spread on an extreme line always dominates the tiny tail). Sharpens the CT-Governor case: 98% consensus now reads reliability HIGH explicitly, independent of its (low) liquidity. Ladder/touch unchanged; SpaceX parity 4/4 byte-identical (categorical/binary-only)."
+    },
     {
       "version": "1.5.0",
       "date": "2026-06-30",

@@ -16,10 +16,18 @@ const SPREAD_MEDIUM = 0.08;
 const VOL_HIGH = 100_000;
 const VOL_MEDIUM = 10_000;
 const TIER_SCORE = { high: 1, medium: 0.5, low: 0.15 };
+// Increment B: a DECISIVE probability (very close to 0 or 1) is itself a reliability signal — the
+// binary analogue of categorical low entropy. It LIFTS a spread-driven 'medium' to 'high', but ONLY
+// when the spread is a minority of the smaller tail (rel ≤ 0.5) — a spread that eats the tail means
+// the extreme price is NOT well-determined, so it must not lift.
+const DECISIVE_LOW = 0.02;
+const DECISIVE_HIGH = 0.98;
+const REL_SPREAD_DOMINATES = 0.5;
 
 /**
  * Score a binary snapshot into the two independent dimensions:
- *   RELIABILITY — spread (well-defined price), spread-vs-prob, last-trade fallback, missing sides.
+ *   RELIABILITY — spread (well-defined price), spread-vs-prob, last-trade fallback, missing sides, AND
+ *                 (Increment B) a decisive probability lifts a spread-driven 'medium' to 'high'.
  *   LIQUIDITY   — windowed (recent) volume, with all-time volume as the fallback.
  * No ladder concepts (threshold count, monotonicity) apply.
  * Returns { reliability:{tier,score,reasons}, liquidity:{tier,score,reasons} }.
@@ -30,26 +38,39 @@ export function scoreBinaryConfidence({ probability, bestBid, bestAsk, totalVolu
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
 
   // ════ RELIABILITY ════
-  // R1) Spread at the touch (live only). Tolerance widens near expiry (Increment 3).
+  // R1) Spread at the touch (live only). Tolerance widens near expiry (Increment 3). Computed into a
+  //     local so Increment B's decisive-probability lift can upgrade it.
   const spread = bestBid != null && bestAsk != null ? Number(bestAsk) - Number(bestBid) : null;
   const spreadMult = spreadToleranceMultiplier(daysToExpiry);
   const note = expiryNote(daysToExpiry);
+  // Spread relative to the smaller tail — a 5pp spread means much more on a 10% line than a 50% one.
+  const relSpread = spread != null && probability != null && probability > 0 && probability < 1
+    ? spread / Math.min(probability, 1 - probability) : null;
+  let spreadTier = null, spreadReason = null;
   if (spread == null) {
-    if (!settled) { relTiers.push('medium'); relReasons.push('no live book (price-only)'); }
+    if (!settled) { spreadTier = 'medium'; spreadReason = 'no live book (price-only)'; }
   } else if (spread < SPREAD_HIGH * spreadMult) {
-    relTiers.push('high');
+    spreadTier = 'high';
   } else if (spread <= SPREAD_MEDIUM * spreadMult) {
-    relTiers.push('medium');
-    relReasons.push(`spread ${(spread * 100).toFixed(1)}pp (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
+    spreadTier = 'medium';
+    spreadReason = `spread ${(spread * 100).toFixed(1)}pp (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`;
   } else {
-    relTiers.push('low');
-    relReasons.push(`spread ${(spread * 100).toFixed(1)}pp (illiquid${note})`);
+    spreadTier = 'low';
+    spreadReason = `spread ${(spread * 100).toFixed(1)}pp (illiquid${note})`;
   }
-  // Spread relative to the implied probability — a 5pp spread means much more on a 10%
-  // line than a 50% one. Flag (descriptive) when it dominates the smaller tail.
-  if (spread != null && probability != null && probability > 0 && probability < 1) {
-    const rel = spread / Math.min(probability, 1 - probability);
-    if (rel > 0.5) relReasons.push(`spread is ${Math.round(rel * 100)}% of the implied probability`);
+  if (spreadTier) { relTiers.push(spreadTier); if (spreadReason) relReasons.push(spreadReason); }
+  // A DECISIVE line (very close to 0/1) whose spread is a MINORITY of the smaller tail is
+  // well-determined — a positive reliability basis (the binary analogue of strong consensus). NOTE
+  // there is no medium→high tier LIFT for binary: a binary has a SINGLE book, so unlike a multi-leg
+  // categorical (where averaging across wide tail legs understates a tight leader) a tight book is
+  // already HIGH and a medium-band spread on an extreme line ALWAYS dominates the tiny tail — there is
+  // no legitimate lift to make. When the spread instead dominates the tail, the caveat below fires.
+  const decisive = probability != null && (probability <= DECISIVE_LOW || probability >= DECISIVE_HIGH);
+  if (decisive && relSpread != null && relSpread <= REL_SPREAD_DOMINATES) {
+    relReasons.push(`decisive probability (${Math.round(probability * 100)}%) — price well-determined`);
+  }
+  if (relSpread != null && relSpread > REL_SPREAD_DOMINATES) {
+    relReasons.push(`spread is ${Math.round(relSpread * 100)}% of the implied probability`);
   }
 
   // R2) Midpoint fallback (Phase 1) — a side priced off the last trade, or with no price.
