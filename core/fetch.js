@@ -90,12 +90,15 @@ export function aggregateLiquidity(legs, keyOf = null) {
   if (!Array.isArray(legs) || legs.length === 0) return null;
   const has24 = legs.some((l) => l.volume_24hr != null);
   const has7 = legs.some((l) => l.volume_1wk != null);
-  // Increment C: book depth is the MAX per-leg `m.liquidity` (the deepest tradable book — the leg the
-  // headline rests on), NOT a sum: resting orders don't aggregate across mutually-exclusive legs the
-  // way volume does (a 128-leg event would over-count). Omit-when-absent: SpaceX's frozen replay and
-  // any resolved market carry no liquidity field → book_depth null → the whole object omitted below.
-  const depths = legs.map((l) => l.book_depth).filter((d) => d != null);
-  const hasDepth = depths.length > 0;
+  // Increment C: book depth is per-leg `m.liquidity`, NOT a sum (resting orders don't aggregate across
+  // mutually-exclusive legs — a 128-leg event would over-count). Red-team F1: take the DOMINANT-outcome
+  // leg's depth — the leg the headline rests on, proxied by the MOST-TRADED leg (highest all-time
+  // volume; prob isn't available at aggregate time) — falling back to the max across legs only when the
+  // leader leg has no book data. MAX-across-legs over-credited a market whose deepest book sat on an
+  // obscure low-volume longshot, not the headline. Omit-when-absent: SpaceX's frozen replay / any
+  // resolved market carry no liquidity field → book_depth null → the whole object omitted below.
+  const withDepth = legs.filter((l) => l.book_depth != null);
+  const hasDepth = withDepth.length > 0;
   if (!has24 && !has7 && !hasDepth) return null;
   const sum = (f) => legs.reduce((s, l) => s + (l[f] ?? 0), 0);
   const liq = {
@@ -103,7 +106,13 @@ export function aggregateLiquidity(legs, keyOf = null) {
     volume_1wk: has7 ? sum('volume_1wk') : null,
     volume_all: legs.some((l) => l.volume != null) ? sum('volume') : null,
   };
-  if (hasDepth) liq.book_depth = Math.max(...depths); // deepest per-leg book ($)
+  if (hasDepth) {
+    const tradedness = (l) => l.volume ?? l.volume_24hr ?? 0; // most-traded ⇒ dominant-outcome proxy
+    const leader = legs.reduce((best, l) => (tradedness(l) > tradedness(best) ? l : best), legs[0]);
+    liq.book_depth = leader.book_depth != null
+      ? leader.book_depth                                  // the headline leg's book
+      : Math.max(...withDepth.map((l) => l.book_depth));   // fallback: deepest available book
+  }
   if (keyOf && has24) {
     const by = {};
     for (const l of legs) {
