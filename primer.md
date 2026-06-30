@@ -8,7 +8,17 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A MERGED + PUSHED; B in progress
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increments A + B MERGED + PUSHED; C = planning
+- **Increment B MERGED** (`--no-ff` `cf0c185`; `0b9db23..cf0c185`; **pushed, in sync**). Consensus/
+  decisiveness → RELIABILITY: categorical strong consensus (entropy ≤0.40 + ≥70% leader) LIFTS a
+  spread-medium reliability to high (never over a real defect); binary decisive prob (≤0.02/≥0.98) with a
+  tail-minority spread adds a "well-determined" reason (no tier lift — single-book asymmetry). CT case now
+  reads RELIABILITY HIGH *because of consensus*. methodology **1.6.0**; **329/329; parity 4/4; tsc clean.**
+  ⚠ **RED-TEAM TODO:** B's tuning constants (entropy 0.40, leader 0.70, rel-spread 0.50) want a pressure-test.
+- **NEXT: Increment C** (book-depth → liquidity) is in PLANNING (research-first: does gamma expose a
+  book-depth field at all, vs a per-leg CLOB call). See [[decisions]] "Consensus + decisiveness".
+
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — Increment A MERGED + PUSHED
 - **MERGED to main** (`--no-ff` `4462960`; `572e02c..4462960`; **pushed, in sync**). Three commits on
   `feature/confidence-split-reliability-liquidity`: core (`1cb1383`), display (`7e356a6`), knowledge
   (`822d997`). **324/324** on merged main; **SpaceX parity 4/4** (Gate 1 hash + Gate 2 derived + **Gate 2b
