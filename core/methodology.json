@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "asset": "spacex-ipo-market-cap",
   "summary": "Derived valuation metrics from Polymarket 'closing market cap above $X' YES prices. Each 'above $X' market is a separate order book, so raw midpoints are arbitrage-adjusted (volume-weighted isotonic regression) into a monotone CDF before any metric is computed. Raw values are preserved alongside the adjusted ones. Two output tiers are kept strictly separate: TIER 1 (derived.market) are pure market transforms with no assumptions; TIER 2 (derived.scenarios) require external inputs and each carries a sourced, dated, ranged assumption (see assumptions.json). A scenario with no usable assumption renders 'input_required', never a fabricated number.",
   "metrics": {
@@ -117,6 +117,11 @@
     }
   },
   "changelog": [
+    {
+      "version": "1.7.0",
+      "date": "2026-06-30",
+      "change": "Order-book DEPTH → LIQUIDITY (Increment C), additive + parity-safe (no schema change). Gamma exposes a per-market `liquidity` field ($ of resting orders) in the SAME meta response already fetched; we record the MAX per-leg value as derived.liquidity.book_depth (max, NOT a sum — resting orders don't aggregate across mutually-exclusive legs). It is SUPPLEMENTARY (outside raw_inputs, never hashed) and OMITTED when absent (resolved markets carry no liquidity field → SpaceX frozen replay byte-identical, parity 4/4). bookDepthSignal tiers (operator-calibrated against ~150 live markets, max per-leg depth): HIGH ≥ $100K (move real size), MED ≥ $10K (usable), LOW below (thin). It feeds the LIQUIDITY dimension of all 4 scorers WORST-OF with windowed volume — so a thin book caps liquidity even when recent volume is high (e.g. $3M/24h volume + a $5K book → LIQUIDITY LOW: you can't transact at size). Depth never affects RELIABILITY. Surfaced in VolumeCard ('book $X') + the liquidity basis chips. ⚠ RED-TEAM TODO: the $100K/$10K depth cutoffs (with Increment B's entropy 0.40 / leader 0.70 / rel-spread 0.50)."
+    },
     {
       "version": "1.6.0",
       "date": "2026-06-30",

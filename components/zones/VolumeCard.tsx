@@ -6,16 +6,18 @@
 // windowed feature (derived.liquidity absent), it degrades to the all-time total. Server component.
 import { fmtVolHuman } from '@/lib/format-detail.mjs';
 
-interface Liquidity { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null }
+interface Liquidity { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null; book_depth?: number | null }
 
 export function VolumeCard({ liquidity, allTimeVolume }: { liquidity?: Liquidity | null; allTimeVolume?: number | null }) {
   const v24 = liquidity?.volume_24hr ?? null;
   const v7 = liquidity?.volume_1wk ?? null;
   const all = allTimeVolume ?? liquidity?.volume_all ?? null;
+  const depth = liquidity?.book_depth ?? null; // Increment C: order-book depth ($ resting orders)
   const hasWindowed = v24 != null || v7 != null;
   const sub = hasWindowed
-    ? [v7 != null ? `7d ${fmtVolHuman(v7)}` : null, all != null ? `all-time ${fmtVolHuman(all)}` : null].filter(Boolean).join(' · ')
-    : 'cumulative, all-time';
+    ? [v7 != null ? `7d ${fmtVolHuman(v7)}` : null, all != null ? `all-time ${fmtVolHuman(all)}` : null,
+       depth != null ? `book ${fmtVolHuman(depth)}` : null].filter(Boolean).join(' · ')
+    : (depth != null ? `book ${fmtVolHuman(depth)} · cumulative all-time` : 'cumulative, all-time');
   return (
     <div className="acard" data-field="volume-card">
       <div className="label">Volume <span className="faint">· {hasWindowed ? '24h' : 'all-time'}</span></div>

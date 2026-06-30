@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { aggregateLiquidity } from '../core/fetch.js';
-import { windowedVolumeSignal as winSig, scoreConfidence } from '../core/confidence.js';
+import { windowedVolumeSignal as winSig, bookDepthSignal as depthSig, scoreConfidence } from '../core/confidence.js';
 
 // ── windowedVolumeSignal (the calibrated tiers) ──────────────────────────────
 test('windowedVolumeSignal: HIGH at 24h ≥ $50K or 7d ≥ $200K', () => {
@@ -97,4 +97,48 @@ test('scoreConfidence: absent windowed volume leaves tier/score/reasons unchange
   const withNull = scoreConfidence({ ...base, windowedVolume: null });
   const without = scoreConfidence({ ...base });
   assert.deepEqual(withNull, without); // null windowed == omitted entirely
+});
+
+// ── Increment C: book depth (max per-leg gamma `liquidity`) ───────────────────
+test('bookDepthSignal: HIGH ≥ $100K, MED ≥ $10K, LOW below; null when absent', () => {
+  assert.equal(depthSig({ book_depth: 100_000 }).tier, 'high');
+  assert.equal(depthSig({ book_depth: 100_000 }).reason, null);   // HIGH carries no caveat
+  assert.equal(depthSig({ book_depth: 250_000 }).tier, 'high');
+  const m = depthSig({ book_depth: 53_000 });
+  assert.equal(m.tier, 'medium');
+  assert.match(m.reason, /moderate order book \(\$53,000 depth\)/);
+  const l = depthSig({ book_depth: 5_000 });
+  assert.equal(l.tier, 'low');
+  assert.match(l.reason, /thin order book \(\$5,000 depth\)/);
+  assert.equal(depthSig(null), null);
+  assert.equal(depthSig({ book_depth: null }), null); // omit-when-absent → parity safety
+  assert.equal(depthSig({ volume_24hr: 999 }), null); // no depth field → null
+});
+
+test('aggregateLiquidity: book_depth is the MAX per-leg liquidity (not a sum); omit-when-absent', () => {
+  const legs = [
+    { volume_24hr: 100, book_depth: 20_000 },
+    { volume_24hr: 200, book_depth: 350_000 }, // the deepest book — the leg the headline rests on
+    { volume_24hr: 50 }, // a leg with no depth field
+  ];
+  assert.equal(aggregateLiquidity(legs).book_depth, 350_000); // MAX, not 370_000 sum
+  // depth alone (no windowed) still yields an object (a live market with only a depth field)
+  assert.equal(aggregateLiquidity([{ book_depth: 12_345 }]).book_depth, 12_345);
+  // NO depth on any leg → key omitted entirely
+  assert.equal('book_depth' in aggregateLiquidity([{ volume_24hr: 100 }]), false);
+  // NOTHING present (windowed nor depth) → null (SpaceX frozen replay → omits derived.liquidity)
+  assert.equal(aggregateLiquidity([{ volume: 5000 }]), null);
+});
+
+test('scoreConfidence (worst-of): a thin book drags LIQUIDITY down despite HIGH recent volume', () => {
+  const base = { markets: ladder(16), rawInputs: ladder(16).map(() => ({ best_bid: '0.49', best_ask: '0.51' })) };
+  // $3M/24h volume (HIGH) but only a $5K book → can't actually transact at size → liquidity LOW.
+  const thinBook = scoreConfidence({ ...base, windowedVolume: { volume_24hr: 3_000_000, volume_1wk: 9_000_000, book_depth: 5_000 } });
+  const deepBook = scoreConfidence({ ...base, windowedVolume: { volume_24hr: 3_000_000, volume_1wk: 9_000_000, book_depth: 500_000 } });
+  assert.equal(deepBook.liquidity.tier, 'high');
+  assert.equal(thinBook.liquidity.tier, 'low'); // depth worst-of bites
+  assert.ok(thinBook.liquidity.reasons.some((r) => /thin order book/.test(r)));
+  assert.ok(thinBook.liquidity.score < deepBook.liquidity.score);
+  // RELIABILITY is untouched by book depth.
+  assert.equal(thinBook.reliability.tier, deepBook.reliability.tier);
 });
