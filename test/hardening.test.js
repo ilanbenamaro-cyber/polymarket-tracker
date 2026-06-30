@@ -81,17 +81,19 @@ test('confidence surfaces each anomaly reason', () => {
   const rawInputs = markets.map((m) => ({ best_bid: '0.5', best_ask: '0.51' }));
   const liquidity = { thinCount: 0, total: 16, thinShare: 0 };
 
+  // stale feed is a RELIABILITY signal (the number may be stale).
   const stale = scoreConfidence({ markets, rawInputs, liquidity, anomalies: { stale: true, closedCount: 0, liquidityDrop: null } });
-  assert.ok(stale.reasons.some((r) => /identical to prior snapshot/.test(r)));
+  assert.ok(stale.reliability.reasons.some((r) => /identical to prior snapshot/.test(r)));
 
+  // closed/not-accepting and liquidity-drop are LIQUIDITY signals (you can't transact).
   const closed = scoreConfidence({ markets, rawInputs, liquidity, anomalies: { stale: false, closedCount: 3, liquidityDrop: null } });
-  assert.ok(closed.reasons.some((r) => /closed \/ not accepting/.test(r)) && closed.tier === 'low');
+  assert.ok(closed.liquidity.reasons.some((r) => /closed \/ not accepting/.test(r)) && closed.liquidity.tier === 'low');
 
   const drop = scoreConfidence({ markets, rawInputs, liquidity, anomalies: { stale: false, closedCount: 0, liquidityDrop: { triggered: true, pct: 0.55 } } });
-  assert.ok(drop.reasons.some((r) => /below 7-day median/.test(r)));
+  assert.ok(drop.liquidity.reasons.some((r) => /below 7-day median/.test(r)));
 
   const thin = scoreConfidence({ markets, rawInputs, liquidity: { thinCount: 9, total: 16, thinShare: 9 / 16 } });
-  assert.ok(thin.reasons.some((r) => /thin liquidity on 9 of 16/.test(r)));
+  assert.ok(thin.liquidity.reasons.some((r) => /thin liquidity on 9 of 16/.test(r)));
 });
 
 test('confidence surfaces midpoint-fallback reasons + degrades; null is a no-op (SpaceX-safety)', () => {
@@ -106,14 +108,14 @@ test('confidence surfaces midpoint-fallback reasons + degrades; null is a no-op 
   const zeroFb = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 0, skippedThresholds: [] } });
   assert.deepEqual(zeroFb, base, 'zero-count fallback is also a no-op');
 
-  // last-trade rungs → reason + degraded tier (was high)
+  // last-trade rungs (RELIABILITY: stale-trade provenance) → reason + degraded reliability (was high)
   const lt = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 2, lastTradeThresholds: [1.8, 2.0], skippedCount: 0, skippedThresholds: [] } });
-  assert.ok(lt.reasons.some((r) => /2 rung\(s\) priced from last trade \(no live book\)/.test(r)));
-  assert.ok(lt.tier !== 'high' && lt.score < base.score);
+  assert.ok(lt.reliability.reasons.some((r) => /2 rung\(s\) priced from last trade \(no live book\)/.test(r)));
+  assert.ok(lt.reliability.tier !== 'high' && lt.reliability.score < base.reliability.score);
 
-  // skipped rungs → reason naming the thresholds + low tier
+  // skipped rungs (RELIABILITY: a hole in the CDF) → reason naming the thresholds + low reliability
   const sk = scoreConfidence({ markets, rawInputs, liquidity, midpointFallback: { lastTradeCount: 0, skippedCount: 1, skippedThresholds: [2.4] } });
-  assert.ok(sk.reasons.some((r) => /1 rung\(s\) excluded \(no price\): 2\.4/.test(r)) && sk.tier === 'low');
+  assert.ok(sk.reliability.reasons.some((r) => /1 rung\(s\) excluded \(no price\): 2\.4/.test(r)) && sk.reliability.tier === 'low');
 });
 
 test('kindFromMarkets: binary / ladder / categorical from event shape (no parser throw)', () => {
@@ -125,19 +127,21 @@ test('kindFromMarkets: binary / ladder / categorical from event shape (no parser
   assert.throws(() => kindFromMarkets([]), /no markets/);
 });
 
-test('binary confidence: liquid → high; illiquid+thin → low with reasons', () => {
+test('binary confidence (split): liquid → high/high; illiquid+thin → spread drags reliability, volume drags liquidity', () => {
   const liquid = scoreBinaryConfidence({ probability: 0.105, bestBid: '0.10', bestAsk: '0.11', totalVolume: 1_600_000 });
-  assert.equal(liquid.tier, 'high');
+  assert.equal(liquid.reliability.tier, 'high'); // tight spread
+  assert.equal(liquid.liquidity.tier, 'high');   // deep volume
 
   const illiquid = scoreBinaryConfidence({ probability: 0.145, bestBid: '0.08', bestAsk: '0.21', totalVolume: 2978 });
-  assert.equal(illiquid.tier, 'low');
-  assert.ok(illiquid.reasons.some((r) => /spread .*pp \(illiquid\)/.test(r)));
-  assert.ok(illiquid.reasons.some((r) => /thin volume/.test(r)));
-  assert.ok(illiquid.reasons.some((r) => /% of the implied probability/.test(r)));
+  assert.equal(illiquid.reliability.tier, 'low'); // wide spread
+  assert.equal(illiquid.liquidity.tier, 'low');   // thin volume
+  assert.ok(illiquid.reliability.reasons.some((r) => /spread .*pp \(illiquid\)/.test(r)));
+  assert.ok(illiquid.liquidity.reasons.some((r) => /thin volume/.test(r)));
+  assert.ok(illiquid.reliability.reasons.some((r) => /% of the implied probability/.test(r)));
 
-  // Phase-1 fallback flows through to binary confidence too
+  // Phase-1 last-trade fallback is a RELIABILITY signal here too.
   const lt = scoreBinaryConfidence({ probability: 0.5, bestBid: '0.49', bestAsk: '0.51', totalVolume: 500000, midpointFallback: { lastTradeCount: 1, skippedCount: 0 } });
-  assert.ok(lt.reasons.some((r) => /priced from last trade/.test(r)) && lt.tier !== 'high');
+  assert.ok(lt.reliability.reasons.some((r) => /priced from last trade/.test(r)) && lt.reliability.tier !== 'high');
 });
 
 test('validateRecord throws on a negative/inconsistent bucket', () => {
@@ -163,7 +167,10 @@ test('hash: MATCH on real inputs, MISMATCH on a mutated copy', () => {
 test('narrative asserts nothing absent from narrative_components', () => {
   const derived = {
     implied_median: 2.1,
-    confidence: { tier: 'medium', reasons: ['price-only history (no bid/ask spread)'] },
+    confidence: {
+      reliability: { tier: 'medium', score: 0.6, reasons: ['price-only history (no bid/ask spread)'] },
+      liquidity: { tier: 'high', score: 1, reasons: ['deep books'] },
+    },
   };
   const density = [{ label: '$2–2.2T', prob: 0.3 }, { label: '$1.8–2T', prob: 0.2 }];
   const { narrative, narrative_components } = buildNarrative({ derived, prior7d: 2.0, prior30d: 2.05, density });

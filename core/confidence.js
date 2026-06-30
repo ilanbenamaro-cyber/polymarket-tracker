@@ -14,6 +14,24 @@ const THIN_SHARE_HIGH = 0.2; // < 20% thin books → fine
 const THIN_SHARE_MEDIUM = 0.5; // 20–50% thin → medium
 const MATERIAL_ADJUSTMENT = 0.005; // 0.5%: below this an isotonic tweak is immaterial
 const TIER_RANK = { low: 0, medium: 1, high: 2 };
+// Score a windowed/categorical tier contributes to a 0..1 dimension score.
+const TIER_SCORE = { high: 1, medium: 0.5, low: 0.15 };
+
+/** The worst (lowest) tier in a list; 'high' when the list is empty (no signal = no objection).
+ *  Shared by every scorer to collapse a dimension's signals into one tier. */
+export function worstTier(tiers) {
+  return (tiers ?? []).reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
+}
+
+/** Collapse a split confidence { reliability, liquidity } back to the LEGACY single worst tier.
+ *  The old single confidence tier was the worst of all signals; splitting partitions those signals
+ *  into two dimensions, so the old tier is recoverable as the worst of the two independent tiers.
+ *  Used for the legacy DB column (back-compat) and the SpaceX parity faithfulness proof. */
+export function collapseConfidenceTier(confidence) {
+  if (!confidence) return null;
+  const r = confidence.reliability?.tier, l = confidence.liquidity?.tier;
+  return worstTier([r, l].filter(Boolean));
+}
 
 const NEAR_SETTLEMENT_DAYS = 7;
 const EXTREME_LOW = 0.01;
@@ -109,15 +127,21 @@ function meanSpread(rawInputs) {
 }
 
 /**
- * Score a snapshot. All inputs are facts already computed in core/ — confidence
- * never recomputes a metric, it only interprets:
+ * Score a snapshot into TWO INDEPENDENT dimensions (the conceptual split):
+ *   RELIABILITY — is the displayed number itself trustworthy? (threshold count, monotonicity,
+ *                 spread, last-trade fallback, missing rungs, stale feed)
+ *   LIQUIDITY   — can you actually transact at this price? (book-thin breadth, windowed volume,
+ *                 closed/not-accepting-orders rungs, liquidity drop)
+ * These are genuinely orthogonal: a market can be HIGH reliability + LOW liquidity (everyone
+ * agrees, nobody trades) or the reverse. All inputs are facts already computed in core/ —
+ * confidence never recomputes a metric, it only interprets:
  *   markets       : adjusted markets [{threshold,...}]
  *   rawInputs     : [{best_bid,best_ask,...}] | null (null => price-only)
  *   rawViolations : monotonicity violations on RAW (from stats.adjustSnapshot)
  *   maxAdjustment : largest |raw - adjusted| (fraction)
  *   liquidity     : { thinCount, total, thinShare } (from stats.volumeTiers)
  *   anomalies     : { stale, closedCount, liquidityDrop:{triggered,pct}|null }
- * Returns { tier, score(0..1), reasons[] }.
+ * Returns { reliability:{tier,score,reasons}, liquidity:{tier,score,reasons} }.
  */
 export function scoreConfidence({
   markets,
@@ -135,8 +159,8 @@ export function scoreConfidence({
   windowedVolume = null,
   daysToExpiry = null,
 }) {
-  const reasons = [];
-  const tiers = [];
+  const relTiers = [], relReasons = [];
+  const liqTiers = [], liqReasons = [];
   const count = markets.length;
   const spread = meanSpread(rawInputs);
   const priceOnly = spread == null;
@@ -144,152 +168,156 @@ export function scoreConfidence({
   // data-quality anomaly — don't let them drag the tier (SpaceX is OPEN → no effect).
   const settled = lifecycle != null && lifecycle.state != null && lifecycle.state !== 'OPEN';
   // Bug 3 recalibration (CONFINED to the near-settlement path): once the outcome is decided
-  // (expiring ≤7d, rungs pinned to ~0/~1), the large monotonicity adjustments, closed rungs,
-  // and last-trade-priced legs are the EXPECTED signature of a winding-down book, not
-  // data-quality red flags — so they must not drag a liquid market to LOW. `expected` gates
-  // every carve-out; a normal market (incl. frozen SpaceX, ~18mo out → nearSettled false) is
-  // byte-identical. A genuinely missing price (skippedCount) is still a real CDF hole and
-  // still penalizes, even near settlement.
+  // (expiring ≤7d, rungs pinned to ~0/~1), the large monotonicity adjustments and last-trade-priced
+  // legs are the EXPECTED signature of a winding-down book, not data-quality red flags — so they
+  // must not drag RELIABILITY to LOW. (LIQUIDITY stays genuinely low near settlement — you can't
+  // trade it — but that reads through the windowed-volume signal, not the carve-out.) `expected`
+  // gates the reliability carve-outs; a normal market (incl. frozen SpaceX, ~18mo out → nearSettled
+  // false) is byte-identical. A genuinely missing price (skippedCount) is still a real CDF hole.
   const expected = settled || nearSettled;
 
-  // 1) Threshold count — resolution of the CDF.
-  if (count >= countHigh) tiers.push('high');
+  // ════ RELIABILITY — is the number trustworthy? ════
+  // R1) Threshold count — resolution of the CDF.
+  if (count >= countHigh) relTiers.push('high');
   else if (count >= countMedium) {
-    tiers.push('medium');
-    reasons.push(`${count} active thresholds (coarser CDF)`);
+    relTiers.push('medium');
+    relReasons.push(`${count} active thresholds (coarser CDF)`);
   } else {
-    tiers.push('low');
-    reasons.push(`only ${count} active thresholds (sparse CDF)`);
+    relTiers.push('low');
+    relReasons.push(`only ${count} active thresholds (sparse CDF)`);
   }
 
-  // 2) Monotonicity — penalize by the MAGNITUDE of the isotonic adjustment, not
+  // R2) Monotonicity — penalize by the MAGNITUDE of the isotonic adjustment, not
   //    the raw count: a violation pooled to a sub-0.5% tweak is immaterial noise and
   //    must not drop the tier (a quant would rightly call that over-penalizing).
   const adjPct = maxAdjustment * 100;
   const adjStr = adjPct < 0.05 ? '<0.05%' : `${adjPct.toFixed(1)}%`;
   if (rawViolations === 0) {
-    tiers.push('high');
+    relTiers.push('high');
   } else if (nearSettled) {
     // Near settlement, rungs pinning to 0/1 manufacture large apparent violations — structural,
     // not noisy quotes. Don't penalize (let an otherwise-clean converged ladder reach HIGH).
-    tiers.push('high');
-    reasons.push(`${rawViolations} monotonicity adjustment(s) (max ${adjStr}) — expected near settlement`);
+    relTiers.push('high');
+    relReasons.push(`${rawViolations} monotonicity adjustment(s) (max ${adjStr}) — expected near settlement`);
   } else if (maxAdjustment < MATERIAL_ADJUSTMENT) {
-    tiers.push('high');
-    reasons.push(`${rawViolations} negligible monotonicity tweak(s) (max ${adjStr})`);
+    relTiers.push('high');
+    relReasons.push(`${rawViolations} negligible monotonicity tweak(s) (max ${adjStr})`);
   } else if (rawViolations <= 2) {
-    tiers.push('medium');
-    reasons.push(`${rawViolations} monotonicity adjustment(s) today (max ${adjStr})`);
+    relTiers.push('medium');
+    relReasons.push(`${rawViolations} monotonicity adjustment(s) today (max ${adjStr})`);
   } else {
-    tiers.push('low');
-    reasons.push(`${rawViolations} monotonicity adjustments (max ${adjStr}) — noisy quotes`);
+    relTiers.push('low');
+    relReasons.push(`${rawViolations} monotonicity adjustments (max ${adjStr}) — noisy quotes`);
   }
 
-  // 3) Spread — liquidity at the touch (live only). Tolerance WIDENS near expiry (Increment 3): a
-  //    wide spread on a market expiring soon is MMs exiting, not illiquidity. SpaceX (~550d → ×1.0,
-  //    tight spread → HIGH, no reason) is byte-identical.
+  // R3) Spread — how well-defined the displayed midpoint is. Tolerance WIDENS near expiry
+  //    (Increment 3): a wide spread on a market expiring soon is MMs exiting, not a noisy price.
+  //    SpaceX (~550d → ×1.0, tight spread → HIGH, no reason) is byte-identical.
   const spreadMult = spreadToleranceMultiplier(daysToExpiry);
   const sHigh = SPREAD_HIGH * spreadMult;
   const sMedium = SPREAD_MEDIUM * spreadMult;
   const note = expiryNote(daysToExpiry);
   if (priceOnly) {
-    tiers.push('medium');
-    reasons.push('price-only history (no bid/ask spread)');
-  } else if (spread < sHigh) tiers.push('high');
+    relTiers.push('medium');
+    relReasons.push('price-only history (no bid/ask spread)');
+  } else if (spread < sHigh) relTiers.push('high');
   else if (spread <= sMedium) {
-    tiers.push('medium');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
+    relTiers.push('medium');
+    relReasons.push(`mean spread ${(spread * 100).toFixed(1)}% (${spreadMult > 1 ? `expected near expiry${note}` : 'moderate liquidity'})`);
   } else {
-    tiers.push('low');
-    reasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid${note})`);
+    relTiers.push('low');
+    relReasons.push(`mean spread ${(spread * 100).toFixed(1)}% (illiquid${note})`);
   }
 
-  // 4) Liquidity breadth — how many books are thin.
-  if (liquidity && liquidity.total > 0) {
-    if (liquidity.thinShare < THIN_SHARE_HIGH) tiers.push('high');
-    else if (liquidity.thinShare <= THIN_SHARE_MEDIUM) {
-      tiers.push('medium');
-      reasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
-    } else {
-      tiers.push('low');
-      reasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
-    }
+  // R4) Stale feed — inputs identical to the prior snapshot ⇒ the displayed number may be stale.
+  if (anomalies && anomalies.stale) {
+    relTiers.push('medium');
+    relReasons.push('inputs identical to prior snapshot (possible stale feed)');
   }
 
-  // 5) Anomalies — the feed is defensive about its own quality.
-  if (anomalies) {
-    if (anomalies.stale) {
-      tiers.push('medium');
-      reasons.push('inputs identical to prior snapshot (possible stale feed)');
-    }
-    if (anomalies.closedCount > 0 && !expected) {
-      tiers.push(anomalies.closedCount > 2 ? 'low' : 'medium');
-      reasons.push(`${anomalies.closedCount} market(s) closed / not accepting orders`);
-    }
-    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) {
-      tiers.push('medium');
-      reasons.push(
-        `total volume ${(anomalies.liquidityDrop.pct * 100).toFixed(0)}% below 7-day median`
-      );
-    }
-  }
-
-  // 6) Midpoint fallback — rungs with no live midpoint priced from the last trade
-  //    (no live book), or excluded for want of any price. A rung off the live book is
-  //    less trustworthy, so it degrades the tier. Null/zero on the normal path → no
-  //    effect (SpaceX has none → frozen confidence unchanged).
+  // R5) Midpoint fallback — rungs priced from the last trade (no live book) or excluded for want of
+  //    any price. A price off a stale trade is a RELIABILITY detractor (the displayed number's
+  //    provenance), not a liquidity one (the can't-trade aspect is covered by volume/spread). Null/
+  //    zero on the normal path → no effect (SpaceX has none → frozen reliability unchanged).
   if (midpointFallback) {
     if (midpointFallback.lastTradeCount > 0) {
-      // A leg off the live book is EXPECTED for a settled/near-settled market (winding down),
-      // so it's not a trust detractor there — say "settled", don't read as illiquid.
-      tiers.push(expected ? 'high' : 'medium');
-      reasons.push(expected
+      // Expected near settlement (winding-down book) — say "settled", don't read as a defect.
+      relTiers.push(expected ? 'high' : 'medium');
+      relReasons.push(expected
         ? `${midpointFallback.lastTradeCount} settled rung(s) (priced from last trade)`
         : `${midpointFallback.lastTradeCount} rung(s) priced from last trade (no live book)`);
     }
     if (midpointFallback.skippedCount > 0) {
       // A genuinely missing price punches a hole in the CDF — a real defect even near settlement.
-      tiers.push('low');
+      relTiers.push('low');
       const ts = (midpointFallback.skippedThresholds ?? []).join(', ');
-      reasons.push(`${midpointFallback.skippedCount} rung(s) excluded (no price)${ts ? `: ${ts}` : ''}`);
+      relReasons.push(`${midpointFallback.skippedCount} rung(s) excluded (no price)${ts ? `: ${ts}` : ''}`);
     }
   }
 
-  // 7) Windowed volume (Increment 1) — recent liquidity. When present it caps/raises the tier like
-  //    any other signal; absent (frozen replay) it's a no-op → SpaceX byte-identical. The all-time
-  //    volume tier in the binary/touch/categorical scorers remains the FALLBACK when this is absent.
+  // ════ LIQUIDITY — can you transact at this price? ════
+  // L1) Book-thin breadth — how many of the rungs' books are thin.
+  if (liquidity && liquidity.total > 0) {
+    if (liquidity.thinShare < THIN_SHARE_HIGH) liqTiers.push('high');
+    else if (liquidity.thinShare <= THIN_SHARE_MEDIUM) {
+      liqTiers.push('medium');
+      liqReasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
+    } else {
+      liqTiers.push('low');
+      liqReasons.push(`thin liquidity on ${liquidity.thinCount} of ${liquidity.total} markets`);
+    }
+  }
+
+  // L2) Closed / not-accepting-orders rungs — you literally cannot trade them (a LIQUIDITY fact;
+  //    the stale-price aspect is covered separately by R5 last-trade fallback). Suppressed when the
+  //    market is settled/near-settled — closed rungs are then the expected terminal condition.
+  if (anomalies) {
+    if (anomalies.closedCount > 0 && !expected) {
+      liqTiers.push(anomalies.closedCount > 2 ? 'low' : 'medium');
+      liqReasons.push(`${anomalies.closedCount} market(s) closed / not accepting orders`);
+    }
+    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) {
+      liqTiers.push('medium');
+      liqReasons.push(`total volume ${(anomalies.liquidityDrop.pct * 100).toFixed(0)}% below 7-day median`);
+    }
+  }
+
+  // L3) Windowed volume (Increment 1) — recent flow is the primary "can you trade this" signal.
+  //    Absent (frozen replay) it's a no-op → SpaceX byte-identical.
   const winVol = windowedVolumeSignal(windowedVolume);
   if (winVol) {
-    tiers.push(winVol.tier);
-    if (winVol.reason) reasons.push(winVol.reason);
+    liqTiers.push(winVol.tier);
+    if (winVol.reason) liqReasons.push(winVol.reason);
   }
 
-  const tier = tiers.reduce((a, b) => (TIER_RANK[b] < TIER_RANK[a] ? b : a), 'high');
-
-  // Smooth 0..1 score for sorting / the badge.
+  // ── reliability score (0..1) ──
   const countScore = Math.min(1, count / ladderSize);
-  // Near settlement, the isotonic adjustment is structural (rungs pinning to 0/1), not noise.
   const monoScore = nearSettled ? 1 : Math.max(0, 1 - rawViolations / 4) * Math.max(0, 1 - maxAdjustment / 0.1);
   const spreadScore = priceOnly ? 0.6 : Math.max(0, Math.min(1, 1 - spread / 0.1));
-  const liqScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
-  // Windowed volume joins as a 5th averaged term ONLY when present, so a market without it (frozen
-  // SpaceX replay) keeps the exact 4-term average → byte-identical score.
-  const baseTerms = [countScore, monoScore, spreadScore, liqScore];
-  if (winVol) baseTerms.push(winVol.tier === 'high' ? 1 : winVol.tier === 'medium' ? 0.5 : 0.15);
-  let score = baseTerms.reduce((a, b) => a + b, 0) / baseTerms.length;
-  if (anomalies) {
-    if (anomalies.stale) score -= 0.15;
-    if (anomalies.closedCount > 0 && !expected) score -= 0.1 * Math.min(3, anomalies.closedCount);
-    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) score -= 0.1;
-  }
+  let relScore = (countScore + monoScore + spreadScore) / 3;
+  if (anomalies && anomalies.stale) relScore -= 0.15;
   if (midpointFallback) {
-    // Expected last-trade legs near settlement aren't a score detractor; a skipped rung still is.
-    if (!expected) score -= 0.05 * Math.min(4, midpointFallback.lastTradeCount ?? 0);
-    score -= 0.1 * Math.min(4, midpointFallback.skippedCount ?? 0);
+    if (!expected) relScore -= 0.05 * Math.min(4, midpointFallback.lastTradeCount ?? 0);
+    relScore -= 0.1 * Math.min(4, midpointFallback.skippedCount ?? 0);
   }
-  score = Number(Math.max(0, Math.min(1, score)).toFixed(3));
+  relScore = Number(Math.max(0, Math.min(1, relScore)).toFixed(3));
 
-  if (reasons.length === 0) reasons.push('full threshold set, monotonic, tight spreads, deep books');
+  // ── liquidity score (0..1) ──
+  const liqBreadthScore = liquidity ? Math.max(0, 1 - liquidity.thinShare) : 0.7;
+  const liqTerms = [liqBreadthScore];
+  if (winVol) liqTerms.push(TIER_SCORE[winVol.tier]);
+  let liqScore = liqTerms.reduce((a, b) => a + b, 0) / liqTerms.length;
+  if (anomalies) {
+    if (anomalies.closedCount > 0 && !expected) liqScore -= 0.1 * Math.min(3, anomalies.closedCount);
+    if (anomalies.liquidityDrop && anomalies.liquidityDrop.triggered) liqScore -= 0.1;
+  }
+  liqScore = Number(Math.max(0, Math.min(1, liqScore)).toFixed(3));
 
-  return { tier, score, reasons };
+  if (relReasons.length === 0) relReasons.push('full threshold set, monotonic, tight spreads');
+  if (liqReasons.length === 0) liqReasons.push('deep books');
+
+  return {
+    reliability: { tier: worstTier(relTiers), score: relScore, reasons: relReasons },
+    liquidity: { tier: worstTier(liqTiers), score: liqScore, reasons: liqReasons },
+  };
 }

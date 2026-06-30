@@ -93,7 +93,10 @@ test('D1 rounding: stored velocity display == formatter, and narrative uses it',
 });
 
 test('narrative claims are all backed by components; trend gated on confidence', () => {
-  const derived = { implied_median: 2.1, confidence: { tier: 'low', reasons: ['price-only history (no bid/ask spread)'] } };
+  const derived = { implied_median: 2.1, confidence: {
+    reliability: { tier: 'low', score: 0.3, reasons: ['price-only history (no bid/ask spread)'] },
+    liquidity: { tier: 'high', score: 1, reasons: ['deep books'] },
+  } };
   const analytics = {
     velocity: { change_7d: { abs: -0.2, dir: 'down' }, change_30d: { abs: 0.05, dir: 'up' } },
     shape: { skew_bowley: 0.2 },

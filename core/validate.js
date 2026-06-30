@@ -174,8 +174,8 @@ export function validateRecord(record) {
 /** Lightweight invariant check for a single history-day entry (no schema). */
 export function validateHistoryEntry(entry) {
   if (!entry.date) throw new Error('history entry missing date');
-  if (!entry.confidence || !entry.confidence.tier) {
-    throw new Error(`history ${entry.date} missing confidence.tier`);
+  if (!entry.confidence || !entry.confidence.reliability?.tier || !entry.confidence.liquidity?.tier) {
+    throw new Error(`history ${entry.date} missing confidence.reliability.tier / confidence.liquidity.tier`);
   }
   const errors = bucketErrors(entry.markets, `history ${entry.date}`);
   if (errors.length > 0) throw new Error(errors.join('; '));

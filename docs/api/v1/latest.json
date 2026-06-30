@@ -163,11 +163,20 @@
         "max_adjustment": 1.1102230246251565e-16
       },
       "confidence": {
-        "tier": "high",
-        "score": 0.997,
-        "reasons": [
-          "full threshold set, monotonic, tight spreads, deep books"
-        ]
+        "reliability": {
+          "tier": "high",
+          "score": 0.996,
+          "reasons": [
+            "full threshold set, monotonic, tight spreads"
+          ]
+        },
+        "liquidity": {
+          "tier": "high",
+          "score": 1,
+          "reasons": [
+            "deep books"
+          ]
+        }
       },
       "markets": [
         {

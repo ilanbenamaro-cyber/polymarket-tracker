@@ -30,10 +30,13 @@ function assertBackfillProvenance(rec) {
   }
   // the stored hash is reproducible from the stored raw_inputs (same recipe)
   assert.equal(s.source.raw_sha256, rehash(s.raw_inputs));
-  // confidence capped at MEDIUM (never HIGH) with the historical-backfill reason
+  // BOTH confidence dimensions capped at MEDIUM (never HIGH) with the historical-backfill reason —
+  // a reconstructed day has no live book/spread (reliability) AND no windowed volume (liquidity).
   const c = s.derived.confidence;
-  assert.ok(c.tier === 'medium' || c.tier === 'low', `tier ${c.tier} should be ≤ medium`);
-  assert.ok(c.reasons.some((r) => /historical backfill/i.test(r)), 'has a historical-backfill reason');
+  for (const dim of ['reliability', 'liquidity']) {
+    assert.ok(c[dim].tier === 'medium' || c[dim].tier === 'low', `${dim} tier ${c[dim].tier} should be ≤ medium`);
+    assert.ok(c[dim].reasons.some((r) => /historical backfill/i.test(r)), `${dim} has a historical-backfill reason`);
+  }
 }
 
 // ── survival ladder ─────────────────────────────────────────────────────────────

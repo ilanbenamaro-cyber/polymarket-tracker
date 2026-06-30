@@ -22,7 +22,10 @@ export function buildNarrative({ derived, analytics = null, prior7d = null, prio
   const us = config?.narrative?.unit_suffix ?? 'T';
   const fmtV = (x) => `${up}${x.toFixed(2)}${us}`;
   const median = derived.implied_median;
-  const tier = derived.confidence.tier;
+  // The narrative softens TREND claims on a low-trust day — that is about whether the NUMBER is
+  // trustworthy, so it keys off RELIABILITY (not liquidity). For SpaceX reliability.tier === the
+  // frozen single tier ('high') → byte-identical narrative.
+  const tier = derived.confidence.reliability.tier;
   const velocity = analytics?.velocity ?? null;
   const shape = analytics?.shape ?? null;
   const dispersion = analytics?.dispersion ?? null;
@@ -45,7 +48,7 @@ export function buildNarrative({ derived, analytics = null, prior7d = null, prio
       : shape.skew_bowley > 0.1 ? 'a longer upside tail'
       : shape.skew_bowley < -0.1 ? 'a longer downside tail'
       : null;
-  const caveat = tier !== 'high' ? derived.confidence.reasons[0] : null;
+  const caveat = tier !== 'high' ? derived.confidence.reliability.reasons[0] : null;
 
   const components = {
     median_now: median,

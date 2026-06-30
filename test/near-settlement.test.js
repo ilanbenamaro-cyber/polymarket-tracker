@@ -55,23 +55,26 @@ const ladderInputs = (nearSettled) => ({
   nearSettled,
 });
 
-test('recalibration: a near-settled liquid ladder is MEDIUM or HIGH, not LOW', () => {
-  assert.notEqual(scoreConfidence(ladderInputs(true)).tier, 'low');
+// The recalibration is a RELIABILITY carve-out (the winding-down artifacts must not drag the number's
+// trustworthiness). Liquidity stays genuinely low near settlement — you can't trade it — but that is
+// not what this Bug-3 carve-out governs.
+test('recalibration: a near-settled liquid ladder is MEDIUM or HIGH reliability, not LOW', () => {
+  assert.notEqual(scoreConfidence(ladderInputs(true)).reliability.tier, 'low');
 });
 
-test('recalibration: identical inputs WITHOUT near-settlement are LOW (the carve-out is what lifts it)', () => {
-  assert.equal(scoreConfidence(ladderInputs(false)).tier, 'low');
+test('recalibration: identical inputs WITHOUT near-settlement are LOW reliability (the carve-out lifts it)', () => {
+  assert.equal(scoreConfidence(ladderInputs(false)).reliability.tier, 'low');
 });
 
 test('recalibration: near-settled reasons explain the expected artifacts (settled / near settlement)', () => {
   const c = scoreConfidence(ladderInputs(true));
-  assert.ok(c.reasons.some((r) => /settl/i.test(r)), `expected a settlement reason, got: ${c.reasons.join(' | ')}`);
+  assert.ok(c.reliability.reasons.some((r) => /settl/i.test(r)), `expected a settlement reason, got: ${c.reliability.reasons.join(' | ')}`);
 });
 
-test('recalibration: a genuinely skipped rung (no price) still penalizes even near settlement', () => {
+test('recalibration: a genuinely skipped rung (no price) still penalizes reliability even near settlement', () => {
   const inp = ladderInputs(true);
   inp.midpointFallback = { lastTradeCount: 0, skippedCount: 2 }; // a real CDF hole, not an expected artifact
-  assert.equal(scoreConfidence(inp).tier, 'low');
+  assert.equal(scoreConfidence(inp).reliability.tier, 'low');
 });
 
 // ── Bug 3: ladder derived.near_settlement wiring (omit-when-false → parity-safe) ──

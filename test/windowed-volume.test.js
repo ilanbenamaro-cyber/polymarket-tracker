@@ -76,14 +76,20 @@ test('aggregateLiquidity: null when NO leg carries windowed data (omit-when-abse
 // ── scoreConfidence wiring (present caps/raises tier; absent is byte-identical) ──
 function ladder(n) { return Array.from({ length: n }, (_, i) => ({ threshold: i, prob: 0.5, adjusted_prob: 0.5 })); }
 
-test('scoreConfidence: thin recent volume drags an otherwise-clean ladder to LOW', () => {
+test('scoreConfidence (split): thin recent volume drags LIQUIDITY to LOW but leaves RELIABILITY HIGH', () => {
+  // The CT-Governor fix at the unit level: an otherwise-clean ladder (full, monotonic, tight spread)
+  // with near-zero recent volume is HIGH reliability (the number is trustworthy) + LOW liquidity (you
+  // can't trade it) — no longer collapsed to a single misleading LOW.
   const base = { markets: ladder(16), rawInputs: ladder(16).map(() => ({ best_bid: '0.49', best_ask: '0.51' })) };
   const high = scoreConfidence({ ...base, windowedVolume: { volume_24hr: 80_000, volume_1wk: 300_000 } });
   const low = scoreConfidence({ ...base, windowedVolume: { volume_24hr: 100, volume_1wk: 1_000 } });
-  assert.equal(high.tier, 'high');
-  assert.equal(low.tier, 'low');
-  assert.ok(low.reasons.some((r) => /thin 24h volume/.test(r)));
-  assert.ok(low.score < high.score);
+  assert.equal(high.liquidity.tier, 'high');
+  assert.equal(low.liquidity.tier, 'low');
+  // The split: thin recent volume is a LIQUIDITY signal — it no longer drags reliability.
+  assert.equal(high.reliability.tier, 'high');
+  assert.equal(low.reliability.tier, 'high');
+  assert.ok(low.liquidity.reasons.some((r) => /thin 24h volume/.test(r)));
+  assert.ok(low.liquidity.score < high.liquidity.score);
 });
 
 test('scoreConfidence: absent windowed volume leaves tier/score/reasons unchanged (parity safety)', () => {
