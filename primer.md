@@ -8,9 +8,11 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — A + B MERGED; C DONE on branch, awaiting review
-- **Increment C — DONE, on `feature/confidence-book-depth`, awaiting review** (code `9f95693`, knowledge
-  follows). Order-book DEPTH → LIQUIDITY: gamma's per-market `liquidity` field ($ resting orders) is in the
+## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — A + B + C ALL MERGED + PUSHED; red-team next
+- **EPIC COMPLETE.** A (`4462960`) + B (`cf0c185`) + C (`545d1ce`) all **merged --no-ff, pushed, in sync**;
+  **332/332** on merged main, **parity 4/4**, tsc + build clean. Migration 0010 applied dev+prod.
+  **NEXT: red-team pass on the consolidated tuning constants** (see the ⚠ list below) — plan first.
+- **Increment C MERGED** (`545d1ce`). Order-book DEPTH → LIQUIDITY: gamma's per-market `liquidity` field ($ resting orders) is in the
   meta we already fetch (no extra call); `derived.liquidity.book_depth` = MAX per-leg (not a sum). Tiers
   HIGH ≥$100K / MED ≥$10K / LOW (calibrated on ~150 live markets), fed worst-of with windowed volume into
   LIQUIDITY across all 4 scorers — a thin book caps liquidity even at high volume (real case: $3.15M/24h +
