@@ -5,6 +5,26 @@ Newest at top. If you're about to change one of these, read the entry first.
 
 ---
 
+## Consensus + decisiveness → RELIABILITY (confidence split, Increment B)
+**Decided (2026-06-30):** Strong agreement makes the HEADLINE number reliable even on a thin book, so
+it feeds RELIABILITY (additive; no schema change). **Categorical:** a concentrated distribution (norm.
+entropy ≤ 0.40 AND a ≥70% leader) LIFTS a spread-driven `medium` reliability to `high` — `meanSpread`
+averages across legs, so a tight 98% leader + wide thin tail-legs reads `medium` even though the
+headline is decisive; the lift corrects that. It NEVER lifts a `low` (>8% averaged book — genuinely
+illiquid) or a `skipped`/`last-trade` defect (those cap separately). `buildCategoricalRecord` passes
+`entropy`+`dominantProb` to the scorer. **Binary:** a decisive prob (≤0.02 / ≥0.98) whose spread is a
+MINORITY of the smaller tail (rel ≤ 0.5) adds a "price well-determined" reliability REASON — but **no
+tier lift**, deliberately: a binary has a SINGLE book (no wide-tail-leg averaging to correct), and a
+medium-band spread on an extreme line ALWAYS dominates the tiny tail, so there is no legitimate
+medium→high lift to make (the rel-spread guard would always block it). The asymmetry categorical-lifts
+/ binary-reason-only is the load-bearing insight.
+**Why:** the CT-Governor case (Fazio 98%) should read RELIABILITY HIGH *because of the consensus*, not
+merely because volume moved to the liquidity tier — Increment A stopped volume dragging it; B makes the
+consensus an explicit positive reliability signal. **Constrains:** thresholds (entropy 0.40 / leader
+0.70 / rel-spread 0.50) are tuning constants — a future red-team should pressure-test them. Ladder/touch
+untouched; SpaceX parity 4/4 byte-identical (categorical/binary-only). methodology 1.6.0. The lift must
+stay gated so it can never raise a market with a real defect. See the Increment-A entry below.
+
 ## Confidence SPLIT into two independent tiers — RELIABILITY + LIQUIDITY (Increment A)
 **Decided (2026-06-30):** The single confidence tier conflated two genuinely orthogonal questions, so
 a 98%-consensus market with no recent volume (CT Republican Primary — Ryan Fazio at 98%) read LOW and

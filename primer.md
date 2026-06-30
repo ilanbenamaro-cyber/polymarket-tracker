@@ -26,13 +26,17 @@
 - **schema 2.0.0** (breaking confidence shape), **methodology 1.5.0**, **migration 0010** (reliability_/
   liquidity_ tier+score on market_snapshots + market_history; legacy confidence_* kept = collapsed worst;
   NO backfill of the missing half — never fabricate; display "—" until new data accrues).
-- **⚠ OPERATOR:** apply **migration 0010** before deploy (rail/detail read the new columns; legacy rows
-  render "—" for the missing half until the cron accrues split rows). `latest.json` regenerated;
-  `history-full.json` split in place; `history.csv` untouched.
-- **NEXT (awaiting review before proceeding): Increment B** — entropy→reliability (categorical, makes the
-  consensus itself lift reliability) + extreme-prob→reliability (binary). **Increment C** — book-depth into
-  liquidity (⚠ no gamma book-depth field is currently fetched — only ladder thinShare + spread exist; C
-  must reuse those or add a fetch). See [[decisions]] "Confidence SPLIT into two independent tiers" +
+- **⚠ OPERATOR:** migration 0010 **applied to dev + prod.** `latest.json` regenerated; `history-full.json`
+  split in place; `history.csv` untouched.
+- **Increment B — DONE, on `feature/confidence-reliability-enrichment`, awaiting review** (commits
+  `db29c7c` code+test+methodology, knowledge follows). Consensus/decisiveness → RELIABILITY: categorical
+  strong consensus (entropy ≤0.40 + ≥70% leader) LIFTS a spread-medium reliability to high (never over a
+  real defect); binary decisive prob (≤0.02/≥0.98) with a tail-minority spread adds a "well-determined"
+  reason (no tier lift — single-book asymmetry). CT case now reads RELIABILITY HIGH *because of consensus*.
+  methodology 1.6.0; **329/329; parity 4/4.** See [[decisions]] "Consensus + decisiveness → RELIABILITY".
+- **NEXT: Increment C** — book-depth into liquidity (⚠ no gamma book-depth field is currently fetched —
+  only ladder thinShare + spread exist; C must reuse those or add a fetch). See [[decisions]] "Confidence
+  SPLIT into two independent tiers" +
   [[gotchas]] "A breaking `derived` SHAPE change…" / "Changing a `.mjs` signature breaks the consuming `.tsx`".
 
 ## ⮕ DIRECTION (2026-06-29): ANALYTICAL-DEPTH PASS (7 increments) — MERGED to main (`--no-ff` `2c3f56c`) + PUSHED
