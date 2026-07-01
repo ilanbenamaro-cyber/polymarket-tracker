@@ -11,26 +11,56 @@
 import { parseMoney } from './money.js';
 
 const BETWEEN_RE = /between\s+(\$[\d.,]+[KMBT]?)\s+and\s+(\$[\d.,]+[KMBT]?)/i;
+// Percentage-denominated buckets (e.g. UK GDP growth: "between 0% and 1%", "below 0%", "5% or higher").
+// Values are SIGNED — growth can be negative — so the mantissa pattern allows a leading '-'.
+const PCT_BETWEEN_RE = /between\s+(-?[\d.]+)\s*%\s+and\s+(-?[\d.]+)\s*%/i;
+const PCT_VALUE_RE = /(-?\d+(?:\.\d+)?)\s*%/;
 const LESS_RE = /less than|below|under|or less|or lower|or fewer/i;
 const GREATER_RE = /greater|above|or more|or greater|at least|higher/i;
 
-/** A bucket leg's question → { lo, hi } interval in absolute dollars, or null when the
- *  leg carries no $ amount (a categorical leg such as "Will X not IPO …" — excluded). */
+/** A bucket leg's question → { lo, hi, unit } interval, or null when the leg carries no parseable
+ *  amount (a categorical leg such as "Will X not IPO …" — excluded from the PMF). `unit` is '$' for
+ *  dollar-denominated buckets (Bitcoin, Anthropic) or '%' for percentage-denominated ones (UK GDP
+ *  growth). Dollars have a natural 0 floor ("less than $X" → [0, X)); percentages do NOT — growth
+ *  can be negative, so "below 0%" is the open interval (-∞, 0). The PMF math is unit-agnostic (it
+ *  operates on the numeric lo/hi); only the display denomination differs. */
 export function parseBucketLeg(question) {
   if (question == null) return null;
   const s = String(question);
+
+  // ── dollar path (Bitcoin / Anthropic) — unchanged; tried first ──
   const between = s.match(BETWEEN_RE);
   if (between) {
     const a = parseMoney(between[1])?.value;
     const b = parseMoney(between[2])?.value;
     if (a == null || b == null) return null;
-    return { lo: Math.min(a, b), hi: Math.max(a, b) };
+    return { lo: Math.min(a, b), hi: Math.max(a, b), unit: '$' };
   }
   const money = parseMoney(s);
-  if (!money) return null; // categorical leg — no $ amount
-  if (LESS_RE.test(s)) return { lo: 0, hi: money.value };
-  if (GREATER_RE.test(s)) return { lo: money.value, hi: Infinity };
-  return { lo: money.value, hi: Infinity }; // single-bound fallback → treat as ">= value"
+  if (money) {
+    if (LESS_RE.test(s)) return { lo: 0, hi: money.value, unit: '$' };
+    if (GREATER_RE.test(s)) return { lo: money.value, hi: Infinity, unit: '$' };
+    return { lo: money.value, hi: Infinity, unit: '$' }; // single-bound fallback → ">= value"
+  }
+
+  // ── percent path (no $ token) ──
+  const pctBetween = s.match(PCT_BETWEEN_RE);
+  if (pctBetween) {
+    const a = parseFloat(pctBetween[1]), b = parseFloat(pctBetween[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return { lo: Math.min(a, b), hi: Math.max(a, b), unit: '%' };
+  }
+  const pct = s.match(PCT_VALUE_RE);
+  if (pct) {
+    const v = parseFloat(pct[1]);
+    if (!Number.isFinite(v)) return null;
+    // NO 0 floor for percentages: "below 0%" is (-∞, 0), not [0, 0).
+    if (LESS_RE.test(s)) return { lo: -Infinity, hi: v, unit: '%' };
+    if (GREATER_RE.test(s)) return { lo: v, hi: Infinity, unit: '%' };
+    return { lo: v, hi: Infinity, unit: '%' }; // single-bound fallback → ">= value"
+  }
+
+  return null; // categorical leg — no $ and no %
 }
 
 function median(nums) {
@@ -49,13 +79,19 @@ function median(nums) {
  */
 export function buildPmfLadder(legs) {
   const valid = (legs || []).filter((l) => l && Number.isFinite(l.prob));
-  // Interior boundaries: every finite edge > 0 (the bottom bucket's lo=0 is not a rung).
+  // Survival rungs: every FINITE boundary that has mass at/below it (∃ leg with finite hi ≤ b, so
+  // P(>b) < 1). This is unit-agnostic — it drops a hard FLOOR like dollars' 0 (no bucket below it →
+  // P(>0)=1, a trivial rung) while KEEPING a percentage market's 0 (and negative) boundaries when a
+  // "below 0%" bucket sits underneath. Byte-identical to the old `> 0` filter for all-positive dollar
+  // ladders (dollars' 0 has nothing below → excluded either way).
   const edges = new Set();
   for (const l of valid) {
-    if (Number.isFinite(l.lo) && l.lo > 0) edges.add(l.lo);
-    if (Number.isFinite(l.hi) && l.hi > 0) edges.add(l.hi);
+    if (Number.isFinite(l.lo)) edges.add(l.lo);
+    if (Number.isFinite(l.hi)) edges.add(l.hi);
   }
-  const boundaries = [...edges].sort((a, b) => a - b);
+  const boundaries = [...edges]
+    .filter((b) => valid.some((l) => Number.isFinite(l.hi) && l.hi <= b))
+    .sort((a, b) => a - b);
   const markets = boundaries.map((b) => ({
     threshold: b,
     prob: valid.filter((l) => l.lo >= b).reduce((sum, l) => sum + l.prob, 0),

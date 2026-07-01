@@ -29,6 +29,17 @@ test('falls back to dimensionless (NOT $T) on a missing/odd label', () => {
   assert.equal(unitFromLadder([{ label: '' }]), '');
 });
 
+test('percentage-denominated buckets (UK GDP): unit %, no $ prefix, no T/B/M/K', () => {
+  assert.equal(unitFromLadder([{ label: '>0%' }, { label: '>5%' }]), '%');
+  assert.equal(unitFromLadder([{ label: '>-1%' }]), '%'); // negative percent label
+  assert.equal(fmtMoney(1.04, '%'), '1.04%');   // no '$'
+  assert.equal(fmtMoney(-0.5, '%'), '-0.50%');  // negative growth
+  assert.equal(fmtRange({ low: 0.8, high: 1.2 }, '%'), '0.80%–1.20%');
+  // out-of-range median labels drop the '$' too
+  assert.equal(impliedMedianLabel([{ threshold: 0, prob: 0.4 }], null, '%'), '< 0%');
+  assert.equal(impliedMedianLabel([{ threshold: 5, prob: 0.6 }], null, '%'), '> 5%');
+});
+
 test('fmtMoney renders in the derived unit', () => {
   assert.equal(fmtMoney(2.1, 'T'), '$2.10T');
   assert.equal(fmtMoney(28, 'B'), '$28.00B');
