@@ -527,7 +527,7 @@ export async function fetchBucketMeta(config) {
     if (!interval) return null; // categorical leg (no $ amount) — excluded from the PMF
     const ids = typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds;
     return {
-      lo: interval.lo, hi: interval.hi, token_id: ids[0],
+      lo: interval.lo, hi: interval.hi, unit: interval.unit, token_id: ids[0],
       volume: m.volume != null ? Number(m.volume) : null,
       ...legWindowed(m), // windowed volume — supplementary, never hashed
       closed: m.closed === true, active: m.active !== false, accepting_orders: m.acceptingOrders !== false,
@@ -535,8 +535,12 @@ export async function fetchBucketMeta(config) {
     };
   }).filter(Boolean).sort((a, b) => a.lo - b.lo);
   if (legs.length < 2) throw new Error(`Bucket event ${config.event_slug} has <2 parseable buckets`);
+  // Percentage-denominated buckets (UK GDP growth) bypass the dollar T/B/M/K scale — the mantissa IS
+  // the percent (divisor 1, prefix ''); T/B/M/K don't apply to percentages.
+  const isPercent = legs.some((l) => l.unit === '%');
   const absVals = legs.flatMap((l) => [l.lo, l.hi]).filter((v) => Number.isFinite(v) && v > 0);
-  return { title: ev.title ?? config.event_slug, end_date: ev.endDate ?? null, unitInfo: deriveUnit(absVals), excludedCount: all.length - legs.length, legs };
+  const unitInfo = isPercent ? { unit: '%', divisor: 1 } : deriveUnit(absVals);
+  return { title: ev.title ?? config.event_slug, end_date: ev.endDate ?? null, unitInfo, excludedCount: all.length - legs.length, legs };
 }
 
 /** Gamma-only lifecycle signal for a bucket market (no CLOB; threshold = bucket index). */
@@ -559,7 +563,19 @@ export async function fetchBucketPmfSnapshot(config) {
   const fetchedAt = new Date().toISOString();
   const meta = await fetchBucketMeta(config);
   const { divisor, unit } = meta.unitInfo;
+  const prefix = unit === '%' ? '' : '$'; // percent labels read "2%"; dollar labels read "$1.8T"
   const tokens = meta.legs.map((l) => l.token_id);
+
+  // An open-bottom bucket (percent "below 0%") has lo = -Infinity, which can't be a finite hash key.
+  // Give it a synthetic FLOOR one median-bucket-width below the lowest finite lower bound (mirroring
+  // dollars' natural 0 floor), so its raw_input threshold is finite, unique, sorts first, and
+  // canonicalizes cleanly. Only ever fires for an open-bottom bucket → dollar markets are unaffected.
+  const finiteLos = meta.legs.map((l) => l.lo).filter(Number.isFinite);
+  const minFiniteLo = finiteLos.length ? Math.min(...finiteLos) : 0;
+  const finiteWidths = meta.legs.filter((l) => Number.isFinite(l.lo) && Number.isFinite(l.hi)).map((l) => l.hi - l.lo).sort((a, b) => a - b);
+  const medianWidth = finiteWidths.length ? finiteWidths[Math.floor(finiteWidths.length / 2)] : 1;
+  const syntheticFloor = minFiniteLo - medianWidth;
+  const loKey = (lo) => (Number.isFinite(lo) ? lo : syntheticFloor) / divisor;
 
   const midRaw = await fetchJson(ENDPOINTS.midpoints, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -583,8 +599,8 @@ export async function fetchBucketPmfSnapshot(config) {
     let midpoint = r.midpoint, source = r.midpoint_source, best_bid = r.best_bid ?? null, best_ask = r.best_ask ?? null;
     if (r.needsLastTrade) {
       midpoint = lastTradeBy.get(r.l.token_id);
-      if (midpoint == null) { skippedThresholds.push(r.l.lo / divisor); continue; }
-      source = 'last_trade'; lastTradeThresholds.push(r.l.lo / divisor);
+      if (midpoint == null) { skippedThresholds.push(loKey(r.l.lo)); continue; }
+      source = 'last_trade'; lastTradeThresholds.push(loKey(r.l.lo));
     }
     priced.push({ l: r.l, prob: parseFloat(midpoint), midpoint, source, best_bid, best_ask });
   }
@@ -596,19 +612,19 @@ export async function fetchBucketPmfSnapshot(config) {
   const norm = probSum > 0 ? probSum : 1;
 
   const raw_inputs = priced.map((p) => ({
-    token_id: p.l.token_id, threshold: p.l.lo / divisor, midpoint: p.midpoint,
+    token_id: p.l.token_id, threshold: loKey(p.l.lo), midpoint: p.midpoint,
     best_bid: p.best_bid, best_ask: p.best_ask, volume: p.l.volume,
     ...(p.source === 'last_trade' ? { midpoint_source: 'last_trade', last_trade_price: p.midpoint } : { midpoint_source: p.source }),
   }));
 
   // PMF in mantissa units → derived survival ladder + PMF mean.
-  const pmfLegs = priced.map((p) => ({ lo: p.l.lo / divisor, hi: Number.isFinite(p.l.hi) ? p.l.hi / divisor : Infinity, prob: p.prob / norm }));
+  const pmfLegs = priced.map((p) => ({ lo: loKey(p.l.lo), hi: Number.isFinite(p.l.hi) ? p.l.hi / divisor : Infinity, prob: p.prob / norm }));
   const { markets: survival, mean: pmfMean } = buildPmfLadder(pmfLegs);
 
   // Per-boundary volume = the bucket starting at that boundary (for the liquidity signal).
-  const volByLo = new Map(priced.map((p) => [p.l.lo / divisor, p.l.volume ?? 0]));
+  const volByLo = new Map(priced.map((p) => [loKey(p.l.lo), p.l.volume ?? 0]));
   const markets = survival.map((m) => ({
-    label: `>$${m.threshold}${unit}`, threshold: m.threshold, prob: m.prob, volume: volByLo.get(m.threshold) ?? 0,
+    label: `>${prefix}${m.threshold}${unit}`, threshold: m.threshold, prob: m.prob, volume: volByLo.get(m.threshold) ?? 0,
   }));
 
   const status = meta.legs.map((l, i) => ({
@@ -622,7 +638,7 @@ export async function fetchBucketPmfSnapshot(config) {
     raw_inputs, raw_sha256: hashRawInputs(raw_inputs), markets, status,
     midpoint_fallback: { lastTradeCount: lastTradeThresholds.length, lastTradeThresholds, skippedCount: skippedThresholds.length, skippedThresholds },
     unit, pmf_mean: pmfMean, total_volume: priced.reduce((s, p) => s + (p.l.volume ?? 0), 0),
-    liquidity: aggregateLiquidity(meta.legs, (l) => l.lo / divisor), // by_threshold keyed by derived rung
+    liquidity: aggregateLiquidity(meta.legs, (l) => loKey(l.lo)), // by_threshold keyed by derived rung
     title: meta.title, end_date: meta.end_date, excluded_count: meta.excludedCount,
   };
 }

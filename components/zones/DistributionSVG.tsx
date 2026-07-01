@@ -72,7 +72,7 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
         <g data-field="cdf-median-marker">
           <line className="dist-median" x1={medX} x2={medX} y1={PAD.t} y2={VB_H - PAD.b} />
           <circle className="dist-median-dot" cx={medX} cy={yScalePct(50)} r={3.2} /> {/* Enh 1: marker on the 50% crossing */}
-          <text className="dist-median-lbl" x={Math.min(medX + 4, VB_W - PAD.r - 60)} y={PAD.t + 9}>{`median $${impliedMedian?.toFixed(2)}${unit}`}</text>
+          <text className="dist-median-lbl" x={Math.min(medX + 4, VB_W - PAD.r - 60)} y={PAD.t + 9}>{`median ${unit === '%' ? '' : '$'}${impliedMedian?.toFixed(2)}${unit}`}</text>
         </g>
       )}
     </svg>
@@ -81,13 +81,14 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
 
 /** Density: P(value in each bucket). First bar is the "<lowest" complement. */
 function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; impliedMedian: number | null; unit: string }) {
+  const pfx = unit === '%' ? '' : '$'; // percentage-denominated buckets carry no '$' prefix
   const bars: Array<{ label: string; v: number; isMedian: boolean; vol: number | null }> = [];
-  bars.push({ label: `<$${markets[0].threshold}${unit}`, v: Math.max(0, 1 - markets[0].adjusted_prob), isMedian: impliedMedian != null && impliedMedian < markets[0].threshold, vol: null });
+  bars.push({ label: `<${pfx}${markets[0].threshold}${unit}`, v: Math.max(0, 1 - markets[0].adjusted_prob), isMedian: impliedMedian != null && impliedMedian < markets[0].threshold, vol: null });
   for (let i = 0; i < markets.length; i++) {
     const lo = markets[i].threshold;
     const hi = markets[i + 1]?.threshold ?? Infinity;
     bars.push({
-      label: markets[i + 1] ? `$${lo}–${markets[i + 1].threshold}${unit}` : `>$${lo}${unit}`,
+      label: markets[i + 1] ? `${pfx}${lo}–${markets[i + 1].threshold}${unit}` : `>${pfx}${lo}${unit}`,
       v: markets[i].bucket_prob,
       isMedian: impliedMedian != null && impliedMedian >= lo && impliedMedian < hi,
       vol: markets[i].volume ?? null, // Enh 1: surface bucket volume in the hover tooltip

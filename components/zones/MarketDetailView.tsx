@@ -48,9 +48,10 @@ function resolvedBand(outcome: ResolvedLeg[] | undefined, unit: string): string 
   const no = outcome.filter((o) => o.outcome === 'No').map((o) => o.threshold);
   const lastYes = yes.length ? Math.max(...yes) : null;
   const firstNo = no.length ? Math.min(...no) : null;
-  if (lastYes != null && firstNo != null) return `settled in $${lastYes}–${firstNo}${unit}  (>$${lastYes}${unit} Yes · >$${firstNo}${unit} No)`;
-  if (lastYes != null) return `settled above $${lastYes}${unit}`;
-  if (firstNo != null) return `settled below $${firstNo}${unit}`;
+  const p = unit === '%' ? '' : '$'; // percent buckets carry no '$' prefix
+  if (lastYes != null && firstNo != null) return `settled in ${p}${lastYes}–${firstNo}${unit}  (>${p}${lastYes}${unit} Yes · >${p}${firstNo}${unit} No)`;
+  if (lastYes != null) return `settled above ${p}${lastYes}${unit}`;
+  if (firstNo != null) return `settled below ${p}${firstNo}${unit}`;
   return null;
 }
 
@@ -324,12 +325,13 @@ function KeyMetricsSection({ markets, totalVolume, deltas, unit, liquidity }:
   { markets: LadderRow[]; totalVolume: number | null | undefined; deltas: ThresholdDelta[]; unit: string; liquidity?: { volume_24hr?: number | null; volume_1wk?: number | null; volume_all?: number | null } | null }) {
   const atm = nearestThreshold(markets, 0.5);
   const tail = nearestThreshold(markets, 0.1);
+  const uPfx = unit === '%' ? '' : '$'; // percentage-denominated buckets carry no '$' prefix
   const probCard = (m: LadderRow | null, tag: string) => {
     if (!m) return null;
     const d30 = deltaFor(deltas, m.threshold)?.d30 ?? null;
     return (
       <div className="acard" key={tag} data-field={`pcard-${tag}`}>
-        <div className="label">P(&gt;${m.threshold}{unit}) <span className="faint">· {tag}</span></div>
+        <div className="label">P(&gt;{uPfx}{m.threshold}{unit}) <span className="faint">· {tag}</span></div>
         <div className="acard-v">{pct(m.prob)}</div>
         <div className={`acard-s ${deltaSign(d30)}`}>{d30 == null ? <span className="faint">no 30d history</span> : <>{fmtDeltaPp(d30)} pp · 30d</>}</div>
       </div>
@@ -355,9 +357,10 @@ function settledRangeLabel(outcome: ResolvedLeg[] | undefined, unit: string): st
   const no = outcome.filter((o) => o.outcome === 'No').map((o) => o.threshold);
   const lastYes = yes.length ? Math.max(...yes) : null;
   const firstNo = no.length ? Math.min(...no) : null;
-  if (lastYes != null && firstNo != null) return `Settled: $${lastYes}–${firstNo}${unit} range`;
-  if (lastYes != null) return `Settled above $${lastYes}${unit}`;
-  if (firstNo != null) return `Settled below $${firstNo}${unit}`;
+  const p = unit === '%' ? '' : '$'; // percent buckets carry no '$' prefix
+  if (lastYes != null && firstNo != null) return `Settled: ${p}${lastYes}–${firstNo}${unit} range`;
+  if (lastYes != null) return `Settled above ${p}${lastYes}${unit}`;
+  if (firstNo != null) return `Settled below ${p}${firstNo}${unit}`;
   return 'settled';
 }
 
@@ -438,9 +441,10 @@ function AnalyticsCards({ analytics, unit }: { analytics: Analytics | null; unit
   const consensusWord = sh.entropy == null ? null : sh.entropy < 0.5 ? 'tight consensus' : sh.entropy < 0.78 ? 'moderate consensus' : 'wide field';
   const consensus = consensusWord == null ? '—' : `${sh.entropy! < 0.5 ? 'tight' : sh.entropy! < 0.78 ? 'moderate' : 'wide'} (${sh.entropy!.toFixed(2)})`;
   const massLabel = sh.dominant_bucket?.label ?? null;
-  const disp = di.trend ? `${di.trend} · width ${di.iqr_width != null ? `$${di.iqr_width.toFixed(2)}${unit}` : '—'}` : 'collecting';
+  const uPfx = unit === '%' ? '' : '$'; // percentage-denominated buckets carry no '$' prefix
+  const disp = di.trend ? `${di.trend} · width ${di.iqr_width != null ? `${uPfx}${di.iqr_width.toFixed(2)}${unit}` : '—'}` : 'collecting';
   const bandWord = di.trend === 'converging' ? 'narrowing' : di.trend === 'diverging' ? 'widening' : di.trend ? 'steady' : null;
-  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} $${unit}/yr (30d)` : null;
+  const drift = ve.drift_30d_annualized != null ? `${ve.drift_30d_annualized > 0 ? '+' : ''}${ve.drift_30d_annualized.toFixed(2)} ${uPfx}${unit}/yr (30d)` : null;
   const cards = [
     { l: 'Distribution shape', v: skew, s: `Bowley skew → ${shapeWord ?? 'unknown'}${sh.fat_tail != null ? ` (${sh.fat_tail.toFixed(2)}×)` : ''}` },
     { l: 'Consensus (entropy)', v: consensus, s: `${sh.entropy != null && sh.entropy < 0.5 ? 'lo = market agrees' : 'hi = market uncertain'}${massLabel ? ` · mass ${massLabel}` : ''}` },
