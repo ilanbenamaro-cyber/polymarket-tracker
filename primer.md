@@ -8,9 +8,17 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
-## ⮕ DIRECTION (2026-07-01): BACKFILL OBSERVABILITY + CHART HOVER — on `feature/backfill-observability-chart-hover` (2 commits, NOT merged)
-- **Two-part display-layer pass, committed on the feature branch, awaiting review/merge.** No `core/`
-  or hash change → **parity 4/4 byte-identical; 346/346 (+7 new); tsc + next build clean.**
+## ⮕ DIRECTION (2026-07-01): BACKFILL OBSERVABILITY + CHART HOVER + market_latest VIEW FIX — MERGED + PUSHED
+- **MERGED to main** (`--no-ff` `30fc3c0`; branch `feature/backfill-observability-chart-hover`, 4 commits;
+  **pushed, in sync**). Three-part display/ops pass. No `core/` or hash change → **parity 4/4 byte-identical;
+  346/346 (+7 new); tsc + next build clean.** **Operator-verified locally:** 0 console errors on all 5 market
+  types, hover crosshair + tooltips correct, no touch-bar label collision.
+- **⚠ DB / SCHEMA STATUS: dev + prod verified IN SYNC as of this session.** Migration **0011**
+  (`market_latest` view refresh — see PART 3) is **applied to BOTH** dev (`dxoyxjxcfbgygvjvrrfk`) and prod
+  (`pcmdavmstcwxjpmpmhce`); the reliability_/liquidity_ columns from 0010 now resolve through
+  `market_snapshots`, `market_history`, AND `market_latest` on both (12/12 columns each). Prod was fixed
+  manually earlier this session; dev via the same idempotent script (0010 `add column if not exists` + 0011
+  view refresh + `notify pgrst`). `.env.local` → dev (`dxoyxjxcfbgygvjvrrfk`).
 - **PART 1 — backfill reliability (`75691c6`).** The three former silent `triggerBackfill` paths were
   already logged (prior "Audit F2"); this pass adds the missing `attempt`+`success` lines (every call
   now emits `[backfill-trigger] {event: attempt|skipped|success|failure, …}`) and captures `host`/`proto`
@@ -31,10 +39,17 @@
   touch RangeBar (interpolates P(touch ≥/≤) from new `highPts`/`lowPts`), categorical bars (per-ROW hover,
   not an x-crosshair — horizontal bars). Axis polish: 5 Y ticks + grids, rotated every-Nth date labels
   (`pickTicks`). The numeric core is extracted to **`lib/chart-hover.mjs`** (the `touch-rangebar.mjs`
-  precedent) + unit-tested (`test/chart-hover.test.js`). **⚠ OPERATOR:** the interactive hover itself is an
-  AUTH-GATED browser check (detail views redirect to /login; no extension connected this session) — verify
-  hover + 0 console errors on all 5 views once logged into a local dev build. See [[gotchas]] "A server SVG
-  can carry an interactive client overlay…".
+  precedent) + unit-tested (`test/chart-hover.test.js`). Interactive hover **operator-verified** on all 5
+  views (0 console errors, no touch-bar collision). See [[gotchas]] "A server SVG can carry an interactive
+  client overlay…".
+- **PART 3 — market_latest VIEW FIX (`4f75b8e`).** Migration 0010 added reliability_/liquidity_ columns to
+  `market_snapshots` but they never surfaced through `market_latest` → prod 500'd "Could not find the
+  'liquidity_score' column". **Root cause:** a view's `select *` is EXPANDED + FROZEN at create time; a later
+  `alter table add column` does NOT propagate. **Fix:** `0011_market_latest_view_refresh.sql` — CREATE OR
+  REPLACE VIEW (re-expands `*`, preserves grants, keeps `security_invoker=on`) + `notify pgrst, 'reload
+  schema'`; down = DROP+CREATE back to 14 cols (must precede 0010_down; DROP+CREATE resets grants → re-grant).
+  0010's wrong comment corrected in place. See [[gotchas]] "Redefining a base TABLE via migration does NOT
+  propagate to a dependent VIEW".
 
 ## ⮕ DIRECTION (2026-07-01): PERCENTAGE-DENOMINATED BUCKET MARKETS — MERGED + PUSHED
 - **MERGED to main** (`--no-ff` `ac99cd4`; `0e923a4..ac99cd4`; **pushed, in sync**). `uk-annual-gdp-growth-2026`
