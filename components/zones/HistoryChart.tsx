@@ -19,15 +19,18 @@
 // trap, see gotchas.md).
 
 import { useState } from 'react';
+import { ChartCrosshair, type SnapAnchor, type TooltipRow } from './ChartCrosshair';
+import { pickTicks } from '@/lib/chart-hover.mjs';
 
 export interface HistoryPoint { date: string; value: number }
 export interface ChartLine { key: string; label?: string; threshold?: number; points: HistoryPoint[]; faint?: boolean; dashed?: boolean }
 export interface ChartSeries { dual: boolean; probLines: ChartLine[]; valueLines: ChartLine[]; lowDays: string[] }
 
 const VB_W = 480;
-const VB_H = 180;
-const PAD = { t: 12, r: 14, b: 28, l: 44 };
-const PAD_DUAL = { t: 12, r: 44, b: 28, l: 44 }; // dual axis needs room on the right for the value ticks
+const VB_H = 190;
+const PAD = { t: 12, r: 14, b: 40, l: 44 }; // generous bottom for rotated date ticks
+const PAD_DUAL = { t: 12, r: 44, b: 40, l: 44 }; // dual axis needs room on the right for the value ticks
+const X_TICKS = 6; // ~evenly-spaced date labels (every Nth point) so many-day charts don't overlap
 const RANGES: { key: string; days: number | null }[] = [
   { key: '7D', days: 7 }, { key: '30D', days: 30 }, { key: '90D', days: 90 }, { key: 'ALL', days: null },
 ];
@@ -85,7 +88,7 @@ export function HistoryChart({ points, kind, unit = '', label = 'Value', series 
       <ChartHead label={label} range={range} setRange={setRange} />
       {visible.length < 2
         ? <Collecting range={range} backfilling={backfilling} />
-        : <Plot points={visible} kind={kind} unit={unit} />}
+        : <Plot points={visible} kind={kind} unit={unit} label={label} />}
     </div>
   );
 }
@@ -126,7 +129,7 @@ function Collecting({ range, backfilling = false }: { range: string; backfilling
   );
 }
 
-function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; unit: string }) {
+function Plot({ points, kind, unit, label }: { points: HistoryPoint[]; kind: string; unit: string; label: string }) {
   const xs = points.map((p) => ms(p.date));
   const xLo = xs[0], xHi = xs[xs.length - 1];
   const ys = points.map((p) => p.value);
@@ -142,10 +145,19 @@ function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; un
   const yScale = (v: number) => yHi === yLo ? VB_H - PAD.b : VB_H - PAD.b - ((v - yLo) / (yHi - yLo)) * (VB_H - PAD.t - PAD.b);
   const line = points.map((p, i) => `${xScale(xs[i]).toFixed(1)},${yScale(p.value).toFixed(1)}`).join(' ');
 
-  const yTicks = [yLo, (yLo + yHi) / 2, yHi];
-  const first = points[0], last = points[points.length - 1];
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => yLo + f * (yHi - yLo));
+  const xTickY = VB_H - PAD.b + 10;
+
+  // Hover (snap): the headline value on that date.
+  const anchors: SnapAnchor[] = points.map((p, i) => ({
+    x: xScale(xs[i]),
+    payload: { title: p.date, rows: [{ label, swatch: 'var(--accent-blue)', value: fmtVal(p.value, kind, unit) }] },
+    dots: [{ y: yScale(p.value), color: 'var(--accent-blue)' }],
+  }));
 
   return (
+    <ChartCrosshair vbW={VB_W} vbH={VB_H} plotLeft={PAD.l} plotRight={VB_W - PAD.r} plotTop={PAD.t} plotBottom={VB_H - PAD.b}
+      mode="snap" anchors={anchors} ariaLabel="History trend chart — hover for the value on each date">
     <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="History trend chart" data-field="history-svg">
       {yTicks.map((v, i) => (
         <g key={i}>
@@ -159,9 +171,14 @@ function Plot({ points, kind, unit }: { points: HistoryPoint[]; kind: string; un
           <title>{`${p.date} · ${fmtVal(p.value, kind, unit)}`}</title>
         </circle>
       ))}
-      <text className="dist-tick" x={PAD.l} y={VB_H - PAD.b + 16} textAnchor="start">{first.date}</text>
-      <text className="dist-tick" x={VB_W - PAD.r} y={VB_H - PAD.b + 16} textAnchor="end">{last.date}</text>
+      <g data-field="hist-x-labels">
+        {pickTicks(points, X_TICKS).map(({ item, i }) => {
+          const x = xScale(xs[i]);
+          return <text key={i} className="dist-tick" transform={`rotate(-45 ${x.toFixed(1)} ${xTickY})`} x={x.toFixed(1)} y={xTickY} textAnchor="end">{item.date.slice(5)}</text>;
+        })}
+      </g>
     </svg>
+    </ChartCrosshair>
   );
 }
 
@@ -200,12 +217,39 @@ function DualPlot({ probLines, valueLines, lowDays, unit }:
       );
     });
 
-  const probTicks = [0, 0.5, 1];
-  const valTicks = [vLo, (vLo + vHi) / 2, vHi];
-  const firstDate = new Date(xLo).toISOString().slice(0, 10);
-  const lastDate = new Date(xHi).toISOString().slice(0, 10);
+  const probTicks = [0, 0.25, 0.5, 0.75, 1];
+  const valTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => vLo + f * (vHi - vLo));
+  const xTickY = VB_H - P.b + 10;
+
+  // Hover (snap): ONE tooltip showing every plotted series' value on that date (all P(>X) lines +
+  // median + mean), colours matching the legend. Anchored on the union of dates across all lines.
+  const swatchColor = (cls: string): string =>
+    ({ 'hist-line-p0': 'var(--accent-amber)', 'hist-line-p1': 'var(--accent-blue)', 'hist-line-p2': 'var(--text-muted)',
+       'hist-line-median': 'var(--tier1)', 'hist-line-mean': 'var(--tier1)' } as Record<string, string>)[cls] ?? 'var(--text-muted)';
+  const allDateStrs = [...new Set([...probLines, ...valueLines].flatMap((l) => l.points.map((p) => p.date)))].sort();
+  const anchors: SnapAnchor[] = allDateStrs.map((date) => {
+    const rows: TooltipRow[] = [];
+    const dots: { y: number; color: string }[] = [];
+    probLines.forEach((l, i) => {
+      const pt = l.points.find((p) => p.date === date);
+      if (!pt) return;
+      const color = swatchColor(PROB_CLASSES[i] ?? 'hist-line-p2');
+      rows.push({ label: `P(>$${l.threshold}${unit})`, swatch: color, value: `${(pt.value * 100).toFixed(1)}%` });
+      dots.push({ y: yP(pt.value), color });
+    });
+    valueLines.forEach((l) => {
+      const pt = l.points.find((p) => p.date === date);
+      if (!pt) return;
+      const color = swatchColor(l.key === 'median' ? 'hist-line-median' : 'hist-line-mean');
+      rows.push({ label: l.label ?? l.key, swatch: color, value: `$${pt.value.toFixed(2)}${unit}` });
+      dots.push({ y: yV(pt.value), color });
+    });
+    return { x: xScale(ms(date)), payload: { title: date, rows }, dots };
+  });
 
   return (
+    <ChartCrosshair vbW={VB_W} vbH={VB_H} plotLeft={P.l} plotRight={VB_W - P.r} plotTop={P.t} plotBottom={VB_H - P.b}
+      mode="snap" anchors={anchors} ariaLabel="Multi-line history chart — hover for every series on each date">
     <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Multi-line dual-axis history chart" data-field="history-svg" data-dual="true">
       {/* left probability axis grid + ticks */}
       {probTicks.map((v, i) => (
@@ -222,9 +266,14 @@ function DualPlot({ probLines, valueLines, lowDays, unit }:
       {probLines.map((l, i) => segments(l, yP, PROB_CLASSES[i] ?? 'hist-line-p2'))}
       {/* value lines (right axis): median solid bright, mean faint dashed */}
       {valueLines.map((l) => segments(l, yV, l.key === 'median' ? 'hist-line-median' : 'hist-line-mean'))}
-      <text className="dist-tick" x={P.l} y={VB_H - P.b + 16} textAnchor="start">{firstDate}</text>
-      <text className="dist-tick" x={VB_W - P.r} y={VB_H - P.b + 16} textAnchor="end">{lastDate}</text>
+      <g data-field="hist-x-labels">
+        {pickTicks(allDateStrs, X_TICKS).map(({ item, i }) => {
+          const x = xScale(ms(item));
+          return <text key={i} className="dist-tick" transform={`rotate(-45 ${x.toFixed(1)} ${xTickY})`} x={x.toFixed(1)} y={xTickY} textAnchor="end">{item.slice(5)}</text>;
+        })}
+      </g>
     </svg>
+    </ChartCrosshair>
   );
 }
 

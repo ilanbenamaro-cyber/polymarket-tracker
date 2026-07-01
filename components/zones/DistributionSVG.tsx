@@ -10,11 +10,14 @@
 // The implied-median marker has an explicit text label.
 
 import type { LadderRow as LadderPoint } from './market-record';
+import { ChartCrosshair, type SnapAnchor, type InterpConfig, type NumFmt, type TooltipRow } from './ChartCrosshair';
 
 const VB_W = 480;
 const VB_H = 210;
 const PAD = { t: 12, r: 14, b: 48, l: 34 }; // generous bottom for the rotated X labels
 const Y_TICKS = [0, 25, 50, 75, 100];
+const CDF_COLOR = 'var(--accent-blue)';
+const BUCKET_COLOR = 'var(--accent-blue)';
 
 function xScale(t: number, lo: number, hi: number): number {
   if (hi === lo) return PAD.l;
@@ -37,7 +40,18 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
   const areaPts = `${PAD.l.toFixed(1)},${baseY.toFixed(1)} ${pts} ${(VB_W - PAD.r).toFixed(1)},${baseY.toFixed(1)}`; // Enh 1: filled area under the CDF
   const medX = impliedMedian != null ? xScale(impliedMedian, lo, hi) : null;
   const tickY = VB_H - PAD.b + 9;
+  // Hover (interpolate): exact threshold + exact P(>X) at the cursor, linearly interpolated between
+  // the two nearest rungs (not snapped to a dot) — the prompt's requirement for the CDF.
+  const valFmt: NumFmt = { prefix: unit === '%' ? '' : '$', suffix: unit, digits: 2 };
+  const interp: InterpConfig = {
+    anchorsVbX: markets.map((m) => xScale(m.threshold, lo, hi)),
+    titleValues: markets.map((m) => m.threshold),
+    titleFmt: valFmt,
+    rows: [{ label: 'P(>X)', swatch: CDF_COLOR, values: markets.map((m) => m.prob), fmt: { scale: 100, digits: 1, suffix: '%' } }],
+  };
   return (
+    <ChartCrosshair vbW={VB_W} vbH={VB_H} plotLeft={PAD.l} plotRight={VB_W - PAD.r} plotTop={PAD.t} plotBottom={VB_H - PAD.b}
+      mode="interpolate" interp={interp} ariaLabel="Cumulative probability curve — hover for exact P(>X)">
     <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Cumulative probability curve" data-field="cdf">
       <defs>
         <linearGradient id="cdf-fill-grad" x1="0" y1="0" x2="0" y2="1">
@@ -76,6 +90,7 @@ function CdfPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]; im
         </g>
       )}
     </svg>
+    </ChartCrosshair>
   );
 }
 
@@ -98,10 +113,20 @@ function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]
   const innerW = VB_W - PAD.l - PAD.r;
   const bw = innerW / bars.length;
   const tickY = VB_H - PAD.b + 9;
+  // Hover (snap): the exact bucket RANGE + its probability mass (+ volume) at the nearest bar.
+  const anchors: SnapAnchor[] = bars.map((b, i) => {
+    const h = (b.v / maxV) * (VB_H - PAD.t - PAD.b);
+    const cx = PAD.l + i * bw + bw * 0.12 + bw * 0.38;
+    const rows: TooltipRow[] = [{ label: 'P(in bucket)', swatch: b.isMedian ? 'var(--accent-amber)' : BUCKET_COLOR, value: `${(b.v * 100).toFixed(1)}%` }];
+    if (b.vol != null) rows.push({ label: 'volume', value: `$${Math.round(b.vol).toLocaleString('en-US')}` });
+    return { x: cx, payload: { title: b.label, rows }, dots: [{ y: VB_H - PAD.b - h, color: b.isMedian ? 'var(--accent-amber)' : BUCKET_COLOR }] };
+  });
   return (
+    <ChartCrosshair vbW={VB_W} vbH={VB_H} plotLeft={PAD.l} plotRight={VB_W - PAD.r} plotTop={PAD.t} plotBottom={VB_H - PAD.b}
+      mode="snap" anchors={anchors} ariaLabel="Bucket probability density — hover for exact bucket mass">
     <svg className="dist-svg" viewBox={`0 0 ${VB_W} ${VB_H}`} role="img" aria-label="Bucket probability density" data-field="density">
-      {/* Y bucket-probability scale (0 and the peak) + baseline */}
-      {[0, maxV].map((g, gi) => (
+      {/* Y bucket-probability scale (0 / mid / peak) + grid */}
+      {[0, maxV / 2, maxV].map((g, gi) => (
         <g key={gi}>
           <line className="dist-grid" x1={PAD.l} x2={VB_W - PAD.r} y1={yScalePct((g / maxV) * 100)} y2={yScalePct((g / maxV) * 100)} />
           <text className="dist-axis" x={PAD.l - 5} y={yScalePct((g / maxV) * 100) + 3} textAnchor="end">{`${Math.round(g * 100)}%`}</text>
@@ -123,6 +148,7 @@ function DensityPanel({ markets, impliedMedian, unit }: { markets: LadderPoint[]
         })}
       </g>
     </svg>
+    </ChartCrosshair>
   );
 }
 

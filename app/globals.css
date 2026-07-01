@@ -370,6 +370,22 @@ a:hover { text-decoration: underline; }
 .hist-swatch { width: 14px; height: 0; border-top-width: 2px; border-top-style: solid; display: inline-block; }
 .hist-note { margin-top: var(--sp-1); font-size: var(--fs-micro); color: var(--text-faint); }
 
+/* shared chart hover / crosshair overlay (ChartCrosshair.tsx) — one behaviour across every chart */
+.chart-hover { position: relative; }
+.chart-hover-overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chart-hover-capture { fill: transparent; pointer-events: all; touch-action: pan-y; cursor: crosshair; }
+.chart-cross-line { stroke: var(--accent-amber); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.85; }
+.chart-cross-dot { stroke: var(--bg-card); stroke-width: 1; }
+.chart-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 96px; max-width: 220px;
+  background: var(--bg-card-2, var(--bg-card)); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 5px 7px; font-family: var(--font-mono);
+  font-size: var(--fs-micro); line-height: 1.35; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); }
+.chart-tip-title { font-weight: 700; color: var(--text); margin-bottom: 3px; white-space: nowrap; }
+.chart-tip-row { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.chart-tip-swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+.chart-tip-label { color: var(--text-muted); }
+.chart-tip-value { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+
 /* ladder table */
 .detail-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
 .detail-table { width: 100%; border-collapse: collapse; }
@@ -486,6 +502,7 @@ a:hover { text-decoration: underline; }
 .cat-bar-top { fill: var(--accent-amber); opacity: 1; }
 .cat-bar-label { fill: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
 .cat-bar-pct { fill: var(--text-faint); font-family: var(--font-mono); font-size: 10px; }
+.cat-bar-hoverbg { fill: var(--text); opacity: 0.06; }
 .cat-row-top td { color: var(--accent-amber); }
 /* Bug A item 2: "N more outcomes" toggle under the distribution bars. */
 .cat-more { margin-top: var(--sp-2); background: var(--bg-card); border: 1px solid var(--border);
