@@ -8,6 +8,27 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-07-01): PERCENTAGE-DENOMINATED BUCKET MARKETS — MERGED + PUSHED
+- **MERGED to main** (`--no-ff` `ac99cd4`; `0e923a4..ac99cd4`; **pushed, in sync**). `uk-annual-gdp-growth-2026`
+  failed with "<2 parseable buckets" — a bucket_pmf market with PERCENT-denominated legs ("between 0% and
+  1%", "below 0%", "5% or higher") the dollar-only `parseBucketLeg` couldn't read. Now supported alongside
+  dollar buckets (Bitcoin/Anthropic).
+- **`core/bucket.js`:** `parseBucketLeg` tries a percent path when no `$` (SIGNED — GDP growth can be
+  negative); returns `{lo,hi,unit}` with `unit` `'$'|'%'`. `"below 0%"` → `(-∞, 0]` (percent has NO 0
+  floor, unlike dollars' `"less than $X"` → `[0,X)`). `buildPmfLadder` boundary rule made unit-agnostic
+  (a finite `b` is a rung iff ∃ leg `hi ≤ b`) — keeps percent's `0`/negative rungs, **byte-identical for
+  dollar ladders**.
+- **`core/fetch.js`:** percent → `unitInfo {unit:'%',divisor:1}`; an open-bottom bucket (`lo=-∞`) gets a
+  finite **synthetic floor** (`minFiniteLo − medianWidth`, e.g. `-1`) for its raw_input threshold so it
+  canonicalizes/hashes cleanly; labels prefix-aware. `lib/compute.mjs` config `unit_prefix ''` for %.
+- **Display:** `lib/format-detail.mjs` (`unitFromLadder` recognizes `%`; `fmtMoney/fmtRange/impliedMedianLabel`
+  drop `$`), `DistributionSVG` (median marker + density bars), `MarketDetailView` (`P(>X)`, analytics,
+  resolved labels) — all `%`-aware. Rail inherits via the fixed formatters.
+- **Live-verified:** 6 rungs (0–5%), median **1.04%** / mean **~1.0%**, %-axis, hash reproduces. SpaceX
+  survival path untouched → **raw_sha256 byte-identical, parity 4/4.** methodology unchanged (no new
+  metric); **339/339; tsc + build clean.** New tests: unit-tagged parseBucketLeg, percent parsing
+  (positive-only / neg-to-pos / negative-only), zero-crossing PMF, percent display formatters.
+
 ## ⮕ DIRECTION (2026-06-30): CONFIDENCE SPLIT → RELIABILITY + LIQUIDITY — EPIC CLOSED (A+B+C + red-team, all merged)
 - **EPIC COMPLETE + RED-TEAMED + ALL MERGED.** A (`4462960`) + B (`cf0c185`) + C (`545d1ce`) + the
   red-team F1 fix (`d834af4`) all **merged --no-ff, pushed, in sync.** A calibration red-team on every
