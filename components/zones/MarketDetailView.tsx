@@ -11,7 +11,7 @@
 import { serveMarket } from '@/lib/serve-market.mjs';
 import { DEPS } from '@/lib/market-deps.mjs';
 import { canonicalizeRawInputs } from '@/core/fetch.js';
-import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveReliabilityTrend } from '@/lib/market-history.mjs';
+import { readHistory, headlineValue, deriveVelocity, deriveDispersion, deriveDeltas, deriveBiggestMoves, deriveChartSeries, headlineChange, latestSnapshotWindow, deriveReliabilityTrend, readBackfillStatus } from '@/lib/market-history.mjs';
 import { unitFromLadder, fmtMoney, fmtRange, fmtEastern, impliedMedianLabel, displayTitle, fmtDeltaPp, deltaSign, meanRobustnessLabel, modeBucket, detailNarrative, daysToExpiryLabel, synthesizeSignals } from '@/lib/format-detail.mjs';
 import { DistributionSVG } from './DistributionSVG';
 import { SettlementConsensus } from './SettlementConsensus';
@@ -75,6 +75,11 @@ export async function DetailData({ id }: { id: string }) {
   // doesn't change them. Lean {date,value} points are shipped to the client — not the records.
   let rows: HistoryRow[] = [];
   try { rows = (await readHistory(id, 365)) as HistoryRow[]; } catch { rows = []; }
+  // Backfill provenance: a freshly-added market whose CLOB reconstruction hasn't finished
+  // (status null/'pending') shows "Backfilling history…" instead of the bare "Collecting" state.
+  // A read failure degrades to null → the neutral collecting state, never breaks the serve.
+  let backfillStatus: string | null = null;
+  try { backfillStatus = (await readBackfillStatus(id)) as string | null; } catch { backfillStatus = null; }
   const hist: HistoryUI = {
     velocity: deriveVelocity(rows) as VelocityResult,
     dispersion: deriveDispersion(rows) as DispersionResult,
@@ -86,6 +91,7 @@ export async function DetailData({ id }: { id: string }) {
     series: deriveChartSeries(rows),
     // Increment 2: capture window of the latest datapoint (US-hours vs off-peak) for the data note.
     snapshotWindow: latestSnapshotWindow(rows) as 'us-hours' | 'off-peak' | null,
+    backfillStatus,
   };
   // Increment 5: the closing cross-signal synthesis sentence (velocity vs dispersion vs confidence
   // trend), appended to whichever detail view's narrative. Null when signals agree / history < 7d.

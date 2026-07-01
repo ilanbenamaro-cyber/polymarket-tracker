@@ -9,6 +9,8 @@
 import { canonicalizeRawInputs } from '@/core/fetch.js';
 import { fmtEastern, displayTitle, pointChange, touchNarrative, daysToExpiryLabel, barrierPathUncertainty } from '@/lib/format-detail.mjs';
 import { rangeBarLayout } from '@/lib/touch-rangebar.mjs';
+import { ChartCrosshair, type InterpConfig, type InterpChannel } from './ChartCrosshair';
+import { interpSeriesAtLevel } from '@/lib/chart-hover.mjs';
 import { ConfidenceBadges, ConfidenceBasisGroup } from './ConfidenceBasis';
 import { VolumeCard } from './VolumeCard';
 import { TouchProbabilityTable } from './TouchProbabilityTable';
@@ -24,14 +26,32 @@ const LIFECYCLE_LABEL: Record<string, string> = { OPEN: 'OPEN', CLOSED_PENDING: 
 const fmtVol = (v: number | null | undefined) => (v == null ? '—' : `$${Math.round(v).toLocaleString('en-US')}`);
 
 /** Horizontal range bar: the implied [low, high] band within the full strike span. A null
- *  bound (50% crossover outside the quoted ladder) extends the band to that edge. */
-function RangeBar({ low, high, lowLabel, highLabel, levels }: {
+ *  bound (50% crossover outside the quoted ladder) extends the band to that edge. Hover along the
+ *  axis interpolates P(touch ≥) / P(touch ≤) at that price level from the touch-probability table. */
+function RangeBar({ low, high, lowLabel, highLabel, levels, unit, highPts, lowPts }: {
   low: number | null; high: number | null; lowLabel: string; highLabel: string; levels: number[];
+  unit: string; highPts: { level: number; prob: number }[]; lowPts: { level: number; prob: number }[];
 }) {
   const layout = rangeBarLayout(low, high, levels);
   if (!layout) return null;
   const { min, max, W, bandL, bandR, narrow, lo, hi } = layout;
+  // Interpolate each touch side over the union of strike levels → a serializable interp config the
+  // shared crosshair reads. P(touch ≥) comes from the HIGH legs, P(touch ≤) from the LOW legs.
+  const span = (max - min) || 1;
+  const xOf = (lvl: number) => ((lvl - min) / span) * W;
+  const unionLevels = [...new Set(levels)].sort((a, b) => a - b);
+  const rows: InterpChannel[] = [];
+  if (highPts.length) rows.push({ label: 'P(touch ≥)', swatch: 'var(--accent-blue)', values: unionLevels.map((l) => interpSeriesAtLevel(highPts, l)), fmt: { scale: 100, digits: 0, suffix: '%' } });
+  if (lowPts.length) rows.push({ label: 'P(touch ≤)', swatch: 'var(--accent-amber)', values: unionLevels.map((l) => interpSeriesAtLevel(lowPts, l)), fmt: { scale: 100, digits: 0, suffix: '%' } });
+  const interp: InterpConfig = {
+    anchorsVbX: unionLevels.map(xOf),
+    titleValues: unionLevels,
+    titleFmt: { prefix: '$', suffix: unit, digits: 2 },
+    rows,
+  };
   return (
+    <ChartCrosshair vbW={1000} vbH={80} plotLeft={0} plotRight={W} plotTop={8} plotBottom={64}
+      mode="interpolate" interp={interp} ariaLabel="Implied barrier range — hover for P(touch) at each price level">
     <svg className="touch-rangebar" viewBox="0 0 1000 80" preserveAspectRatio="none" role="img" aria-label="implied trading range" data-field="range-bar" data-narrow={narrow ? 'true' : 'false'}>
       {/* full strike track */}
       <line x1={0} y1={40} x2={W} y2={40} className="touch-track" />
@@ -47,6 +67,7 @@ function RangeBar({ low, high, lowLabel, highLabel, levels }: {
       <text x={0} y={74} className="touch-axisend" textAnchor="start">{`$${min}`}</text>
       <text x={W} y={74} className="touch-axisend" textAnchor="end">{`$${max}`}</text>
     </svg>
+    </ChartCrosshair>
   );
 }
 
@@ -143,7 +164,9 @@ export function TouchDetailView({ record, envelope, hist }: { record: MarketReco
       {/* RANGE BAR — the band within the strike span (no CDF: there is no distribution) */}
       <section className="detail-section">
         <h2 className="detail-h2" data-field="barrier-range-heading">Implied barrier range</h2>
-        <RangeBar low={range.low ?? null} high={range.high ?? null} lowLabel={range.low_label ?? '—'} highLabel={range.high_label ?? '—'} levels={allLevels} />
+        <RangeBar low={range.low ?? null} high={range.high ?? null} lowLabel={range.low_label ?? '—'} highLabel={range.high_label ?? '—'} levels={allLevels} unit={unit}
+          highPts={high.map((p) => ({ level: p.level, prob: p.prob })).sort((a, b) => a.level - b.level)}
+          lowPts={low.map((p) => ({ level: p.level, prob: p.prob })).sort((a, b) => a.level - b.level)} />
       </section>
 
       {/* TRUST BAND — identical to the ladder/binary detail (v1 ITEM 11 confidence checklist) */}

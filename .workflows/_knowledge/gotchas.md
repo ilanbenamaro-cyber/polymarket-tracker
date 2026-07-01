@@ -5,6 +5,50 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Redefining a base TABLE via migration does NOT propagate to a dependent VIEW — `*` is frozen at create time
+**Symptom (bit prod, 2026-07-01):** migration 0010 added `reliability_tier/score` + `liquidity_tier/score`
+to `market_snapshots`, and its comment asserted "market_latest is `select distinct on (market_id) *`, so
+the new columns surface automatically — no view recreation needed." **They did not.** Prod 500'd with
+`Could not find the 'liquidity_score' column` on any read of the new columns through the view; dev was worse
+(the view AND the table probed as not having the columns — a stale PostgREST cache reports the same
+`column ... does not exist` error whether the column is truly absent or just uncached).
+**Reality:** a Postgres view defined with `select *` has its `*` **expanded into an explicit column list
+at CREATE time and frozen**. Adding columns to the base table afterwards changes the table, not the view —
+the view keeps returning exactly the columns that existed when it was created. `alter table add column`
+never touches the view. Two more traps ride along: (1) **`CREATE OR REPLACE VIEW` can only APPEND columns**
+(it re-expands `*` and adds the 4 new ones at the end — fine here because `add column` appends); REMOVING
+columns (the down-migration, going 18→14) needs **DROP + CREATE**. (2) **DROP+CREATE RESETS grants**
+(`CREATE OR REPLACE` preserves them) — so a dropped-and-recreated view must be re-`grant`ed, and re-created
+with `security_invoker = on` again or it silently reverts to owner-runs (the 2a RLS-bypass gotcha).
+**Lesson:** after any `alter table` that a view should expose, add an explicit `CREATE OR REPLACE VIEW`
+(same `select *` text re-expands it) in the SAME migration, and finish with `notify pgrst, 'reload schema'`
+so PostgREST drops its stale cache — otherwise the API keeps reporting `column does not exist` even once the
+column is really there. Never trust "`select *` will pick it up." Fixed in `0011_market_latest_view_refresh.sql`
+(0010's comment corrected in place). A view-refresh down-migration must run BEFORE the column-drop down or the
+view dependency blocks the drop. See [[decisions]] "A Postgres VIEW bypasses table RLS unless security_invoker".
+
+## A server-rendered SVG can carry an interactive client overlay — pass it as `children`, keep props serializable
+**Pattern (backfill-observability-chart-hover pass, not a bite):** to add hover/crosshair interactivity to
+charts that are SERVER components (`DistributionSVG`, the touch `RangeBar`) WITHOUT making the whole chart
+client-side, wrap the server `<svg>` in a client overlay component (`ChartCrosshair`, `'use client'`) and
+pass the server SVG as `children`. RSC allows a client component to render server children, so the SVG
+structure stays server-rendered; only the thin overlay (pointer capture + crosshair line + HTML tooltip)
+ships JS. **Two constraints make it work:** (1) the overlay is a second absolutely-positioned `<svg>` with
+the SAME viewBox and `preserveAspectRatio="none"`, so a pointer maps to viewBox-x by a plain ratio
+(`((clientX-rect.left)/rect.width)*vbW`) — no SVG matrix math, and it aligns because every chart SVG is
+`width:100%;height:auto` (rendered aspect == viewBox aspect). (2) **NOTHING that crosses the server→client
+boundary may be a function** — so the crosshair takes serializable data only: `snap` mode gets
+pre-formatted `{x, payload}` anchors; `interpolate` mode gets numeric arrays + a `{prefix,suffix,digits,scale}`
+format spec and does the lerp+format client-side. A `resolve(x)=>tooltip` closure would have been cleaner
+but is NOT serializable from a server component. **No hydration risk:** hover state starts null → SSR and
+first client render both omit the tooltip (match); the crosshair marks are `<line>/<rect>/<circle>` (no SVG
+`<text>`, so the single-string-child trap below doesn't apply); tooltips are plain HTML `<div>`. The pure
+math (bracket/snap/tick-spacing/level-interp/format) lives in `lib/chart-hover.mjs` + is unit-tested
+(`test/chart-hover.test.js`) — the interactive part stays an operator/browser gate. Categorical bars are
+HORIZONTAL, so they use per-ROW hover (nearest-Y), not the x-crosshair — don't force every chart through the
+axis-crosshair; match the interaction to the layout. See [[decisions]] and `lib/touch-rangebar.mjs` (same
+pure-geometry-extracted-for-test precedent).
+
 ## A breaking `derived` SHAPE change must also update the committed `docs/api/v1/` artifacts the tests validate
 **Symptom (hit during the confidence split):** after reshaping `derived.confidence` to `{reliability,
 liquidity}`, three tests failed that had nothing obviously to do with the change — `firewall.test.js`
