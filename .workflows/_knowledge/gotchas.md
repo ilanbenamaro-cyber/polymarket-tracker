@@ -5,6 +5,28 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## Redefining a base TABLE via migration does NOT propagate to a dependent VIEW — `*` is frozen at create time
+**Symptom (bit prod, 2026-07-01):** migration 0010 added `reliability_tier/score` + `liquidity_tier/score`
+to `market_snapshots`, and its comment asserted "market_latest is `select distinct on (market_id) *`, so
+the new columns surface automatically — no view recreation needed." **They did not.** Prod 500'd with
+`Could not find the 'liquidity_score' column` on any read of the new columns through the view; dev was worse
+(the view AND the table probed as not having the columns — a stale PostgREST cache reports the same
+`column ... does not exist` error whether the column is truly absent or just uncached).
+**Reality:** a Postgres view defined with `select *` has its `*` **expanded into an explicit column list
+at CREATE time and frozen**. Adding columns to the base table afterwards changes the table, not the view —
+the view keeps returning exactly the columns that existed when it was created. `alter table add column`
+never touches the view. Two more traps ride along: (1) **`CREATE OR REPLACE VIEW` can only APPEND columns**
+(it re-expands `*` and adds the 4 new ones at the end — fine here because `add column` appends); REMOVING
+columns (the down-migration, going 18→14) needs **DROP + CREATE**. (2) **DROP+CREATE RESETS grants**
+(`CREATE OR REPLACE` preserves them) — so a dropped-and-recreated view must be re-`grant`ed, and re-created
+with `security_invoker = on` again or it silently reverts to owner-runs (the 2a RLS-bypass gotcha).
+**Lesson:** after any `alter table` that a view should expose, add an explicit `CREATE OR REPLACE VIEW`
+(same `select *` text re-expands it) in the SAME migration, and finish with `notify pgrst, 'reload schema'`
+so PostgREST drops its stale cache — otherwise the API keeps reporting `column does not exist` even once the
+column is really there. Never trust "`select *` will pick it up." Fixed in `0011_market_latest_view_refresh.sql`
+(0010's comment corrected in place). A view-refresh down-migration must run BEFORE the column-drop down or the
+view dependency blocks the drop. See [[decisions]] "A Postgres VIEW bypasses table RLS unless security_invoker".
+
 ## A server-rendered SVG can carry an interactive client overlay — pass it as `children`, keep props serializable
 **Pattern (backfill-observability-chart-hover pass, not a bite):** to add hover/crosshair interactivity to
 charts that are SERVER components (`DistributionSVG`, the touch `RangeBar`) WITHOUT making the whole chart

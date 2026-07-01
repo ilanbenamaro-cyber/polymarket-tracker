@@ -10,8 +10,12 @@
 -- which this product's trust posture forbids). The display layer shows "—" for the missing half
 -- until new daily snapshots accrue the real split. Reversible via 0010_confidence_split_down.sql.
 --
--- market_latest is `select distinct on (market_id) *` over market_snapshots, so the new columns
--- surface through it automatically — no view recreation needed.
+-- ⚠ CORRECTION (see 0011): the original claim here — "market_latest is `select distinct on
+-- (market_id) *`, so the new columns surface automatically, no view recreation needed" — is WRONG.
+-- A view's `*` is EXPANDED TO AN EXPLICIT COLUMN LIST AT CREATE TIME and frozen; the columns added
+-- below do NOT propagate to market_latest. Reads of reliability_/liquidity_ through the view 500'd
+-- in prod ("Could not find the 'liquidity_score' column") until 0011 did CREATE OR REPLACE VIEW.
+-- If you apply 0010 to a NEW environment, apply 0011 too.
 
 -- The live cache (rail + market_latest read these).
 alter table public.market_snapshots add column if not exists reliability_tier  text;
