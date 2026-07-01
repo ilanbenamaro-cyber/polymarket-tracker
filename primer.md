@@ -8,6 +8,34 @@
 > There is **no `.workflows/_system/` dir, no `codebase.md`/`MEMORY.md`** — the global `/sync`
 > skill tolerates their absence (updated 2026-06-18); don't be alarmed when it skips them.
 
+## ⮕ DIRECTION (2026-07-01): BACKFILL OBSERVABILITY + CHART HOVER — on `feature/backfill-observability-chart-hover` (2 commits, NOT merged)
+- **Two-part display-layer pass, committed on the feature branch, awaiting review/merge.** No `core/`
+  or hash change → **parity 4/4 byte-identical; 346/346 (+7 new); tsc + next build clean.**
+- **PART 1 — backfill reliability (`75691c6`).** The three former silent `triggerBackfill` paths were
+  already logged (prior "Audit F2"); this pass adds the missing `attempt`+`success` lines (every call
+  now emits `[backfill-trigger] {event: attempt|skipped|success|failure, …}`) and captures `host`/`proto`
+  at REQUEST scope in `addMarket`, passing them into the deferred `after()` callback (Next 15 allows
+  `headers()` inside `after()` for a Server Function, but reading before the callback is the
+  documented-robust pattern + makes the trigger testable). **UI signal:** `readBackfillStatus(id)` threads
+  `markets.backfill_status` into the detail view; a freshly-added market (null/'pending') shows
+  **"Backfilling history…"** in Trend & History instead of the bare "Collecting" state (`HistoryChart`
+  `Collecting` branches on a `backfilling` prop). **Prod-verified live (dxoyxjxc…):** 9/9 WATCHED markets
+  `backfill_status='done'`; the 4 null/0-row markets are UNWATCHED orphans — correctly excluded from the
+  cron retry set (`marketsNeedingBackfill(allWatchedMarketIds())`), by design not a failure.
+- **PART 2 — shared ChartCrosshair (`1df9043`).** ONE client overlay (`components/zones/ChartCrosshair.tsx`)
+  gives every chart a vertical crosshair + edge-aware tooltip. The chart SVG stays SERVER-RENDERED and is
+  passed as `children`; the client island layers a same-viewBox overlay (`preserveAspectRatio="none"` →
+  linear pointer→viewBox map) on top. Two SERIALIZABLE modes — `snap` (points/bars) + `interpolate`
+  (continuous CDF/touch axis) — so no closure crosses the RSC boundary. Wired: HistoryChart (dual shows
+  ALL series at the date in one tooltip), DistributionSVG (CDF interpolates threshold+P(>X); density snaps),
+  touch RangeBar (interpolates P(touch ≥/≤) from new `highPts`/`lowPts`), categorical bars (per-ROW hover,
+  not an x-crosshair — horizontal bars). Axis polish: 5 Y ticks + grids, rotated every-Nth date labels
+  (`pickTicks`). The numeric core is extracted to **`lib/chart-hover.mjs`** (the `touch-rangebar.mjs`
+  precedent) + unit-tested (`test/chart-hover.test.js`). **⚠ OPERATOR:** the interactive hover itself is an
+  AUTH-GATED browser check (detail views redirect to /login; no extension connected this session) — verify
+  hover + 0 console errors on all 5 views once logged into a local dev build. See [[gotchas]] "A server SVG
+  can carry an interactive client overlay…".
+
 ## ⮕ DIRECTION (2026-07-01): PERCENTAGE-DENOMINATED BUCKET MARKETS — MERGED + PUSHED
 - **MERGED to main** (`--no-ff` `ac99cd4`; `0e923a4..ac99cd4`; **pushed, in sync**). `uk-annual-gdp-growth-2026`
   failed with "<2 parseable buckets" — a bucket_pmf market with PERCENT-denominated legs ("between 0% and

@@ -5,6 +5,28 @@ Concrete failure modes hit during development. Check here before diagnosing a
 
 ---
 
+## A server-rendered SVG can carry an interactive client overlay — pass it as `children`, keep props serializable
+**Pattern (backfill-observability-chart-hover pass, not a bite):** to add hover/crosshair interactivity to
+charts that are SERVER components (`DistributionSVG`, the touch `RangeBar`) WITHOUT making the whole chart
+client-side, wrap the server `<svg>` in a client overlay component (`ChartCrosshair`, `'use client'`) and
+pass the server SVG as `children`. RSC allows a client component to render server children, so the SVG
+structure stays server-rendered; only the thin overlay (pointer capture + crosshair line + HTML tooltip)
+ships JS. **Two constraints make it work:** (1) the overlay is a second absolutely-positioned `<svg>` with
+the SAME viewBox and `preserveAspectRatio="none"`, so a pointer maps to viewBox-x by a plain ratio
+(`((clientX-rect.left)/rect.width)*vbW`) — no SVG matrix math, and it aligns because every chart SVG is
+`width:100%;height:auto` (rendered aspect == viewBox aspect). (2) **NOTHING that crosses the server→client
+boundary may be a function** — so the crosshair takes serializable data only: `snap` mode gets
+pre-formatted `{x, payload}` anchors; `interpolate` mode gets numeric arrays + a `{prefix,suffix,digits,scale}`
+format spec and does the lerp+format client-side. A `resolve(x)=>tooltip` closure would have been cleaner
+but is NOT serializable from a server component. **No hydration risk:** hover state starts null → SSR and
+first client render both omit the tooltip (match); the crosshair marks are `<line>/<rect>/<circle>` (no SVG
+`<text>`, so the single-string-child trap below doesn't apply); tooltips are plain HTML `<div>`. The pure
+math (bracket/snap/tick-spacing/level-interp/format) lives in `lib/chart-hover.mjs` + is unit-tested
+(`test/chart-hover.test.js`) — the interactive part stays an operator/browser gate. Categorical bars are
+HORIZONTAL, so they use per-ROW hover (nearest-Y), not the x-crosshair — don't force every chart through the
+axis-crosshair; match the interaction to the layout. See [[decisions]] and `lib/touch-rangebar.mjs` (same
+pure-geometry-extracted-for-test precedent).
+
 ## A breaking `derived` SHAPE change must also update the committed `docs/api/v1/` artifacts the tests validate
 **Symptom (hit during the confidence split):** after reshaping `derived.confidence` to `{reliability,
 liquidity}`, three tests failed that had nothing obviously to do with the change — `firewall.test.js`
