@@ -45,8 +45,8 @@ function fmtVal(v: number, kind: string, unit: string): string {
   return `$${v.toFixed(2)}${unit}`;
 }
 
-export function HistoryChart({ points, kind, unit = '', label = 'Value', series = null }:
-  { points: HistoryPoint[]; kind: string; unit?: string; label?: string; series?: ChartSeries | null }) {
+export function HistoryChart({ points, kind, unit = '', label = 'Value', series = null, backfilling = false }:
+  { points: HistoryPoint[]; kind: string; unit?: string; label?: string; series?: ChartSeries | null; backfilling?: boolean }) {
   const [range, setRange] = useState<string>('30D');
   const sel = RANGES.find((r) => r.key === range) ?? RANGES[3];
   const days = sel.days; // hoist for narrowing inside the filter closures
@@ -67,7 +67,7 @@ export function HistoryChart({ points, kind, unit = '', label = 'Value', series 
       <div className="hist-chart" data-field="history-chart">
         <ChartHead label={label} range={range} setRange={setRange} />
         {!enough
-          ? <Collecting range={range} />
+          ? <Collecting range={range} backfilling={backfilling} />
           : <DualPlot probLines={probLines} valueLines={valueLines} lowDays={series.lowDays} unit={unit} />}
         {enough && <DualLegend probLines={probLines} valueLines={valueLines} unit={unit} />}
       </div>
@@ -84,7 +84,7 @@ export function HistoryChart({ points, kind, unit = '', label = 'Value', series 
     <div className="hist-chart" data-field="history-chart">
       <ChartHead label={label} range={range} setRange={setRange} />
       {visible.length < 2
-        ? <Collecting range={range} />
+        ? <Collecting range={range} backfilling={backfilling} />
         : <Plot points={visible} kind={kind} unit={unit} />}
     </div>
   );
@@ -109,7 +109,16 @@ function ChartHead({ label, range, setRange }: { label: string; range: string; s
   );
 }
 
-function Collecting({ range }: { range: string }) {
+function Collecting({ range, backfilling = false }: { range: string; backfilling?: boolean }) {
+  // A freshly-added market is actively reconstructing its history from Polymarket's price feed —
+  // say so (and that it self-populates) rather than showing the neutral "waiting for snapshots" copy.
+  if (backfilling) {
+    return (
+      <div className="empty" data-field="history-backfilling" aria-live="polite">
+        {'Backfilling history… — reconstructing the daily series from Polymarket price history. This section populates automatically once it completes.'}
+      </div>
+    );
+  }
   return (
     <div className="empty" data-field="history-collecting">
       {`Collecting history — the trend chart appears once ${range === 'ALL' ? '2+' : `2+ in the last ${range.toLowerCase()}`} daily snapshots exist.`}

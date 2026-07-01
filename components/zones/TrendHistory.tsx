@@ -19,7 +19,10 @@ export interface DispersionResult { status: string; direction?: string; change_p
 // `snapshotWindow` (Increment 2) is the capture time of the latest datapoint: 'us-hours' (18:00 UTC
 // US peak) or 'off-peak' (02:00 UTC), surfaced as a data-quality note. null = backfill/legacy.
 // `synthesis` (Increment 5): the closing cross-signal sentence appended to the narrative (or null).
-export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; synthesis?: string | null; }
+// `backfillStatus` (backfill-observability pass): the market's history-backfill state
+// ('pending'|'done'|'failed'|null). null/'pending' on a still-thin market → the chart shows
+// "Backfilling history…" instead of the bare "Collecting" state; it clears once rows accrue.
+export interface HistoryUI { velocity: VelocityResult; dispersion: DispersionResult; points: HistoryPoint[]; kind: string; series?: ChartSeries | null; snapshotWindow?: 'us-hours' | 'off-peak' | null; synthesis?: string | null; backfillStatus?: string | null; }
 
 /** Velocity card: rate/direction of the headline value over the last 7 days, or an explicit
  *  "Collecting" state below the minimum. */
@@ -81,6 +84,9 @@ function DispersionCard({ d, unit }: { d: DispersionResult; unit: string }) {
 
 /** Velocity + dispersion cards above the historical trends chart. */
 export function TrendHistorySection({ hist, unit, label }: { hist: HistoryUI; unit: string; label: string }) {
+  // A freshly-added market whose CLOB reconstruction hasn't completed (status null/'pending')
+  // is actively backfilling, not merely waiting for daily snapshots — surface that distinction.
+  const backfilling = hist.backfillStatus == null || hist.backfillStatus === 'pending';
   return (
     <section className="detail-section" data-field="trend-history">
       <h2 className="detail-h2">Trend &amp; history <span className="tier1-tag">Tier 1 · market-derived</span></h2>
@@ -88,7 +94,7 @@ export function TrendHistorySection({ hist, unit, label }: { hist: HistoryUI; un
         <VelocityCard v={hist.velocity} unit={unit} />
         <DispersionCard d={hist.dispersion} unit={unit} />
       </div>
-      <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} series={hist.series ?? null} />
+      <HistoryChart points={hist.points} kind={hist.kind} unit={unit} label={label} series={hist.series ?? null} backfilling={backfilling} />
       {/* Increment 2: which daily capture the latest datapoint came from. The 18:00 UTC (US-peak)
           run is the higher-liquidity point; preferred over the 02:00 off-peak run when both exist. */}
       {hist.snapshotWindow && (
